@@ -1,0 +1,27 @@
+{
+  "name": "reactive-plastique",
+  "version": "1.0.0",
+  "description": "Typescript library based on vue.js, typescri[t and some utility classes",
+  "main": "index.js",
+  "devDependencies": {
+    "typescript": "3.6.2",
+    "pug-cli": "1.0.0-alpha6",
+    "@types/jquery": "3.3.31",
+    "vue-template-compiler": "2.6.10",
+    "jsdom": "15.1.1",
+    "glob": "7.1.4"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeplastique/reactive-plastique.git"
+  },
+  "author": "Bondarenko Artem",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/codeplastique/reactive-plastique/issues"
+  },
+  "homepage": "https://github.com/codeplastique/reactive-plastique#readme"
+}
