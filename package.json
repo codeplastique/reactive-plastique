@@ -11,6 +11,9 @@
     "glob": "7.1.4",
     "pug-cli": "1.0.0-alpha6"
   },
+  "dependencies": {
+    "@types/plastique": "file:../@types"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
