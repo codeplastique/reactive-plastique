@@ -5,11 +5,13 @@
   "main": "index.js",
   "devDependencies": {
     "typescript": "3.6.2",
-    "pug-cli": "1.0.0-alpha6",
     "@types/jquery": "3.3.31",
     "vue-template-compiler": "2.6.10",
     "jsdom": "15.1.1",
     "glob": "7.1.4"
+  },
+  "dependencies": {
+    "pug-cli": "1.0.0-alpha6",
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
