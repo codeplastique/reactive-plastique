@@ -4,12 +4,12 @@
   "description": "Typescript library based on vue.js, typescri[t and some utility classes",
   "main": "index.js",
   "devDependencies": {
-    "one": "1.0.0",
-    "two": "1.0.0"
+    "one": "file:one",
+    "two": "file:two"
   },
   "dependencies": {
-    "one": "file:./one",
-    "two": "file:./two"
+    "one": "file:one",
+    "two": "file:two"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
