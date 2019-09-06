@@ -15,3 +15,5 @@
         return null;
     }
 }
+
+export default EventManager;
