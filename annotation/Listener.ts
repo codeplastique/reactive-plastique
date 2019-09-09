@@ -3,5 +3,5 @@
  */
 declare const Listener: (
     events: string | string[]
-) => void;
+) => Function;
 export default Listener;

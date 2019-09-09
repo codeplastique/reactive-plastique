@@ -1,3 +1,5 @@
+import Component from "./Component";
+
 class App{
     private static beans: {[beanName: string]: Function | Object} = {};
     private static beansNames: string[] = [];
@@ -20,12 +22,17 @@ class App{
         }
     }
 
-   
-    public addComponent(domId: string, component: any){
-        if(component.$.vue == null){
-             ///@ts-ignore
-            component.$.vue = generateVueComponent(component, _VueTemplates[component.$.cn.toLowerCase()], domId);
+    public attachComponent(element: HTMLElement, component: Component){
+        ///@ts-ignore
+        if(component.$.v == null){
+            ///@ts-ignore
+            component.$.v = generateVueComponent(component, _VueTemplates[component.$.cn.toLowerCase()], element);
         }
+    }
+
+    public isComponentAttached(component: Component){
+        ///@ts-ignore
+        return component.$.v != null;
     }
 }
 
