@@ -5,7 +5,21 @@ const VUE_TEMPLATES_JS_FILE_NAME = "templates";
 //---------------------------------------------------------------------------------------------------------------------
 
 const VUE_SCRIPT_DIALECT_URL = 'http://www.protei.ru/vuescript/dialect';
-const I18N_METHOD = 'I18N.text';
+
+
+const APP_CLASS_NAME = 'App';
+const ANNOTATION_REACTIVE_CLASS = 'Reactive';
+const ANNOTATION_ENTRY_POINT_CLASS = 'EntryPoint';
+const ANNOTATION_REACTIVE_FIELD = 'Reactive';
+const ANNOTATION_CACHED_METHOD = 'Cached';
+const ANNOTATION_AUTOWIRED = 'Autowired';
+const ANNOTATION_ONCHANGE = 'OnChange';
+const ANNOTATION_BEAN = 'Bean';
+
+const COMPONENT_INTERFACE_NAME = 'Component';
+const I18N_METHOD = '_app.i18n';
+// const AUTOWIRED_METHOD_FOR_GENERATION_BEAN_DECLARATION = '_autowired';
+// const INIT_METHOD_FOR_COMPONENT_INITIALIZATION = '_initComponent';
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -17,11 +31,6 @@ let path = require("path");
 const pug = require('pug');
 const vueCompiler = require('vue-template-compiler');
 const { JSDOM } = require('jsdom');
-
-
-function addSemanticUiPrefix(element) {
-    if(element)
-}
 
 
 debugger;
@@ -104,13 +113,20 @@ function handle(elems){
         function is18nExpression(val){
             return val.trim().search(/#\{(.+?)\}/i) == 0;
         }
+        function getModifiers(attrName){
+            let modifiers = attrName.split(':').slice(1).join('.');
+            return modifiers.length != 0? '.'+ modifiers: ''
+        }
 
 
         function handleAttr(elem, attr){
             if(!attr.name.startsWith(prefix +':'))
                 return;
-            var attrName = attr.name.substr(prefix.length + 1);
+            var attrName = attr.name.substr(prefix.length + 1);// +1 - ':'
             switch(attrName){
+                case 'model':
+                    elem.setAttribute('v-model' + getModifiers(attrName), extractExpression(attr.value));
+                    break;
                 case 'text':
                     elem.textContent = '{{'+ extractExpression(attr.value) +'}}';
                     break;
@@ -142,7 +158,7 @@ function handle(elems){
                 case 'component':
                     var componentVar = extractExpression(attr.value);
                     elem.insertAdjacentHTML('beforebegin',
-                        `<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="$convComp(${componentVar})"></component>`
+                        `{{void $convComp(${componentVar})}}<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
                     );
                     elem.remove();
                     break;
@@ -167,51 +183,224 @@ function handle(elems){
         function handleUnknownAttr(elem, attrName, attrVal){
             if(is18nExpression(attrVal)){
                 elem.setAttribute(attrName, extract18nExpression(attrVal));
-            }else if(attrName.startsWith('on'))
-                elem.setAttribute('v-on:'+ attrName.substr(2), extractExpression(attrVal));
-            else
+            }else if(attrName.startsWith('on')){
+                elem.setAttribute('v-on:'+ attrName.substr(2) + getModifiers(attrName), extractExpression(attrVal));
+            }else
                 elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
         }
-
-        //var vueJs = require('vue');
     }
 }
 
 
+
+function isClassImplementsInterface(nodeClass, interfaceName){
+    let interfaces = nodeClass.heritageClauses != null && nodeClass.heritageClauses[0]? nodeClass.heritageClauses[0].types: [];
+    return interfaces.map(t => t.expression.escapedText).includes(interfaceName);
+}
+function isNodeHasDecorator(nodeClass, decoratorName){
+    let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
+    return decorators.map(d => d.expression.expression.escapedText).includes(decoratorName);
+}
+function getDecoratorArgumentMethodName(nodeClass, decoratorName){
+    if(!isNodeHasDecorator(nodeClass, decoratorName))
+        return null;
+    for(let decorator of decorators)
+        if(decorator.expression.expression.escapedText == decoratorName)
+            return decorator.expression.arguments[0].name.escapedText;
+}
+function isHasEmptyPublicConscructor(classNode){
+    let className = classNode.name.escapedText;
+    let constructorDeclaration = classNode.members.filter(m => m.symbol.escapedName == '__constructor')
+    if(constructorDeclaration.length > 0){
+        if(classNode.parameters && classNode.parameters.length > 0)
+            throw new Error('Class '+ className +' has no empty constructor!')
+        if(classNode.modifiers && classNode.modifiers.length > 0 && classNode.modifiers[0].kind != ts.SyntaxKind.PublicKeyword)
+            throw new Error('Class '+ className +' has no public constructor!')
+    }
+    return true;
+}
+
+// function resetNode(node){
+//     node.end = node.pos = -1;
+//     if(node.transformFlags)
+//         node.transformFlags = null;
+// }
+
+// function cloneMemberInitializer(initializerNode){
+//     resetNode(initializerNode)
+//     let newNode = Object.assign({}, initializerNode);
+//     for(let i = 0; i < initializerNode.arguments.length; i++){
+//         resetNode(initializerNode.arguments);
+//         let arg = initializerNode.arguments[i];
+//         resetNode(arg)
+//         newNode.arguments[i] = Object.assign({}, arg);
+//     }
+//     return newNode;
+// }
+
+
 var ts = require("typescript");
 var transformer = function (context) {
-    var visitor = function (node) {
-        if (node.kind === ts.SyntaxKind.ClassDeclaration) {
-            let reactMembers = [];
-            let watchMembers = [];
-            members: for(let member of node.members)
-                if(member.decorators){
-                    for(let decorator of member.decorators){
-                        if(decorator.expression.escapedText == 'React' || decorator.expression.escapedText == 'Watch'){
-                            member.decorators = undefined;
-                            if(decorator.expression.escapedText == 'React')
-                                reactMembers.push(member.name.text)
-                            else if(decorator.expression.escapedText == 'Watch')
-                                watchMembers.push(member.name.text)
-                            continue members;
-                        }
-                    }
+    let appClassNode;
+    let components = {};
+    let beans = [];
+
+    function configureComponentInitProperty(componentNode){
+        let componentName = componentNode.name.escapedText;
+        let onchangeMethods = [];
+        for(let member of node.members){
+            if(member.kind == ts.SyntaxKind.PropertyDeclaration){
+                let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE);
+                if(methodName != null){
+                    onchangeMethods.push(methodName);
                 }
-            if(node.decorators && node.decorators.find(d => d.expression.expression.escapedText == 'Component') != null){
-                let vueProps = reactMembers.join(',') +';'+ watchMembers.join(',');
-                node.members.push(
-                    ts.createProperty(
-                        undefined,
-                        [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
-                        ts.createIdentifier('_vue'),
-                        undefined,
-                        ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
-                        ts.createLiteral(vueProps)
-                    )
-                );
             }
         }
-        return ts.visitEachChild(node, visitor, context);
+
+        let configuration = {
+            cn: componentName,
+            w: onchangeMethods, //onchange methods
+            c: [] //cached methods
+        };
+
+        let field = ts.createProperty(
+            undefined,
+            [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+            ts.createIdentifier('$s'),
+            undefined,
+            ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
+            ts.createLiteral('')
+        )
+        field.initializer = ts.createCall(
+            ts.createPropertyAccess(
+              ts.createIdentifier('_app'),
+              ts.createIdentifier('initComp')
+            ),
+            undefined, // type arguments, e.g. Foo<T>()
+            [
+              ts.createLiteral(JSON.stringify(configuration)),
+              ts.createIdentifier(componentName)
+            ]
+        );
+        componentNode.members.push(field);
+    }
+
+    function configureEntryPointClass(entryPointNode){
+        let beansDeclarations = {};
+
+        for(let member of entryPointNode.members){
+            if(member.kind = ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
+                if(member.type.typeName == null)
+                    throw new Error('Method '+ member.name.escapedText +' is not typed!')
+                if(member.parameters && member.parameters.length != 0)
+                    throw new Error('Method '+ member.name.escapedText +' should not have parameters')
+                beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
+                beans.push(member.type.typeName.escapedText)
+            }
+        }
+        let configurator = {
+            name: entryPointNode.name.escapedText, //entry point class name
+            beans: beansDeclarations
+        }
+        entryPointNode.members.push(
+            ts.createProperty(
+                undefined,
+                [ts.createModifier(ts.SyntaxKind.PublicKeyword)],
+                ts.createIdentifier('$'),
+                undefined,
+                ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
+                ts.createLiteral(JSON.stringify(configurator))
+            )
+        );
+        beans.push(entryPointNode.name.escapedText); //add entry point as bean
+        beans.push('EventManager'); //add EventManager as bean
+    }
+
+    function injectAutowiredEverywhere(rootNode){
+        function getBeanId(beanName){
+            let beanId = beans.indexOf(beanName);
+            if(beanId < 0)
+                throw new Error('Bean '+ beanName +' is not initialized!')
+            return beanId;
+        }
+        ts.visitEachChild(rootNode, (node) => {
+            if (node.kind === ts.SyntaxKind.ClassDeclaration && node.members) {
+                for(let member of node.members){
+                    if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
+                        if(member.type.typeName == null)
+                            throw new Error('Field '+ member.name.escapedText +' is not typed!')
+                        member.initializer =  ts.createCall(
+                            ts.createPropertyAccess(
+                              ts.createIdentifier('_app'),
+                              ts.createIdentifier('bean')
+                            ),
+                            undefined, // type arguments, e.g. Foo<T>()
+                            [
+                              ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
+                            ]
+                        );
+                    }
+                }
+            }
+        }, context)
+    }
+
+
+    var visitor = function (node) {
+        if (node.kind === ts.SyntaxKind.ClassDeclaration) {
+            let className = node.name.escapedText;
+            // if(className == APP_CLASS_NAME)
+            //     appClassNode = node;
+            // else 
+            if(isNodeHasDecorator(node, ANNOTATION_ENTRY_POINT_CLASS)){
+                // entryPointClassNodes.push(node);
+                configureEntryPointClass(node)
+            }else if(isClassImplementsInterface(node, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(node, ANNOTATION_REACTIVE_CLASS)){
+                components[className] = node;
+                configureComponentInitProperty(node);
+            }
+            // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
+                // beans.push(className);
+
+
+            // let reactMembers = [];
+            // let watchMembers = [];
+            // members: for(let member of node.members)
+            //     if(member.decorators){
+            //         for(let decorator of member.decorators){
+            //             let decoratorName = decorator.expression.escapedText;
+                        
+
+            //             if(decorator.expression.escapedText == A || decorator.expression.escapedText == 'Watch'){
+            //                 member.decorators = undefined;
+            //                 if(decorator.expression.escapedText == 'React')
+            //                     reactMembers.push(member.name.text)
+            //                 else if(decorator.expression.escapedText == 'Watch')
+            //                     watchMembers.push(member.name.text)
+            //                 continue members;
+            //             }
+            //         }
+            //     }
+            // if(node.decorators && node.decorators.find(d => d.expression.expression.escapedText == ANNOTATION_REACTIVE_CLASS) != null){
+            //     let vueProps = reactMembers.join(',') +';'+ watchMembers.join(',');
+            //     node.members.push(
+            //         ts.createProperty(
+            //             undefined,
+            //             [ts.createModifier(ts.SyntaxKind.PrivateKeyword), ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+            //             ts.createIdentifier('$s'),
+            //             undefined,
+            //             ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
+            //             ts.createLiteral(vueProps)
+            //         )
+            //     );
+            // }
+        }
+        if(node.kind == ts.SyntaxKind.SourceFile){
+            var result = ts.visitEachChild(node, visitor, context);
+            injectAutowiredEverywhere(node);
+            return result;
+        }else 
+            return ts.visitEachChild(node, visitor, context);
     };
     return function (node) { return ts.visitNode(node, visitor); };
 };
