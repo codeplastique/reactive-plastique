@@ -1,6 +1,6 @@
 import HttpRequest from "./HttpRequest";
 
-abstract class RestService{
+class RestService{
     protected call<T>(req: HttpRequest): Promise<T>{
         let props = {
             url: req.url,

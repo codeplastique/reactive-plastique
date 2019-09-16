@@ -48,7 +48,7 @@ abstract class App{
     }
 
     constructor(){
-        let $ = this['$'];
+        let $ = this.constructor['$'];
         if($){
             let configurator = JSON.parse($);
             for(let bean in configurator.beans)
@@ -57,7 +57,6 @@ abstract class App{
             ///@ts-ignore
             App.beans['EventManager'] = new EventManager();
             App.beansNames = Object.keys(App.beans);
-            window['App'] = {init: this.init};
         }
         window['_app'] = {
             bean: App.getBean,
@@ -119,8 +118,6 @@ abstract class App{
         ///@ts-ignore
         return typeof(component.$) == 'object';
     }
-
-    abstract init(): void;
 }
 
 export default App;
