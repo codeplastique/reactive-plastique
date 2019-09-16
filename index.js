@@ -405,6 +405,8 @@ function Plastique(options){
 module.exports = {
     Plastique: Plastique,
     CompilePlugin: function(){
+        let path = require("path");
+        let webpack = require("webpack");
         return new webpack.ProvidePlugin({
             '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
             '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
