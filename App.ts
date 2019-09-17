@@ -1,5 +1,6 @@
 import Component from "./Component";
 import EventManager from "./EventManager";
+import I18n from "./I18n";
 declare const Vue: any;
 declare const _VueTemplates: any;
 
@@ -7,6 +8,7 @@ abstract class App{
     private static beans: {[beanName: string]: Function | Object} = {};
     private static beansNames: string[] = [];
     private componentId = 0;
+    private locale: string;
     public static getBean<T>(id: String | Number): T{
         let beanName: any = id instanceof Number? App.beansNames[id as number]: id;
         let bean: any = App.beans[beanName];
@@ -18,7 +20,7 @@ abstract class App{
         return App.getBean(beanFunction);
     }   
     
-    private initComponent(configuration: string, component: any){
+    private static initComponent(configuration: string, component: any){
         let configurator = JSON.parse(configuration);
         let methodNameToMethod: any = {};
         let methodNameToComputed: any = {};
@@ -47,6 +49,15 @@ abstract class App{
         });
     }
 
+    private static addListeners(configuration: string, clazz: any){
+        let methodNameToEvent = JSON.parse(configuration);
+        let eventManager: EventManager = App.getBean('EventManager');
+        for(let method in methodNameToEvent){
+            ///@ts-ignore
+            eventManager.addListener(methodNameToEvent[method], clazz[method]);
+        }
+    }
+
     constructor(){
         let $ = this.constructor['$'];
         if($){
@@ -58,10 +69,17 @@ abstract class App{
             App.beans['EventManager'] = new EventManager();
             App.beansNames = Object.keys(App.beans);
         }
+        if(window['_AppLocale']){
+            ///@ts-ignore
+            I18n.locale = _AppLocale.locale;
+            ///@ts-ignore
+            I18n.keyToValue = _AppLocale.values;
+        }
         window['_app'] = {
             bean: App.getBean,
-            initComp: this.initComponent
-            // i18n: I18n.text
+            initComp: App.initComponent,
+            i18n: I18n.text,
+            listeners: App.addListeners
         };
         this.genVueMixins();
     }
@@ -117,6 +135,12 @@ abstract class App{
     public isComponentAttached(component: Component){
         ///@ts-ignore
         return typeof(component.$) == 'object';
+    }
+    public setLocale(locale: string){
+        ///@ts-ignore
+        // if(I18n.locale != locale){
+        //     this.locale = locale;
+        // }
     }
 }
 

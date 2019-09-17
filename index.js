@@ -2,6 +2,8 @@ function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
     const VUE_TEMPLATES_DIR = options.vueTemplatesDir || 'templates';
     const VUE_TEMPLATES_JS_FILE_NAME = options.vueTemplatesOutputFileName || 'templates';
+    const I18N_DIR = options.i18nDir || 'i18n';
+    const I18N_JS_FILE_NAME = options.i18nOutputFileName || 'app.locale';
 
     //---------------------------------------------------------------------------------------------------------------------
 
@@ -16,6 +18,7 @@ function Plastique(options){
     const ANNOTATION_AUTOWIRED = 'Autowired';
     const ANNOTATION_ONCHANGE = 'OnChange';
     const ANNOTATION_BEAN = 'Bean';
+    const ANNOTATION_LISTENER = 'Listener';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const I18N_METHOD = '_app.i18n';
@@ -24,11 +27,11 @@ function Plastique(options){
 
     var glob = require('glob');
     var fs = require('fs');
-    // let path = require("path");
     const pug = require('pug');
     const vueCompiler = require('vue-template-compiler');
     const { JSDOM } = require('jsdom');
     const ts = require("typescript");
+    const PropertiesReader = require('properties-reader');
 
 
     function isClassImplementsInterface(nodeClass, interfaceName){
@@ -59,15 +62,20 @@ function Plastique(options){
         }).includes(decoratorName);
     }
     function getDecoratorArgumentMethodName(nodeClass, decoratorName){
-        if(!isNodeHasDecorator(nodeClass, decoratorName))
-            return null;
-        for(let decorator of nodeClass.decorators){
-            let expr = decorator.expression;//.expression.escapedText
-            let name = expr.expression? expr.expression.escapedText: expr.escapedText;
+        let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
+        if(decorators.length > 0){
+            for(let decorator of nodeClass.decorators){
+                let expr = decorator.expression;//.expression.escapedText
+                let name = expr.expression? expr.expression.escapedText: expr.escapedText;
 
-            if(name == decoratorName)
-                return decorator.expression.arguments[0].name.escapedText;
+                if(name == decoratorName){
+                    if(decorator.expression.arguments && decorator.expression.arguments.length > 0)
+                        return decorator.expression.arguments[0].name.escapedText;
+                    throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
+                }
+            }
         }
+        return null;
     }
     // function isHasEmptyPublicConscructor(classNode){
     //     let className = classNode.name.escapedText;
@@ -81,20 +89,20 @@ function Plastique(options){
     //     return true;
     // }
 
+    function getFileNameWithoutExt(filePath){
+        var nameArray = filePath.split('/');
+        return nameArray[nameArray.length - 1].split('.').slice(0, -1)
+    }
+
     function buildTemplates(){
         const templatesFunctions = [];
-
-        function getComponentName(filePath){
-            var nameArray = filePath.split('/');
-            return nameArray[nameArray.length - 1].split('.').slice(0, -1)
-        }
     
         glob(VUE_TEMPLATES_DIR +'/**/*.pug', {sync: true}).forEach(function(element) {
-            let componentName = getComponentName(element);
+            let componentName = getFileNameWithoutExt(element);
             var vueTemplate = pug.compileFile(element)();
             let dom = new JSDOM(vueTemplate);
             var elems = dom.window.document.body.querySelectorAll('*');
-            if(handle(elems)){
+            if(handle(elems, componentName)){
                 let completeVueTemplate = dom.window.document.body.innerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
                 let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
                 if(vueCompilerResult.errors.length != 0)
@@ -108,7 +116,7 @@ function Plastique(options){
         }
         fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
     
-        function handle(elems){
+        function handle(elems, componentName){
             if(elems.length > 0){
                 let prefix;
                 elemsLoop: for(let i = 0; i < elems.length; i++){
@@ -120,6 +128,7 @@ function Plastique(options){
                             if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
                                 prefix = attr.name.substr(6);
                                 elem.removeAttribute(attr.name);
+                                elem.setAttribute('data-cn', "c:"+componentName);
                                 continue elemsLoop;
                             }
                         }
@@ -240,7 +249,29 @@ function Plastique(options){
     
     }
 
+
+    function buildLocales(){
+        let langToPropertiesReader = {};
+        let regexp = new RegExp('"([^(\")"]+)":', 'g');
+        glob(I18N_DIR +'/**/*', {sync: true}).forEach(function(filePath) {
+            let fileName = getFileNameWithoutExt(filePath);
+            let [bundle, locale] = fileName.split('_');
+            if(langToBundles[locale])
+                langToBundles[locale] = new PropertiesReader();
+            langToPropertiesReader[locale].append(filePath);
+        });
+        for(let locale in langToPropertiesReader){
+            let i18nObj = JSON.stringify(langToPropertiesReader[locale]._properties).replace(regexp,"$1:");
+            let localeFileString = 'var _AppLocale={locale:"'+ locale +'",values:'+ i18nObj +'};';
+            if (!fs.existsSync(OUTPUT_DIR)) {
+                fs.mkdirSync(OUTPUT_DIR, {recursive: true});
+            }
+            fs.writeFileSync(OUTPUT_DIR +'/'+ I18N_JS_FILE_NAME + '_' + locale +'.js', localeFileString);
+        }
+    }
+
     buildTemplates();
+    buildLocales();
    
     // let appClassNode;
     let components = {};
@@ -282,7 +313,7 @@ function Plastique(options){
             undefined, // type arguments, e.g. Foo<T>()
             [
             ts.createLiteral(JSON.stringify(configuration)),
-            ts.createIdentifier(componentName)
+            ts.createIdentifier(componentName),
             ]
         );
         componentNode.members.push(field);
@@ -337,12 +368,12 @@ function Plastique(options){
                             throw new Error('Field '+ member.name.escapedText +' is not typed!')
                         member.initializer =  ts.createCall(
                             ts.createPropertyAccess(
-                            ts.createIdentifier('_app'),
-                            ts.createIdentifier('bean')
+                                ts.createIdentifier('_app'),
+                                ts.createIdentifier('bean')
                             ),
                             undefined, // type arguments, e.g. Foo<T>()
                             [
-                            ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
+                                ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
                             ]
                         );
                         removeDecorator(member, ANNOTATION_AUTOWIRED)
@@ -352,10 +383,44 @@ function Plastique(options){
         }, context)
     }
 
+
+    function tryBindListeners(classNode){
+        if (classNode.members) {
+            let constructorNode;
+            let methodToEvent = {};
+            let hasListeners;
+            for(let member of classNode.members){
+                if(member.kind == ts.SyntaxKind.Constructor)
+                    constructorNode = member;
+                else if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
+                    hasListeners = true;
+                    let eventName = getDecoratorArgumentMethodName(member, ANNOTATION_LISTENER);
+                    methodToEvent[member.name.escapedText] = eventName.toLowerCase();
+                    removeDecorator(member, ANNOTATION_LISTENER);
+                }
+            }
+            
+            if(hasListeners){
+                if(constructorNode == null){
+                    constructorNode = ts.createConstructor(null, null, null, ts.createBlock([]));
+                    classNode.members.push(constructorNode);
+                }
+                constructorNode.body.statements.push(ts.createCall(
+                    ts.createPropertyAccess(
+                    ts.createIdentifier('_app'),
+                    ts.createIdentifier('listeners')
+                    ),
+                    undefined, // type arguments, e.g. Foo<T>()
+                    [
+                        ts.createLiteral(JSON.stringify(methodToEvent)),
+                        ts.createThis()
+                    ]
+                ));
+            }
+        }
+    }
+
     var transformer = function (context) {
-        
-
-
         var visitor = function (node) {
             if (node.kind === ts.SyntaxKind.ClassDeclaration) {
                 let className = node.name.escapedText;
@@ -369,6 +434,8 @@ function Plastique(options){
                     components[className] = node;
                     configureComponentInitProperty(node);
                 }
+
+                tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
                     // beans.push(className);
             }
@@ -384,6 +451,7 @@ function Plastique(options){
                         name == ANNOTATION_BEAN ||
                         name == ANNOTATION_ENTRY_POINT_CLASS ||
                         name == ANNOTATION_ONCHANGE ||
+                        name == ANNOTATION_LISTENER ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
                         return;

@@ -1,4 +1,2 @@
-declare const Reactive: (
-    onChange?: Function
-) => Function;
+declare const Reactive: Function;
 export default Reactive;
