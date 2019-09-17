@@ -7,10 +7,9 @@ declare const _VueTemplates: any;
 abstract class App{
     private static beans: {[beanName: string]: Function | Object} = {};
     private static beansNames: string[] = [];
-    private componentId = 0;
-    private locale: string;
+    private static componentId = 0;
     public static getBean<T>(id: String | Number): T{
-        let beanName: any = id instanceof Number? App.beansNames[id as number]: id;
+        let beanName: any = typeof id == 'number'? App.beansNames[id as number]: id;
         let bean: any = App.beans[beanName];
         if(bean instanceof Function)
             App.beans[beanName] = bean = bean();
@@ -20,13 +19,20 @@ abstract class App{
         return App.getBean(beanFunction);
     }   
     
-    private static initComponent(configuration: string, component: any){
+    private static initComponent(componentName: string, configuration: string, obj: any){
+        obj.$ = {
+            cn: componentName,
+            id: ++App.componentId,
+            clazz: obj
+        }
+        if(Vue.component(componentName) != null)
+            return;
         let configurator = JSON.parse(configuration);
         let methodNameToMethod: any = {};
         let methodNameToComputed: any = {};
         let computedMethods = configurator.c;
         let memberNameToWatchMethod = configurator.w;
-        for(let methodName in component.prototype){
+        for(let methodName in obj.prototype){
             if(computedMethods.indexOf(methodName) >= 0)
                 methodNameToComputed['$s' + methodName] = function(){return this.$.clazz[methodName].apply(this, arguments)}
             else
@@ -37,7 +43,7 @@ abstract class App{
             memberNameToWatchMethod[member] = function(){return this.$.clazz[methodName].apply(this, arguments)};
         }
 
-        Vue.component(configurator.cn, {
+        Vue.component(componentName, {
             props: ['m'],
             data: function () {
                 return this.m
@@ -45,7 +51,7 @@ abstract class App{
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             // computed: {},
-            render: _VueTemplates[configurator.cn]  
+            render: _VueTemplates[componentName]  
         });
     }
 
@@ -85,7 +91,7 @@ abstract class App{
     }
 
     private genVueMixins(){
-        let superThis = this;
+        // let superThis = this;
         Vue.mixin({
             methods: {
                 $convState: function _convert(iterable: object | any[]){
@@ -102,16 +108,16 @@ abstract class App{
                         arr.push({v: value(i), s:{index: i, size: size, last: i == (size-1), first: i == 0}});
                     return arr;
                 },
-                $convComp: function(obj: any){
-                    if(typeof(obj.$) == 'string'){
-                        obj.$ = {
-                            cn: obj.$.cn,
-                            id: ++superThis.componentId,
-                            clazz: obj
-                        }
-                    }
-                    return obj;
-                } 
+                // $convComp: function(obj: any){
+                //     if(obj.$ == null){
+                //         obj.$ = {
+                //             cn: obj.constructor.$.cn,
+                //             id: ++superThis.componentId,
+                //             clazz: obj
+                //         }
+                //     }
+                //     return obj;
+                // } 
             }
         });
     }
@@ -120,11 +126,11 @@ abstract class App{
         ///@ts-ignore
         if(!this.isComponentAttached(component)){
             ///@ts-ignore
-            Vue.component(component.$, {
+            new Vue({
                 el: element,
                 data: {c: component},
                 template: 
-                '{{void $convComp(c)}}<component :is="c.$.cn" :key="c.$.id" v-bind:m="c"></component>'
+                '<component :is="c.$.cn" :key="c.$.id" v-bind:m="c"></component>'
             });
         }else{
             console.log(component);

@@ -91,7 +91,7 @@ function Plastique(options){
 
     function getFileNameWithoutExt(filePath){
         var nameArray = filePath.split('/');
-        return nameArray[nameArray.length - 1].split('.').slice(0, -1)
+        return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
     }
 
     function buildTemplates(){
@@ -164,7 +164,7 @@ function Plastique(options){
                 function extract18nExpression(val, prefix, suffix){
                     let wrapExpr = wrapExpression.bind(this, prefix || "", suffix || "");
                     val = val.trim();
-                    return val.replace(/#\{(.+?)\}/g, wrapExpr(I18N_METHOD +'($1)'));
+                    return val.replace(/#\{(.+?)\}/g, wrapExpr(I18N_METHOD +'("$1")'));
                 }
                 function is18nExpression(val){
                     return val.trim().search(/#\{(.+?)\}/i) == 0;
@@ -184,7 +184,8 @@ function Plastique(options){
                             elem.setAttribute('v-model' + getModifiers(attrName), extractExpression(attr.value));
                             break;
                         case 'text':
-                            elem.textContent = '{{'+ extractExpression(attr.value) +'}}';
+                            let expression = is18nExpression(attr.value)? extract18nExpression(attr.value): extractExpression(attr.value)
+                            elem.textContent = '{{'+ expression +'}}';
                             break;
                         case 'if':
                             elem.setAttribute('v-if', extractExpression(attr.value));
@@ -214,7 +215,8 @@ function Plastique(options){
                         case 'component':
                             var componentVar = extractExpression(attr.value);
                             elem.insertAdjacentHTML('beforebegin',
-                                `{{void $convComp(${componentVar})}}<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
+                                // `{{void $convComp(${componentVar})}}<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
+                                `<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
                             );
                             elem.remove();
                             break;
@@ -238,7 +240,7 @@ function Plastique(options){
                 }
                 function handleUnknownAttr(elem, attrName, attrVal){
                     if(is18nExpression(attrVal)){
-                        elem.setAttribute(attrName, extract18nExpression(attrVal));
+                        elem.setAttribute('v-bind:'+ attrName, extract18nExpression(attrVal));
                     }else if(attrName.startsWith('on')){
                         elem.setAttribute('v-on:'+ attrName.substr(2) + getModifiers(attrName), extractExpression(attrVal));
                     }else
@@ -256,8 +258,8 @@ function Plastique(options){
         glob(I18N_DIR +'/**/*', {sync: true}).forEach(function(filePath) {
             let fileName = getFileNameWithoutExt(filePath);
             let [bundle, locale] = fileName.split('_');
-            if(langToBundles[locale])
-                langToBundles[locale] = new PropertiesReader();
+            if(langToPropertiesReader[locale] == null)
+                langToPropertiesReader[locale] = new PropertiesReader();
             langToPropertiesReader[locale].append(filePath);
         });
         for(let locale in langToPropertiesReader){
@@ -273,9 +275,16 @@ function Plastique(options){
     buildTemplates();
     buildLocales();
    
-    // let appClassNode;
-    let components = {};
     let beans = [];
+
+    function getOrCreateConstructor(classNode){
+        for(let member of classNode.members)
+            if(member.kind == ts.SyntaxKind.Constructor)
+                return member;
+        constructorNode = ts.createConstructor(null, null, null, ts.createBlock([]));
+        classNode.members.push(constructorNode);
+        return constructorNode;
+    }
 
     function configureComponentInitProperty(componentNode){
         let componentName = componentNode.name.escapedText;
@@ -290,33 +299,32 @@ function Plastique(options){
                 }
             }
         }
+        componentNode.members.push(ts.createProperty(
+            null,
+            null,
+            ts.createIdentifier('$'),
+            undefined,
+            ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
+            ts.createNull()
+        ));
 
         let configuration = {
-            cn: componentName,
             w: onchangeMethods, //onchange methods
             c: [] //cached methods
         };
 
-        let field = ts.createProperty(
-            undefined,
-            [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
-            ts.createIdentifier('$s'),
-            undefined,
-            ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
-            ts.createLiteral('')
-        )
-        field.initializer = ts.createCall(
+        getOrCreateConstructor(classNode).body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
             ts.createIdentifier('initComp')
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
-            ts.createLiteral(JSON.stringify(configuration)),
-            ts.createIdentifier(componentName),
+                ts.createLiteral(componentName),
+                ts.createLiteral(JSON.stringify(configuration)),
+                ts.createThis()
             ]
-        );
-        componentNode.members.push(field);
+        ));
         removeDecorator(componentNode, ANNOTATION_REACTIVE_CLASS)
     }
 
@@ -386,13 +394,10 @@ function Plastique(options){
 
     function tryBindListeners(classNode){
         if (classNode.members) {
-            let constructorNode;
             let methodToEvent = {};
             let hasListeners;
             for(let member of classNode.members){
-                if(member.kind == ts.SyntaxKind.Constructor)
-                    constructorNode = member;
-                else if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
+                if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
                     hasListeners = true;
                     let eventName = getDecoratorArgumentMethodName(member, ANNOTATION_LISTENER);
                     methodToEvent[member.name.escapedText] = eventName.toLowerCase();
@@ -401,11 +406,7 @@ function Plastique(options){
             }
             
             if(hasListeners){
-                if(constructorNode == null){
-                    constructorNode = ts.createConstructor(null, null, null, ts.createBlock([]));
-                    classNode.members.push(constructorNode);
-                }
-                constructorNode.body.statements.push(ts.createCall(
+                getOrCreateConstructor(classNode).body.statements.push(ts.createCall(
                     ts.createPropertyAccess(
                     ts.createIdentifier('_app'),
                     ts.createIdentifier('listeners')
@@ -431,7 +432,7 @@ function Plastique(options){
                     // entryPointClassNodes.push(node);
                     configureEntryPointClass(node)
                 }else if(isClassImplementsInterface(node, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(node, ANNOTATION_REACTIVE_CLASS)){
-                    components[className] = node;
+                    // components[className] = node;
                     configureComponentInitProperty(node);
                 }
 
