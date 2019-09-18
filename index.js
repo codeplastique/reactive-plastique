@@ -10,10 +10,10 @@ function Plastique(options){
     const VUE_SCRIPT_DIALECT_URL = 'http://github.com/codeplastique/plastique';
 
 
-    const APP_CLASS_NAME = 'App';
+    // const APP_CLASS_NAME = 'App';
     const ANNOTATION_REACTIVE_CLASS = 'Reactive';
     const ANNOTATION_ENTRY_POINT_CLASS = 'EntryPoint';
-    const ANNOTATION_REACTIVE_FIELD = 'Reactive';
+    // const ANNOTATION_REACTIVE_FIELD = 'Reactive';
     const ANNOTATION_CACHED_METHOD = 'Cached';
     const ANNOTATION_AUTOWIRED = 'Autowired';
     const ANNOTATION_ONCHANGE = 'OnChange';
@@ -69,8 +69,10 @@ function Plastique(options){
                 let name = expr.expression? expr.expression.escapedText: expr.escapedText;
 
                 if(name == decoratorName){
-                    if(decorator.expression.arguments && decorator.expression.arguments.length > 0)
-                        return decorator.expression.arguments[0].name.escapedText;
+                    if(decorator.expression.arguments && decorator.expression.arguments.length > 0){
+                        let text = decorator.expression.arguments[0].text;
+                        return text? text: decorator.expression.arguments[0].name.escapedText;
+                    }
                     throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
                 }
             }
@@ -128,7 +130,7 @@ function Plastique(options){
                             if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
                                 prefix = attr.name.substr(6);
                                 elem.removeAttribute(attr.name);
-                                elem.setAttribute('data-cn', "c:"+componentName);
+                                elem.setAttribute('data-cn', componentName);
                                 continue elemsLoop;
                             }
                         }
@@ -170,7 +172,7 @@ function Plastique(options){
                     return val.trim().search(/#\{(.+?)\}/i) == 0;
                 }
                 function getModifiers(attrName){
-                    let modifiers = attrName.split(':').slice(1).join('.');
+                    let modifiers = attrName.split('.').slice(1).join('.');
                     return modifiers.length != 0? '.'+ modifiers: ''
                 }
     
@@ -216,7 +218,7 @@ function Plastique(options){
                             var componentVar = extractExpression(attr.value);
                             elem.insertAdjacentHTML('beforebegin',
                                 // `{{void $convComp(${componentVar})}}<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
-                                `<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
+                                `<component :is="${componentVar}.app$.cn" :key="${componentVar}.app$.id" v-bind:m="${componentVar}"></component>`
                             );
                             elem.remove();
                             break;
@@ -242,7 +244,7 @@ function Plastique(options){
                     if(is18nExpression(attrVal)){
                         elem.setAttribute('v-bind:'+ attrName, extract18nExpression(attrVal));
                     }else if(attrName.startsWith('on')){
-                        elem.setAttribute('v-on:'+ attrName.substr(2) + getModifiers(attrName), extractExpression(attrVal));
+                        elem.setAttribute('v-on:'+ attrName.substr(2), extractExpression(attrVal));
                     }else
                         elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
                 }
@@ -286,34 +288,35 @@ function Plastique(options){
         return constructorNode;
     }
 
-    function configureComponentInitProperty(componentNode){
+    function configureComponent(componentNode){
         let componentName = componentNode.name.escapedText;
-        let onchangeMethods = [];
+        let onchangeMethods = {};
         for(let member of componentNode.members){
             if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                 if(member.initializer == null)
                     member.initializer = ts.createNull();
                 let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE);
                 if(methodName != null){
-                    onchangeMethods.push(methodName);
+                    onchangeMethods[member.name.escapedText] = methodName;
+                    removeDecorator(member, ANNOTATION_ONCHANGE);
                 }
             }
         }
-        componentNode.members.push(ts.createProperty(
-            null,
-            null,
-            ts.createIdentifier('$'),
-            undefined,
-            ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
-            ts.createNull()
-        ));
+        // componentNode.members.push(ts.createProperty(
+        //     null,
+        //     null,
+        //     ts.createIdentifier('$'),
+        //     undefined,
+        //     ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
+        //     ts.createNull()
+        // ));
 
         let configuration = {
             w: onchangeMethods, //onchange methods
             c: [] //cached methods
         };
 
-        getOrCreateConstructor(classNode).body.statements.push(ts.createCall(
+        getOrCreateConstructor(componentNode).body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
             ts.createIdentifier('initComp')
@@ -330,6 +333,7 @@ function Plastique(options){
 
     function configureEntryPointClass(entryPointNode){
         let beansDeclarations = {};
+        let entryPointClassName = entryPointNode.name.escapedText;
 
         for(let member of entryPointNode.members){
             if(member.kind == ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
@@ -343,9 +347,11 @@ function Plastique(options){
             }
         }
         let configurator = {
-            name: entryPointNode.name.escapedText, //entry point class name
+            name: entryPointClassName,
             beans: beansDeclarations
         }
+
+        // $ = (window[class] = class, jsonConfiguration)
         entryPointNode.members.push(
             ts.createProperty(
                 undefined,
@@ -353,12 +359,24 @@ function Plastique(options){
                 ts.createIdentifier('$'),
                 undefined,
                 ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
-                ts.createLiteral(JSON.stringify(configurator))
+                ts.createBinary(
+                    ts.createBinary(
+                        ts.createElementAccess(ts.createIdentifier('window'), ts.createLiteral(entryPointClassName)), 
+                        ts.SyntaxKind.FirstAssignment, 
+                        ts.createIdentifier(entryPointClassName)
+                    ), 
+                    ts.SyntaxKind.CommaToken, 
+                    ts.createLiteral(JSON.stringify(configurator))
+                )
             )
         );
         beans.push(entryPointNode.name.escapedText); //add entry point as bean
         beans.push('EventManager'); //add EventManager as bean
         removeDecorator(entryPointNode, ANNOTATION_ENTRY_POINT_CLASS)
+    }
+
+    function isComponentNode(classNode){
+        return isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS);
     }
 
     function injectAutowiredEverywhere(rootNode, context){
@@ -384,6 +402,8 @@ function Plastique(options){
                                 ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
                             ]
                         );
+                        if(member.type.typeName.escapedText == 'EventManager' && isComponentNode(node));
+                            member.initializer.arguments.push(ts.createThis());
                         removeDecorator(member, ANNOTATION_AUTOWIRED)
                     }
                 }
@@ -424,16 +444,16 @@ function Plastique(options){
     var transformer = function (context) {
         var visitor = function (node) {
             if (node.kind === ts.SyntaxKind.ClassDeclaration) {
-                let className = node.name.escapedText;
+                // let className = node.name.escapedText;
                 // if(className == APP_CLASS_NAME)
                 //     appClassNode = node;
                 // else 
                 if(isNodeHasDecorator(node, ANNOTATION_ENTRY_POINT_CLASS)){
                     // entryPointClassNodes.push(node);
                     configureEntryPointClass(node)
-                }else if(isClassImplementsInterface(node, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(node, ANNOTATION_REACTIVE_CLASS)){
+                }else if(isComponentNode(node)){
                     // components[className] = node;
-                    configureComponentInitProperty(node);
+                    configureComponent(node);
                 }
 
                 tryBindListeners(node);
@@ -462,9 +482,7 @@ function Plastique(options){
             }
         };
         return function (node) { 
-            // if(node.fileName && node.fileName.endsWith('Login.ts'))
-                return ts.visitNode(node, visitor); 
-            // else null;
+            return ts.visitNode(node, visitor); 
         };
     };
 
