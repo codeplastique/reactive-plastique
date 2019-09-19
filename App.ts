@@ -152,10 +152,11 @@ abstract class App{
         };
         window['getComponentPath'] =  function(elem){
             let components = [];
-            while(elem = elem.closest('[data-cn]')){
+            while(elem && (elem = elem.closest('[data-cn]'))){
                 components.push(elem.getAttribute('data-cn'))
+                elem = elem.parentElement;
             }
-            console.log(components.join(' => '));
+            return components.join(' => ');
         }
         this.genVueMixins();
     }
