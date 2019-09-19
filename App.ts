@@ -4,6 +4,58 @@ import I18n from "./I18n";
 declare const Vue: any;
 declare const _VueTemplates: any;
 
+
+declare global {
+    interface Array<T> {
+        remove(index: number): Array<T>;
+        removeValue(value: T): boolean;
+        set(index: number, value: T): Array<T>;
+    }
+}
+Array.prototype.remove = function (index: number) {
+    if("__ob__" in this)
+        Vue.delete( this.keyToVal, index);
+    else
+        this.splice(index, 1);
+    return this;
+}
+Array.prototype.removeValue = function (value: any) {
+    for(let i = 0; i < this.length; i++)
+        if(this[i] == value){
+            this.remove(i);
+            return true;
+        }
+}
+Array.prototype.set = function (index: number, value: any) {
+    if(this.length >= index)
+        this.push(value);
+    if("__ob__" in this)
+        Vue.set( this, index, value);
+    else
+        this[index] = value;
+    return this;
+}
+
+//ES 6 support
+declare global {
+    interface Object {
+        values(obj: Object): Array<any>;
+        entries(obj: Object): [string, any];
+    }
+}
+if (!Object.values || !Object.entries) {
+    const reduce = Function.bind.call(Function.call, Array.prototype.reduce);
+    const isEnumerable = Function.bind.call(Function.call, Object.prototype.propertyIsEnumerable);
+    const concat = Function.bind.call(Function.call, Array.prototype.concat);
+    const keys = Reflect.ownKeys;
+	Object.values = function values(O) {
+		return reduce(keys(O), (v, k) => concat(v, typeof k === 'string' && isEnumerable(O, k) ? [O[k]] : []), []);
+    };
+    Object.entries = function entries(O) {
+		return reduce(keys(O), (e, k) => concat(e, typeof k === 'string' && isEnumerable(O, k) ? [[k, O[k]]] : []), []);
+	};
+}
+
 abstract class App{
     private static beans: {[beanName: string]: Function | Object} = {};
     private static beansNames: string[] = [];
