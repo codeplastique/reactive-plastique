@@ -1,6 +1,6 @@
 declare let Vue: any;
 
-class SimpleMap<V> implements Map<String, V>{
+class SimpleMap<V> implements Map<string, V>{
     public size: number;
     private keyToVal: object;
     constructor(obj?: object){
@@ -23,7 +23,7 @@ class SimpleMap<V> implements Map<String, V>{
             return true;
         }
     }
-    forEach(callbackfn: (value: V, key: String, map: Map<String, V>) => void, thisArg?: any): void {
+    forEach(callbackfn: (value: V, key: string, map: Map<string, V>) => void, thisArg?: any): void {
         for(let key in this.keyToVal)
             callbackfn.call(thisArg, this.keyToVal[key], key, this);
     }
@@ -41,13 +41,13 @@ class SimpleMap<V> implements Map<String, V>{
             this.keyToVal[key] = value;
         return this;
     }
-    [Symbol.iterator](): IterableIterator<[String, V]> {
+    [Symbol.iterator](): IterableIterator<[string, V]> {
         return this.entries();
     }
-    entries(): IterableIterator<[String, V]> {
+    entries(): IterableIterator<[string, V]> {
         return Object.entries(this.keyToVal)[Symbol.iterator]();
     }
-    keys(): IterableIterator<String> {
+    keys(): IterableIterator<string> {
         return Object.keys(this.keyToVal)[Symbol.iterator]();
     }
     values(): IterableIterator<V> {
