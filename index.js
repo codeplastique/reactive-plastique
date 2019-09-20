@@ -109,10 +109,11 @@ function Plastique(options){
                 let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
                 if(vueCompilerResult.errors.length != 0)
                     throw new Error('Vue compile error!' + vueCompilerResult.errors);
-                templatesFunctions.push(`"${componentName}":{
-                    r: function(){${vueCompilerResult.render}},
-                    sr: function(){${vueCompilerResult.staticRenderFns}}
-                }`);
+                let staticRenders = [];
+                for(let staticRender of vueCompilerResult.staticRenderFns){
+                    staticRenders.push(`function(){${staticRender}}`);
+                }
+                templatesFunctions.push(`"${componentName}":{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`);
             }
         });
         let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
