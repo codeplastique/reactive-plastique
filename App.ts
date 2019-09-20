@@ -108,7 +108,8 @@ abstract class App{
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             // computed: {},
-            render: _VueTemplates[componentName]  
+            render: _VueTemplates[componentName].r,
+            staticRenderFns: _VueTemplates[componentName].sr
         });
     }
 

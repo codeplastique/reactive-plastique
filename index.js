@@ -109,7 +109,10 @@ function Plastique(options){
                 let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
                 if(vueCompilerResult.errors.length != 0)
                     throw new Error('Vue compile error!' + vueCompilerResult.errors);
-                templatesFunctions.push(`"${componentName}":` + 'function(){' + vueCompilerResult.render +'}');
+                templatesFunctions.push(`"${componentName}":{
+                    r: function(){${vueCompilerResult.render}},
+                    sr: function(){${vueCompilerResult.staticRenderFns}}
+                }`);
             }
         });
         let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
