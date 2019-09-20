@@ -227,17 +227,17 @@ function Plastique(options){
                             elem.remove();
                             break;
                         case 'each':
-                            let iterateExpr = extractExpression(attr.value, '$convState(', ')');
-                            var iterateParts = iterateExpr.split(':');
-    
-                            //each with stateObject
-                            if(iterateParts[0].includes(',')){
-                                var leftPartVars = iterateParts[0].split(',');
+                            let iterateParts = attr.value.split(':');
+                            let leftExpr = iterateParts[0].trim();
+                            let rightExpr = iterateParts[1].trim();
+                            if(leftExpr.includes(',')){
+                                rightExpr = extractExpression(rightExpr, '$convState(', ')');
+                                let leftPartVars = leftExpr.split(',');
                                 elem.insertAdjacentText('afterBegin',
                                     `{{void(${leftPartVars[1]}=${leftPartVars[0]}.s,${leftPartVars[0]}=${leftPartVars[0]}.v)}}`);
-                            }
-                            elem.setAttribute('v-for', iterateParts.join(' in '));
-    
+                            }else
+                                rightExpr = extractExpression(rightExpr);
+                            elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
                             break;
                         default:
                             handleUnknownAttr(elem, attrName, attr.value);
