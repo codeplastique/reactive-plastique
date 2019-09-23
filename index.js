@@ -52,14 +52,14 @@ function Plastique(options){
             let expr = decorator.expression;//.expression.escapedText
             let dName = expr.expression? expr.expression.escapedText: expr.escapedText;
             if(dName == decoratorName){
+                decorators.end = decorators.pos = -1; 
+                decorators.transformFlags = null;
                 decorators.splice(i, 1);
-                return;
+                break;
             }
         }
-        return decorators.map(d => {
-            let expr = d.expression;//.expression.escapedText
-            return expr.expression? expr.expression.escapedText: expr.escapedText;
-        }).includes(decoratorName);
+        if(decorators.length == 0)
+            nodeClass.decorators = null;
     }
     function getDecoratorArgumentMethodName(nodeClass, decoratorName){
         let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
@@ -233,7 +233,7 @@ function Plastique(options){
                         case 'component':
                             var componentVar = extractExpression(attr.value);
                             elem.insertAdjacentHTML('beforebegin',
-                                `<component :is="${componentVar}.app$.cn" :key="${componentVar}.app$.id" v-bind:m="${componentVar}"></component>`
+                                `<component :is="${componentVar}.app$.cn" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
                             );
                             let clone = elem.previousSibling;
                             copyIfUnlessEachAttributesToComponent(elem, clone);
@@ -312,6 +312,12 @@ function Plastique(options){
         return constructorNode;
     }
 
+    function cleanMemberCache(memberNode){
+        memberNode.end = memberNode.pos = -1;
+        memberNode.flags = 8;
+        memberNode.modifierFlagsCache = memberNode.transformFlags = null;
+    }
+
     function configureComponent(componentNode){
         let componentName = componentNode.name.escapedText;
         let onchangeMethods = {};
@@ -367,7 +373,8 @@ function Plastique(options){
                     beanCounter++;
                 }
                 beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
-                removeDecorator(member, ANNOTATION_BEAN)
+                removeDecorator(member, ANNOTATION_BEAN);
+                cleanMemberCache(member);
             }
         }
         let configurator = {

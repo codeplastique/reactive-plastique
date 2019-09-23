@@ -26,7 +26,7 @@
         let parent = this.component.app$.parent;
         while(parent){
             if(parent.app$.events[eventName])
-                return parent.app$.events[eventName][0](eventObject) as Promise<T>;
+                return parent.app$.events[eventName][0].call(parent, eventObject) as Promise<T>;
             parent = parent.app$.parent;
         }
         console.log('No parent listeners for event: '+ eventName);
