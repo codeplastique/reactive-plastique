@@ -102,10 +102,11 @@ function Plastique(options){
         glob(VUE_TEMPLATES_DIR +'/**/*.pug', {sync: true}).forEach(function(element) {
             let componentName = getFileNameWithoutExt(element);
             var vueTemplate = pug.compileFile(element)();
-            let dom = new JSDOM(vueTemplate);
-            var elems = dom.window.document.body.querySelectorAll('*');
-            if(handle(elems, componentName)){
-                let completeVueTemplate = dom.window.document.body.innerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
+            let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
+            var rootTag = dom.window.document.body.firstElementChild.content;
+            let elems = rootTag.querySelectorAll('*');
+            if(handle(rootTag.children, elems, componentName)){
+                let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
                 let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
                 if(vueCompilerResult.errors.length != 0)
                     throw new Error('Vue compile error!' + vueCompilerResult.errors);
@@ -122,7 +123,7 @@ function Plastique(options){
         }
         fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
     
-        function handle(elems, componentName){
+        function handle(rootComponents, elems, componentName){
             if(elems.length > 0){
                 let prefix;
                 elemsLoop: for(let i = 0; i < elems.length; i++){
@@ -132,12 +133,15 @@ function Plastique(options){
                             return;
                         for(var attr of elem.attributes){
                             if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
+                                if(rootComponents.length > 1)
+                                    throw new Error('Component '+ componentName +' has multiple root tags!')
                                 prefix = attr.name.substr(6);
                                 elem.removeAttribute(attr.name);
                                 elem.setAttribute('data-cn', componentName);
                                 continue elemsLoop;
                             }
                         }
+                        console.warn('Ignore template of component: '+ componentName)
                         return;
                     }
                     if(!elem.hasAttributes())
@@ -281,7 +285,10 @@ function Plastique(options){
     buildTemplates();
     buildLocales();
    
-    let beans = [];
+    let beanToId = {};
+    let beanCounter = 0;
+    beanToId['EventManager'] = beanCounter++; //add EventManager as bean
+    let entryPointsNames = [];
 
     function getOrCreateConstructor(classNode){
         for(let member of classNode.members)
@@ -345,8 +352,17 @@ function Plastique(options){
                     throw new Error('Method '+ member.name.escapedText +' is not typed!')
                 if(member.parameters && member.parameters.length != 0)
                     throw new Error('Method '+ member.name.escapedText +' should not have parameters')
-                beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
-                beans.push(member.type.typeName.escapedText)
+                // beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
+
+                let typeName = member.type.typeName.escapedText
+
+                let beanId = beanToId[typeName];
+                if(beanId === undefined){
+                    beanId = beanCounter;
+                    beanToId[typeName] = beanCounter;
+                    beanCounter++;
+                }
+                beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
                 removeDecorator(member, ANNOTATION_BEAN)
             }
         }
@@ -374,8 +390,7 @@ function Plastique(options){
                 )
             )
         );
-        beans.push(entryPointNode.name.escapedText); //add entry point as bean
-        beans.push('EventManager'); //add EventManager as bean
+        entryPointsNames.push(entryPointNode.name.escapedText);
         removeDecorator(entryPointNode, ANNOTATION_ENTRY_POINT_CLASS)
     }
 
@@ -385,8 +400,10 @@ function Plastique(options){
 
     function injectAutowiredEverywhere(rootNode, context){
         function getBeanId(beanName){
-            let beanId = beans.indexOf(beanName);
-            if(beanId < 0)
+            if(entryPointsNames.includes(beanName))
+                return -1;
+            let beanId = beanToId[beanName];
+            if(beanId === undefined)
                 throw new Error('Bean '+ beanName +' is not initialized!')
             return beanId;
         }
@@ -406,8 +423,9 @@ function Plastique(options){
                                 ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
                             ]
                         );
-                        if(member.type.typeName.escapedText == 'EventManager' && isComponentNode(node));
+                        if(member.type.typeName.escapedText == 'EventManager' && isComponentNode(node)) {
                             member.initializer.arguments.push(ts.createThis());
+                        }
                         removeDecorator(member, ANNOTATION_AUTOWIRED)
                     }
                 }

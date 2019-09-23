@@ -57,18 +57,22 @@ if (!Object.values || !Object.entries) {
 }
 
 abstract class App{
-    private static beans: {[beanName: string]: Function | Object} = {};
-    private static beansNames: string[] = [];
+    private static beanNameToDef: {[beanName: string]: Function | Object} = {};
+    private static beanIdToName: {[beanId: number]: string} = {};
     private static componentId = 0;
+    private static epName: string; //entry point name
+    private static ep: Object; //entry point
     public static getBean<T>(id: String | Number, componentObj?: object): T{
-        let beanName: any = typeof id == 'number'? App.beansNames[id as number]: id;
+        if(id == -1 || id == App.epName)
+            return App.ep as T;
+        let beanName: any = typeof id == 'number'? App.beanIdToName[id as number]: id;
         if(beanName == 'EventManager' && componentObj){
             ///@ts-ignore
             return new EventManager(componentObj);
         }
-        let bean: any = App.beans[beanName];
+        let bean: any = App.beanNameToDef[beanName];
         if(bean instanceof Function)
-            App.beans[beanName] = bean = bean();
+            App.beanNameToDef[beanName] = bean = bean();
         return bean;
     }   
     public getBean<T>(beanFunction: string): T{
@@ -132,12 +136,16 @@ abstract class App{
         let $ = this.constructor['$'];
         if($){
             let configurator = JSON.parse($);
-            for(let bean in configurator.beans)
-                App.beans[bean] = this[configurator.beans[bean]];
-            App.beans[configurator.name] = this; // add self as bean
-            ///@ts-ignore
-            App.beans['EventManager'] = new EventManager();
-            App.beansNames = Object.keys(App.beans);
+            App.beanIdToName['0'] = 'EventManager';
+            ///@ts-ignore 
+            App.beanNameToDef['EventManager'] = new EventManager();
+            for(let bean in configurator.beans){
+                let beanIdAndName = bean.split(';');
+                App.beanIdToName[beanIdAndName[0]] = beanIdAndName[1];
+                App.beanNameToDef[beanIdAndName[1]] = this[configurator.beans[bean]];
+            }
+            App.epName = configurator.name;
+            App.ep = this;
         }
         if(window['_AppLocale']){
             ///@ts-ignore
