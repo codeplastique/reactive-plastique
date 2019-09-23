@@ -172,7 +172,7 @@ abstract class App{
     private genVueMixins(){
         Vue.mixin({
             methods: {
-                $convState: function _convert(isWithState: number, iterable: object | any[]){
+                $convState: function (isWithState: number, iterable: object | any[]){
                     let arr = [], size: number, getValue: (i: number) => object;
                     if(iterable instanceof Map){
                         size = iterable.size;
@@ -197,6 +197,11 @@ abstract class App{
                         arr.push(value);
                     }
                     return arr;
+                },
+                $convComp: function(component: any) {
+                    if(component.app$.parent != this.app$.clazz)
+                        component.app$.parent = this.app$.clazz;
+                    return component;
                 }
             }
         });

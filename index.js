@@ -183,6 +183,14 @@ function Plastique(options){
                     let modifiers = attrName.split('.').slice(1).join('.');
                     return modifiers.length != 0? '.'+ modifiers: ''
                 }
+                function copyIfUnlessEachAttributesToComponent(from, to) {
+                    let ifAttr = from.getAttribute('v-if');
+                    let forAttr = from.getAttribute('v-for');
+                    if(ifAttr)
+                        to.setAttribute('v-if', ifAttr);
+                    if(forAttr)
+                        to.setAttribute('v-for', forAttr);
+                }
     
     
                 function handleAttr(elem, attr){
@@ -225,9 +233,13 @@ function Plastique(options){
                         case 'component':
                             var componentVar = extractExpression(attr.value);
                             elem.insertAdjacentHTML('beforebegin',
-                                // `{{void $convComp(${componentVar})}}<component :is="${componentVar}.$.cn" :key="${componentVar}.$.id" v-bind:m="${componentVar}"></component>`
                                 `<component :is="${componentVar}.app$.cn" :key="${componentVar}.app$.id" v-bind:m="${componentVar}"></component>`
                             );
+                            let clone = elem.previousSibling;
+                            copyIfUnlessEachAttributesToComponent(elem, clone);
+                            elem.setAttribute = function(){
+                                clone.setAttribute.apply(clone, arguments);
+                            }
                             elem.remove();
                             break;
                         case 'each':
@@ -289,6 +301,7 @@ function Plastique(options){
     let beanCounter = 0;
     beanToId['EventManager'] = beanCounter++; //add EventManager as bean
     let entryPointsNames = [];
+    let componentsNames = [];
 
     function getOrCreateConstructor(classNode){
         for(let member of classNode.members)
@@ -313,20 +326,10 @@ function Plastique(options){
                 }
             }
         }
-        // componentNode.members.push(ts.createProperty(
-        //     null,
-        //     null,
-        //     ts.createIdentifier('$'),
-        //     undefined,
-        //     ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
-        //     ts.createNull()
-        // ));
-
         let configuration = {
             w: onchangeMethods, //onchange methods
             c: [] //cached methods
         };
-
         getOrCreateConstructor(componentNode).body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
@@ -340,6 +343,7 @@ function Plastique(options){
             ]
         ));
         removeDecorator(componentNode, ANNOTATION_REACTIVE_CLASS)
+        componentsNames.push(componentName);
     }
 
     function configureEntryPointClass(entryPointNode){
@@ -395,7 +399,9 @@ function Plastique(options){
     }
 
     function isComponentNode(classNode){
-        return isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS);
+        let className = classNode.name.escapedText;
+        return componentsNames.includes(className) || 
+            (isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS));
     }
 
     function injectAutowiredEverywhere(rootNode, context){
