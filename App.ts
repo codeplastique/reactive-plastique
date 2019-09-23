@@ -119,12 +119,11 @@ abstract class App{
 
     private static addListeners(configuration: string, obj: any){
         let methodNameToEvent = JSON.parse(configuration);
-        let eventManager: EventManager = App.getBean('EventManager');
         for(let methodName in methodNameToEvent){
-            let event = obj[methodName];
+            let event = methodNameToEvent[methodName];
             let method = obj[methodName];
             ///@ts-ignore
-            eventManager.addListener(event, method);
+            EventManager.addListener(event, method);
             if(obj.app$){
                 let events = obj.app$.events[event] = obj.app$.events[event] || [];
                 events.push(method);
