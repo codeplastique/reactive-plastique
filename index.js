@@ -234,13 +234,13 @@ function Plastique(options){
                             let iterateParts = attr.value.split(':');
                             let leftExpr = iterateParts[0].trim();
                             let rightExpr = iterateParts[1].trim();
-                            if(leftExpr.includes(',')){
-                                rightExpr = extractExpression(rightExpr, '$convState(', ')');
+                            let isWithState = leftExpr.includes(',')? 1: 0;
+                            rightExpr = extractExpression(rightExpr, `$convState(${isWithState},`, ')');
+                            if(isWithState){
                                 let leftPartVars = leftExpr.split(',');
                                 elem.insertAdjacentText('afterBegin',
                                     `{{void(${leftPartVars[1]}=${leftPartVars[0]}.s,${leftPartVars[0]}=${leftPartVars[0]}.v)}}`);
-                            }else
-                                rightExpr = extractExpression(rightExpr);
+                            }
                             elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
                             break;
                         default:

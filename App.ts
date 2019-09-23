@@ -172,18 +172,30 @@ abstract class App{
     private genVueMixins(){
         Vue.mixin({
             methods: {
-                $convState: function _convert(iterable: object | any[]){
-                    let arr = [], size: number, value: (i: number) => object;
-                    if(!(iterable instanceof Array)){
-                        let keys = Object.keys(iterable);
-                        size =  keys.length;
-                        value = i => ({key: keys[i], value: iterable[keys[i]]});
-                    }else{
+                $convState: function _convert(isWithState: number, iterable: object | any[]){
+                    let arr = [], size: number, getValue: (i: number) => object;
+                    if(iterable instanceof Map){
+                        size = iterable.size;
+                        let entries = iterable.entries();
+                        getValue = (i) => {
+                            return {key: entries[i][0], value: entries[i][0]};
+                        }
+                    }else if(iterable instanceof Set){
+                        size = iterable.size;
+                        let values = iterable.values();
+                        getValue = (i) => values[i];
+                    }else if(iterable instanceof Array){
                         size = iterable.length;
-                        value = i => iterable[i];
+                        getValue = i => iterable[i];
+                    }else
+                        throw new Error('You cant iterate simple object!')
+
+                    for(var i = 0; i < size; i++){
+                        let value = getValue(i);
+                        if(isWithState)
+                            value = {v: value, s:{index: i, size: size, last: i == (size-1), first: i == 0}}
+                        arr.push(value);
                     }
-                    for(var i = 0; i < size; i++)
-                        arr.push({v: value(i), s:{index: i, size: size, last: i == (size-1), first: i == 0}});
                     return arr;
                 }
             }

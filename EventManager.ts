@@ -1,5 +1,5 @@
  class EventManager {
-    private static listeners: {[eventName: string]: Array<(event?: any) => Promise<any>>} 
+    private static listeners: {[eventName: string]: Array<(event?: any) => Promise<any>>} = {} 
     private constructor(
         private component
     ){}
