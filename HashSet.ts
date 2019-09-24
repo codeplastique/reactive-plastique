@@ -30,7 +30,7 @@ class HashSet<T extends Hashable> implements Set<T>{
         }
     }
     forEach(callbackfn: (value: T, value2: T, set: Set<T>) => void, thisArg?: any): void {
-        for(let val in this.hashToElem.values())
+        for(let val of this.hashToElem.values())
             callbackfn.call(thisArg, val, val, this);
     }
     has(value: T): boolean {
@@ -43,6 +43,10 @@ class HashSet<T extends Hashable> implements Set<T>{
         return this.hashToElem.values();
     }
     [Symbol.toStringTag]: string;
+
+    public toArray(): T[]{
+        return Array.from(this.values())
+    }
 }
 
 export default HashSet;

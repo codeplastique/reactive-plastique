@@ -7,6 +7,7 @@ class SimpleMap<V> implements Map<string, V>{
         obj = obj || {};
         this.size = Object.keys(obj).length;
         this.keyToVal = obj;
+        Object.defineProperty(this, 'size', {set: (n) => this.size = n, get: () => this.size});
     }
     clear(): void {
         this.keyToVal = {};

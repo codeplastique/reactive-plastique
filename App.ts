@@ -82,12 +82,14 @@ abstract class App{
     }   
     
     private static initComponent(componentName: string, configuration: string, obj: any){
-        obj.app$ = {
-            cn: componentName,
-            id: ++App.componentId,
-            clazz: obj,
-            events: {}
-        }
+        Object.defineProperty(obj, "app$", {get: () => {
+            return {
+                cn: componentName,
+                id: ++App.componentId,
+                clazz: obj,
+                events: {}
+            }
+        }})
         if(Vue.component(componentName) != null)
             return;
         let configurator = JSON.parse(configuration);
@@ -178,7 +180,7 @@ abstract class App{
                     let arr = [], size: number, getValue: (i: number) => object;
                     if(iterable instanceof SimpleMap){
                         size = iterable.size;
-                        let entries = iterable.entries();
+                        let entries = iterable.entries(); 
                         getValue = (i) => {
                             let val = entries.next().value;
                             return {key: val[0], value: val[1]};
