@@ -180,12 +180,13 @@ abstract class App{
                         size = iterable.size;
                         let entries = iterable.entries();
                         getValue = (i) => {
-                            return {key: entries[i][0], value: entries[i][0]};
+                            let val = entries.next().value;
+                            return {key: val[0], value: val[1]};
                         }
                     }else if(iterable instanceof HashSet){
                         size = iterable.size;
                         let values = iterable.values();
-                        getValue = (i) => values[i];
+                        getValue = (i) => values.next().value;
                     }else if(iterable instanceof Array){
                         size = iterable.length;
                         getValue = i => iterable[i];
