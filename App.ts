@@ -82,14 +82,12 @@ abstract class App{
     }   
     
     private static initComponent(componentName: string, configuration: string, obj: any){
-        Object.defineProperty(obj, "app$", {get: () => {
-            return {
-                cn: componentName,
-                id: ++App.componentId,
-                clazz: obj,
-                events: {}
-            }
-        }})
+        obj.app$ = {
+            cn: componentName,
+            id: ++App.componentId,
+            clazz: obj,
+            events: {}
+        }
         if(Vue.component(componentName) != null)
             return;
         let configurator = JSON.parse(configuration);

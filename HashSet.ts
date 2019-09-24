@@ -30,8 +30,9 @@ class HashSet<T extends Hashable> implements Set<T>{
         }
     }
     forEach(callbackfn: (value: T, value2: T, set: Set<T>) => void, thisArg?: any): void {
-        for(let val of this.hashToElem.values())
-            callbackfn.call(thisArg, val, val, this);
+        let arr = this.toArray();
+        for(let i = 0; i < arr.length; i++)
+            callbackfn.call(thisArg, arr[i], arr[i], this);
     }
     has(value: T): boolean {
         return this.hashToElem.has(value.hashCode());

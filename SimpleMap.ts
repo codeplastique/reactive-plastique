@@ -5,9 +5,9 @@ class SimpleMap<V> implements Map<string, V>{
     private keyToVal: object;
     constructor(obj?: object){
         obj = obj || {};
-        this.size = Object.keys(obj).length;
+        let size = Object.keys(obj).length;
         this.keyToVal = obj;
-        Object.defineProperty(this, 'size', {set: (n) => this.size = n, get: () => this.size});
+        Object.defineProperty(this, 'size', {set: (n) => size = n, get: () => size});
     }
     clear(): void {
         this.keyToVal = {};
