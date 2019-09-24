@@ -55,11 +55,11 @@ function Plastique(options){
                 decorators.end = decorators.pos = -1; 
                 decorators.transformFlags = null;
                 decorators.splice(i, 1);
-                break;
+                return;
             }
         }
-        if(decorators.length == 0)
-            nodeClass.decorators = null;
+        // if(decorators.length == 0)
+        //     nodeClass.decorators = null;
     }
     function getDecoratorArgumentMethodName(nodeClass, decoratorName){
         let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
