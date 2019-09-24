@@ -1,6 +1,8 @@
 import Component from "./Component";
 import EventManager from "./EventManager";
 import I18n from "./I18n";
+import HashSet from "./HashSet";
+import SimpleMap from "./SimpleMap";
 declare const Vue: any;
 declare const _VueTemplates: any;
 
@@ -174,13 +176,13 @@ abstract class App{
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
                     let arr = [], size: number, getValue: (i: number) => object;
-                    if(iterable instanceof Map){
+                    if(iterable instanceof SimpleMap){
                         size = iterable.size;
                         let entries = iterable.entries();
                         getValue = (i) => {
                             return {key: entries[i][0], value: entries[i][0]};
                         }
-                    }else if(iterable instanceof Set){
+                    }else if(iterable instanceof HashSet){
                         size = iterable.size;
                         let values = iterable.values();
                         getValue = (i) => values[i];
