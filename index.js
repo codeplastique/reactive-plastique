@@ -327,8 +327,8 @@ function Plastique(options){
         if(parent == null)
             return;
         let parentClassName = parent.expression.escapedText;
-        let relativeModulePath = ts.locals.get(parentClassName).value.declarations[0].parent.moduleSpecifier.text
-        let fullModulePath = ts.resolvedModules.get(relativeModulePath).resolvedFileName;
+        let relativeModulePath = classNode.getSourceFile().locals.get(parentClassName).declarations[0].parent.moduleSpecifier.text
+        let fullModulePath = classNode.getSourceFile().resolvedModules.get(relativeModulePath).resolvedFileName;
         let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
         for(let node of module.statements)
             if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == parentClassName)
@@ -355,6 +355,19 @@ function Plastique(options){
         }
     }
 
+    function hasPropertyAssignmentInConstructor(constructorNode, member){
+        let memberName = member.name.escapedText;
+        for(let node of constructorNode.body.statements){
+            if(node.kind == ts.SyntaxKind.ExpressionStatement 
+                && node.expression.kind == ts.SyntaxKind.BinaryExpression
+                && node.expression.operatorToken.kind == ts.SyntaxKind.FirstAssignment 
+                && node.expression.left.kind == ts.SyntaxKind.PropertyAccessExpression 
+                && node.expression.left.name.escapedText == memberName
+            )
+                return true;
+        }
+
+    }
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
@@ -367,11 +380,15 @@ function Plastique(options){
 
 
         let onchangeMethods = {};
-        if(componentNode.members)
+        let constructorNode = getOrCreateConstructor(componentNode);
+        if(componentNode.members){
             for(let member of componentNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                     let memberName = member.name.escapedText;
-                    if(member.initializer == null && !componentRoot.members.includes(memberName))
+                    if(member.initializer == null 
+                        && !componentRoot.members.includes(memberName) 
+                        && !hasPropertyAssignmentInConstructor(constructorNode, member)
+                    )
                         member.initializer = ts.createNull();
                     let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE);
                     if(methodName != null){
@@ -380,13 +397,12 @@ function Plastique(options){
                     }
                 }
             }
-
-
+        }
         let configuration = {
             w: onchangeMethods, //onchange methods
             c: [] //cached methods
         };
-        getOrCreateConstructor(componentNode).body.statements.push(ts.createCall(
+        constructorNode.body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
             ts.createIdentifier('initComp')
