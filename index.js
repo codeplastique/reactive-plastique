@@ -32,10 +32,13 @@ function Plastique(options){
     const { JSDOM } = require('jsdom');
     const ts = require("typescript");
     const PropertiesReader = require('properties-reader');
+    Array.prototype.flatMap = function(f) {
+        return this.map(f).reduce((x,y) => x.concat(y), [])
+    }
 
 
     function isClassImplementsInterface(nodeClass, interfaceName){
-        let interfaces = nodeClass.heritageClauses != null && nodeClass.heritageClauses[0]? nodeClass.heritageClauses[0].types: [];
+        let interfaces = ts.getClassImplementsHeritageClauseElements(nodeClass);
         return interfaces.map(t => t.expression.escapedText).includes(interfaceName);
     }
     function isNodeHasDecorator(nodeClass, decoratorName){
@@ -318,20 +321,67 @@ function Plastique(options){
         memberNode.modifierFlagsCache = memberNode.transformFlags = null;
     }
 
-    function configureComponent(componentNode){
+
+    function getParentClass(classNode, context){
+        let parent = ts.getClassExtendsHeritageElement(classNode);
+        if(parent == null)
+            return;
+        let parentClassName = parent.expression.escapedText;
+        let relativeModulePath = ts.locals.get(parentClassName).value.declarations[0].parent.moduleSpecifier.text
+        let fullModulePath = ts.resolvedModules.get(relativeModulePath).resolvedFileName;
+        let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
+        for(let node of module.statements)
+            if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == parentClassName)
+                return node;
+    }
+
+    function getAllRootComponentsData(componentNode, context){
+        let maxParents = 0;
+        let members = [];
+        while(componentNode = getParentClass(componentNode, context)){
+            if(componentNode.members){
+                members = members.concat(componentNode.members
+                    .filter(m => m.kind == ts.SyntaxKind.PropertyDeclaration)
+                    .map(m => m.name.escapedText)
+                )
+                
+            }
+            if(++maxParents > 100)
+                throw new Error('More than 100 parents!!');
+        }
+        return {
+            members: members
+            // onChangeMethods: {}
+        }
+    }
+
+
+    function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
+
+        let componentRoot = getAllRootComponentsData(componentNode, context);
+        // let parent = getParentClass(componentNode, context);
+        // if(parent)
+            // configureComponent(parent);
+
+
+
         let onchangeMethods = {};
-        for(let member of componentNode.members){
-            if(member.kind == ts.SyntaxKind.PropertyDeclaration){
-                if(member.initializer == null)
-                    member.initializer = ts.createNull();
-                let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE);
-                if(methodName != null){
-                    onchangeMethods[member.name.escapedText] = methodName;
-                    removeDecorator(member, ANNOTATION_ONCHANGE);
+        if(componentNode.members)
+            for(let member of componentNode.members){
+                if(member.kind == ts.SyntaxKind.PropertyDeclaration){
+                    let memberName = member.name.escapedText;
+                    if(member.initializer == null && !componentRoot.members.includes(memberName))
+                        member.initializer = ts.createNull();
+                    let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE);
+                    if(methodName != null){
+                        onchangeMethods[member.name.escapedText] = methodName;
+                        removeDecorator(member, ANNOTATION_ONCHANGE);
+                    }
                 }
             }
-        }
+
+
         let configuration = {
             w: onchangeMethods, //onchange methods
             c: [] //cached methods
@@ -407,8 +457,8 @@ function Plastique(options){
 
     function isComponentNode(classNode){
         let className = classNode.name.escapedText;
-        return componentsNames.includes(className) || 
-            (isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS));
+        return componentsNames.includes(className) || isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS);
+            // (isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS));
     }
 
     function injectAutowiredEverywhere(rootNode, context){
@@ -488,8 +538,10 @@ function Plastique(options){
                     configureEntryPointClass(node)
                 }else if(isComponentNode(node)){
                     // components[className] = node;
-                    configureComponent(node);
+                    configureComponent(node, context);
                 }
+
+                
 
                 tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))

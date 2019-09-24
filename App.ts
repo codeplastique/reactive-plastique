@@ -82,15 +82,24 @@ abstract class App{
     }   
     
     private static initComponent(componentName: string, configuration: string, obj: any){
-        obj.app$ = {
-            cn: componentName,
-            id: ++App.componentId,
-            clazz: obj,
-            events: {}
+        let config = JSON.parse(configuration);
+        if(obj.app$){
+            //from super
+            obj.app$.cn = componentName; //replace parent name to child name
+            Object.assign(obj.app$.pc.w, config.w);
+            obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
+        }else{
+            obj.app$ = {
+                cn: componentName,
+                id: ++App.componentId,
+                clazz: obj,
+                events: {},
+                pc: config// parent configuration
+            }
         }
         if(Vue.component(componentName) != null)
             return;
-        let configurator = JSON.parse(configuration);
+        let configurator = obj.app$.pc;
         let methodNameToMethod: any = {};
         let methodNameToComputed: any = {};
         let computedMethods = configurator.c;
@@ -204,6 +213,8 @@ abstract class App{
                 $convComp: function(component: any) {
                     if(component.app$.parent != this.app$.clazz)
                         component.app$.parent = this.app$.clazz;
+                    if(component.app$.pc)
+                        delete component.app$.pc;
                     return component;
                 }
             }
