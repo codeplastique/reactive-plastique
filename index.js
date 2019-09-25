@@ -186,6 +186,11 @@ function Plastique(options){
                     let modifiers = attrName.split('.').slice(1).join('.');
                     return modifiers.length != 0? '.'+ modifiers: ''
                 }
+                function getComponentModifier(attrName){
+                    let modifiers = attrName.split('.').slice(1);
+                    return modifiers.length == 1? modifiers[0]: null
+                }
+                
                 function copyIfUnlessEachAttributesToComponent(from, to) {
                     let ifAttr = from.getAttribute('v-if');
                     let forAttr = from.getAttribute('v-for');
@@ -234,9 +239,11 @@ function Plastique(options){
                             elem.setAttribute('v-bind:class', extractExpression(attr.value));
                             break;
                         case 'component':
+                            let componentCast = getComponentModifier(attrName);
                             var componentVar = extractExpression(attr.value);
+                            let componentName = componentCast != null? `'${componentCast}'`: (componentVar + '.app$.cn');
                             elem.insertAdjacentHTML('beforebegin',
-                                `<component :is="${componentVar}.app$.cn" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
+                                `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
                             );
                             let clone = elem.previousSibling;
                             copyIfUnlessEachAttributesToComponent(elem, clone);
