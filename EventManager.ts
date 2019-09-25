@@ -10,14 +10,14 @@
         ///@ts-ignore
         EventManager.listeners[eventName].push(func);
     }
-    public fireEvent<T extends Array<T>>(eventName: string, eventObject?: any): Promise<T>{
+    public fireEvent<T>(eventName: string, eventObject?: any): Promise<T[]>{
         eventName = eventName.toLowerCase();
         if(EventManager.listeners[eventName] == null){
             console.log('No listeners for event: '+ eventName);
             ///@ts-ignore
             return Promise.resolve();
         }
-        return Promise.all(EventManager.listeners[eventName].map((func) => func(eventObject))) as Promise<T>;
+        return Promise.all(EventManager.listeners[eventName].map(func => func(eventObject)));
     }
     public fireEventOnParents<T>(eventName: string, eventObject?: any): Promise<T>{
         if(this.component == null)
@@ -26,7 +26,7 @@
         let parent = this.component.app$.parent;
         while(parent){
             if(parent.app$.events[eventName])
-                return parent.app$.events[eventName][0].call(parent, eventObject) as Promise<T>;
+                return Promise.resolve(parent.app$.events[eventName][0](eventObject));
             parent = parent.app$.parent;
         }
         console.log('No parent listeners for event: '+ eventName);

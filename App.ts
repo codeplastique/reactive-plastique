@@ -16,7 +16,7 @@ declare global {
 }
 Array.prototype.remove = function (index: number) {
     if("__ob__" in this)
-        Vue.delete( this.keyToVal, index);
+        Vue.delete(this, index);
     else
         this.splice(index, 1);
     return this;
@@ -132,13 +132,13 @@ abstract class App{
         let methodNameToEvent = JSON.parse(configuration);
         for(let methodName in methodNameToEvent){
             let event = methodNameToEvent[methodName];
-            let method = obj[methodName];
-            ///@ts-ignore
-            EventManager.addListener(event, method);
+            let method = obj[methodName].bind(obj);
             if(obj.app$){
                 let events = obj.app$.events[event] = obj.app$.events[event] || [];
                 events.push(method);
             }
+            ///@ts-ignore
+            EventManager.addListener(event, method);
         }
     }
 
