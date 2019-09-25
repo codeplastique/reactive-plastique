@@ -117,7 +117,7 @@ function Plastique(options){
                 for(let staticRender of vueCompilerResult.staticRenderFns){
                     staticRenders.push(`function(){${staticRender}}`);
                 }
-                templatesFunctions.push(`"${componentName}":{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`);
+                templatesFunctions.push(`"${componentName.toLowerCase()}":{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`);
             }
         });
         let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
@@ -183,8 +183,7 @@ function Plastique(options){
                     return val.trim().search(/#\{(.+?)\}/i) == 0;
                 }
                 function getModifiers(attrName){
-                    let modifiers = attrName.split('.').slice(1).join('.');
-                    return modifiers.length != 0? '.'+ modifiers: ''
+                    return attrName.split('.').slice(1);
                 }
                 function addModifiers(modifiers){
                     // let modifiers = attrName.split('.').slice(1).join('.');
@@ -243,7 +242,7 @@ function Plastique(options){
                         case 'component':
                             let componentCast = modifiers[0];
                             var componentVar = extractExpression(attr.value);
-                            let componentName = componentCast != null? `'${componentCast}'`: (componentVar + '.app$.cn');
+                            let componentName = componentCast != null? `'${componentCast.toLowerCase()}'`: (componentVar + '.app$.cn');
                             elem.insertAdjacentHTML('beforebegin',
                                 `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
                             );
@@ -268,15 +267,15 @@ function Plastique(options){
                             elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
                             break;
                         default:
-                            handleUnknownAttr(elem, attrName, attr.value);
+                                handleUnknownAttr(elem, attrName, modifiers, attr.value);
                     }
                     return true;
                 }
-                function handleUnknownAttr(elem, attrName, attrVal){
+                function handleUnknownAttr(elem, attrName, modifiers, attrVal){
                     if(is18nExpression(attrVal)){
                         elem.setAttribute('v-bind:'+ attrName, extract18nExpression(attrVal));
                     }else if(attrName.startsWith('on')){
-                        elem.setAttribute('v-on:'+ attrName.substr(2), extractExpression(attrVal));
+                        elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
                     }else
                         elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
                 }
@@ -418,7 +417,7 @@ function Plastique(options){
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
-                ts.createLiteral(componentName),
+                ts.createLiteral(componentName.toLowerCase()),
                 ts.createLiteral(JSON.stringify(configuration)),
                 ts.createThis()
             ]
