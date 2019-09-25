@@ -186,9 +186,9 @@ function Plastique(options){
                     let modifiers = attrName.split('.').slice(1).join('.');
                     return modifiers.length != 0? '.'+ modifiers: ''
                 }
-                function getComponentModifier(attrName){
-                    let modifiers = attrName.split('.').slice(1);
-                    return modifiers.length == 1? modifiers[0]: null
+                function addModifiers(modifiers){
+                    // let modifiers = attrName.split('.').slice(1).join('.');
+                    return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
                 }
                 
                 function copyIfUnlessEachAttributesToComponent(from, to) {
@@ -205,9 +205,11 @@ function Plastique(options){
                     if(!attr.name.startsWith(prefix +':'))
                         return;
                     var attrName = attr.name.substr(prefix.length + 1);// +1 - ':'
+                    let modifiers = getModifiers(attrName);
+                    attrName = attrName.split('.')[0]
                     switch(attrName){
                         case 'model':
-                            elem.setAttribute('v-model' + getModifiers(attrName), extractExpression(attr.value));
+                            elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
                             break;
                         case 'text':
                             let expression = is18nExpression(attr.value)? extract18nExpression(attr.value): extractExpression(attr.value)
@@ -239,7 +241,7 @@ function Plastique(options){
                             elem.setAttribute('v-bind:class', extractExpression(attr.value));
                             break;
                         case 'component':
-                            let componentCast = getComponentModifier(attrName);
+                            let componentCast = modifiers[0];
                             var componentVar = extractExpression(attr.value);
                             let componentName = componentCast != null? `'${componentCast}'`: (componentVar + '.app$.cn');
                             elem.insertAdjacentHTML('beforebegin',
