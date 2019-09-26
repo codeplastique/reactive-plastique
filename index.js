@@ -109,6 +109,14 @@ function Plastique(options){
             var rootTag = dom.window.document.body.firstElementChild.content;
             let elems = rootTag.querySelectorAll('*');
             if(handle(rootTag.children, elems, componentName)){
+                let blockTags = rootTag.querySelectorAll('block');
+                for(let blockTag of blockTags){
+                    blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHt}</template>`);
+                    let templateTag = elem.previousSibling;
+                    for(attr of blockTag.attributes)
+                        templateTag.setAttribute(attr.name, attr.value);
+                    blockTag.remove();
+                }
                 let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
                 let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
                 if(vueCompilerResult.errors.length != 0)
@@ -117,7 +125,7 @@ function Plastique(options){
                 for(let staticRender of vueCompilerResult.staticRenderFns){
                     staticRenders.push(`function(){${staticRender}}`);
                 }
-                templatesFunctions.push(`"${componentName.toLowerCase()}":{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`);
+                templatesFunctions.push(`"${componentName.toUpperCase()}":{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`);
             }
         });
         let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
@@ -127,40 +135,38 @@ function Plastique(options){
         fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
     
         function handle(rootComponents, elems, componentName){
+            let prefix;
             if(elems.length > 0){
-                let prefix;
-                elemsLoop: for(let i = 0; i < elems.length; i++){
+                for(var attr of rootComponents[0].attributes){
+                    if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
+                        if(rootComponents.length > 1)
+                            throw new Error('Component '+ componentName +' has multiple root tags!')
+                        prefix = attr.name.substr(6);
+                        elem.removeAttribute(attr.name);
+                        elem.setAttribute('data-cn', componentName);
+                        break;
+                    }
+                }
+                if(prefix == null){
+                    console.warn('Ignore template of component: '+ componentName)
+                    return;
+                }
+                for(let i = 0; i < elems.length; i++){
                     let elem = elems[i];
-                    if(i == 0){
-                        if(!elem.hasAttributes())
-                            return;
+                    if(elem.hasAttributes()){
+                        let attributesForDelete = [];
                         for(var attr of elem.attributes){
-                            if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
-                                if(rootComponents.length > 1)
-                                    throw new Error('Component '+ componentName +' has multiple root tags!')
-                                prefix = attr.name.substr(6);
-                                elem.removeAttribute(attr.name);
-                                elem.setAttribute('data-cn', componentName);
-                                continue elemsLoop;
-                            }
+                            if(handleAttr(elem, attr))
+                                attributesForDelete.push(attr.name);
                         }
-                        console.warn('Ignore template of component: '+ componentName)
-                        return;
-                    }
-                    if(!elem.hasAttributes())
-                        continue;
-                    let attributesForDelete = [];
-                    for(var attr of elem.attributes){
-                        if(handleAttr(elem, attr))
-                            attributesForDelete.push(attr.name);
-                    }
-                    for(var attr of attributesForDelete){
-                        elem.removeAttribute(attr);
+                        for(var attr of attributesForDelete){
+                            elem.removeAttribute(attr);
+                        }
                     }
                 }
                 return true;
     
-    
+                
                 function wrapExpression(prefix, suffix, val){
                     return prefix + val + suffix;
                 }
@@ -242,7 +248,7 @@ function Plastique(options){
                         case 'component':
                             let componentCast = modifiers[0];
                             var componentVar = extractExpression(attr.value);
-                            let componentName = componentCast != null? `'${componentCast.toLowerCase()}'`: (componentVar + '.app$.cn');
+                            let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
                             elem.insertAdjacentHTML('beforebegin',
                                 `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
                             );
@@ -417,7 +423,7 @@ function Plastique(options){
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
-                ts.createLiteral(componentName.toLowerCase()),
+                ts.createLiteral(componentName.toUpperCase()),
                 ts.createLiteral(JSON.stringify(configuration)),
                 ts.createThis()
             ]

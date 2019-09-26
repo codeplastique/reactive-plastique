@@ -16,6 +16,7 @@
     <attribute-processor name="classappend"  />
     <attribute-processor name="component"  />
     <attribute-processor name="each"  />
+	<element-processor name="block"/>
 
 
     <!-- URL and form-specific attribute processors -->

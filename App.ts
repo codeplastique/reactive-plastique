@@ -103,15 +103,16 @@ abstract class App{
         let methodNameToMethod: any = {};
         let methodNameToComputed: any = {};
         let computedMethods = configurator.c;
-        let memberNameToWatchMethod = configurator.w;
+        let memberNameToWatchMethodName: {[methid: string]: string} = configurator.w;
+        let memberNameToWatchMethod: {[methid: string]: Function} = {};
         for(let methodName in obj.constructor.prototype){
             if(computedMethods.indexOf(methodName) >= 0)
                 methodNameToComputed['$s' + methodName] = function(){return this.app$.clazz[methodName].apply(this, arguments)}
             else
                 methodNameToMethod[methodName] = function(){return this.app$.clazz[methodName].apply(this, arguments);}
         }
-        for(let member in memberNameToWatchMethod){
-            let methodName = memberNameToWatchMethod[member];
+        for(let member in memberNameToWatchMethodName){
+            let methodName = memberNameToWatchMethodName[member];
             memberNameToWatchMethod[member] = function(){return this.app$.clazz[methodName].apply(this, arguments)};
         }
 
@@ -222,21 +223,27 @@ abstract class App{
     }
 
     public attachComponent(element: HTMLElement, component: Component){
-        if(!this.isComponentAttached(component)){
-            new Vue({
-                el: element,
-                data: {c: component},
-                template: 
-                '<component :is="c.app$.cn" :key="c.app$.id" v-bind:m="c"></component>'
-            });
-        }else{
-            console.log(component);
-            throw new Error('Component is already attached!')
-        }
+        // if(!this.isComponentAttached(component)){
+        new Vue({
+            el: element,
+            data: {c: component},
+            template: 
+            '<component :is="c.app$.cn" :key="c.app$.id" v-bind:m="c"></component>'
+        });
+        // }else{
+        //     console.log(component);
+        //     throw new Error('Component is already attached!')
+        // }
     }
 
     public isComponentAttached(component: Component){
-        return "__ob__" in component;
+        let parent = component;
+        while(parent){
+            if(parent['_isVue'])
+                return true;
+            ///@ts-ignore
+            parent = parent.app$.parent;
+        }
     }
     public setLocale(locale: string){
         ///@ts-ignore
