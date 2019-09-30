@@ -139,6 +139,7 @@ function Plastique(options){
             if(elems.length > 0){
                 for(var attr of rootComponents[0].attributes){
                     if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
+                        let elem = rootComponents[0];
                         if(rootComponents.length > 1)
                             throw new Error('Component '+ componentName +' has multiple root tags!')
                         prefix = attr.name.substr(6);
