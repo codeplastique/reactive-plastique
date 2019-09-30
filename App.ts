@@ -13,6 +13,7 @@ declare global {
     interface Array<T> extends Serializable, Jsonable{
         remove(index: number): Array<T>;
         removeValue(value: T): boolean;
+        removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
     }
 }
@@ -24,11 +25,18 @@ Array.prototype.remove = function (index: number) {
     return this;
 }
 Array.prototype.removeValue = function (value: any) {
-    for(let i = 0; i < this.length; i++)
-        if(this[i] == value){
-            this.remove(i);
-            return true;
-        }
+    let index = this.indexOf(value);
+    if(index >= 0){
+        this.remove(index);
+        return true;
+    }
+}
+Array.prototype.removeValues = function (values: any[]) {
+    for(let value of values){
+        let index = this.indexOf(value)
+        if(index >= 0)
+            this.remove(index);
+    }
 }
 Array.prototype.set = function (index: number, value: any) {
     if(this.length >= index)
