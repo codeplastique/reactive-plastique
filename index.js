@@ -609,13 +609,14 @@ function Plastique(options){
 
 module.exports = {
     Plastique: Plastique,
-    CompilePlugin: function(){
+    CompilePlugin: function(varToLibPath){
+        varToLibPath = varToLibPath || {};
         let path = require("path");
         let webpack = require("webpack");
-        return new webpack.ProvidePlugin({
+        return new webpack.ProvidePlugin(Object.assign(varToLibPath ,{
             '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
             '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
             '__assign': path.join(__dirname, './compileUtils', 'assign.ts')
-        })
+        }))
     }
 }
