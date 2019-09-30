@@ -3,12 +3,14 @@ import EventManager from "./EventManager";
 import I18n from "./I18n";
 import HashSet from "./HashSet";
 import SimpleMap from "./SimpleMap";
+import Serializable from "./annotation/Serializable";
+import Jsonable from "./annotation/Jsonable";
 declare const Vue: any;
 declare const _VueTemplates: any;
 
 
 declare global {
-    interface Array<T> {
+    interface Array<T> extends Serializable, Jsonable{
         remove(index: number): Array<T>;
         removeValue(value: T): boolean;
         set(index: number, value: T): Array<T>;
@@ -36,6 +38,15 @@ Array.prototype.set = function (index: number, value: any) {
     else
         this[index] = value;
     return this;
+}
+Array.prototype.serialize = function() {
+    let result = [];
+    for(let elem of this)
+        result.push(elem.serialize? elem.serialize(): elem);
+    return result;
+}
+Array.prototype.toJson = function () {
+    return JSON.stringify(this.serialize());
 }
 
 //ES 6 support

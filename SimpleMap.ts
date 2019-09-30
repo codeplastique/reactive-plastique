@@ -1,6 +1,9 @@
+import Serializable from "./annotation/Serializable";
+import Jsonable from "./annotation/Jsonable";
+
 declare let Vue: any;
 
-class SimpleMap<V> implements Map<string, V>{
+class SimpleMap<V> implements Map<string, V>, Serializable, Jsonable{
     public size: number;
     private keyToVal: object;
     constructor(obj?: object){
@@ -56,6 +59,28 @@ class SimpleMap<V> implements Map<string, V>{
     }
     [Symbol.toStringTag]: string;
 
+    /**
+     * @override
+     */
+    public serialize(): Object | Object[]{
+        let obj: object;
+        for(let entry of this.entries())
+            ///@ts-ignore
+            obj[entry[0]] = entry[1].serialize? entry[1].serialize(): entry[1]
+        return obj;
+    }
+    /**
+     * @override
+     */
+    public toJson(): string{
+        return JSON.stringify(this.serialize());
+    }
+
+    public merge(map: SimpleMap<V>){
+        for(let entry of map.entries())
+            this.set(entry[0], entry[1]);
+    }
+    
 }
 
 export default SimpleMap;
