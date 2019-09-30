@@ -1,5 +1,5 @@
-interface HttpResponse{
-    data: Object,
+interface HttpResponse<T>{
+    data: T,
     status: number,
     statusText: string,
     headers: Object,

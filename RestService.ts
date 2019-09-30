@@ -3,7 +3,7 @@ import HttpResponse from "./HttpResponse";
 declare let axios;
 
 class RestService{
-    protected call(req: HttpRequest): Promise<HttpResponse>{
+    protected call<T>(req: HttpRequest): Promise<HttpResponse<T>>{
         let props: any = {};
         props.url = req.url;
         props.method = req.method == null? 'GET': req.method;
