@@ -4,13 +4,14 @@ declare let axios;
 
 class RestService{
     protected call(req: HttpRequest): Promise<HttpResponse>{
-        let props = {
-            url: req.url,
-            method: req.method,
+        let props: any = {};
+        props.url = req.url;
+        props.method = req.method == null? 'GET': req.method;
+        if(req.data != null){
             ///@ts-ignore
-            data: req.dataType == 'JSON'? JSON.stringify(req.data.keyToVal): req.data.keyToVal,
-            headers: {
-                'content-type': req.dataType == 'TEXT'? 'text/html': 'application/json'
+            props.data = req.dataType == 'JSON'? JSON.stringify(req.data.keyToVal): req.data.keyToVal
+            props.headers = {
+                'content-type': req.dataType == 'JSON'? 'application/json': 'text/html'
             }
         }
         return axios(props);
