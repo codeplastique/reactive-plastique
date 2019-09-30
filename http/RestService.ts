@@ -1,17 +1,24 @@
 import HttpRequest from "./HttpRequest";
 import HttpResponse from "./HttpResponse";
+import JsonRequestContent from "./JsonRequestContent";
 declare let axios;
 
 class RestService{
     protected call<T>(req: HttpRequest): Promise<HttpResponse<T>>{
-        let props: any = {};
-        props.url = req.url;
-        props.method = req.method == null? 'GET': req.method;
+        let props: any = {
+            url: req.url,
+            method: req.method == null? 'GET': req.method
+        };
         if(req.data != null){
-            ///@ts-ignore
-            props.data = req.dataType == 'JSON'? JSON.stringify(req.data.keyToVal): req.data.keyToVal
+            if(req.data instanceof JsonRequestContent)
+                 ///@ts-ignore
+                props.data = req.data.toJson? req.data.toJson(): JSON.stringify(req.data)
+            else
+                ///@ts-ignore
+                props.data = req.data.serialize? req.data.serialize(): req.data
+        
             props.headers = {
-                'content-type': req.dataType == 'JSON'? 'application/json': 'text/html'
+                'content-type': req.data.contentType
             }
         }
         return axios(props);

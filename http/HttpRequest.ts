@@ -1,11 +1,10 @@
-import Jsonable from "./annotation/Jsonable";
+import HttpRequestContent from "./HttpRequestContent";
 
 class HttpRequest{
     constructor(
         public url: string,
         public method?: "GET"|"POST"|"PUT"|"DELETE",
-        public data?: Object | Object[] | Jsonable,
-        public dataType?: "TEXT"|"JSON"
+        public data?: HttpRequestContent
     ){}
 }
 
