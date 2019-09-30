@@ -1,16 +1,19 @@
 import HttpRequest from "./HttpRequest";
+import HttpResponse from "./HttpResponse";
+declare let axios;
 
 class RestService{
-    protected call<T>(req: HttpRequest): Promise<T>{
+    protected call(req: HttpRequest): Promise<HttpResponse>{
         let props = {
             url: req.url,
-            type: req.method,
-            data: req.dataType == 'JSON'? JSON.stringify(req.data): req.data,
-            contentType: req.dataType
+            method: req.method,
+            ///@ts-ignore
+            data: req.dataType == 'JSON'? JSON.stringify(req.data.keyToVal): req.data.keyToVal,
+            headers: {
+                'content-type': req.dataType == 'TEXT'? 'text/html': 'application/json'
+            }
         }
-        return new Promise<T>((resolve, reject) => {
-            $.ajax(props).then(resolve, reject);
-        });
+        return axios(props);
     }
     protected buildQuery(url: string, attrToVal: Map<string, string>): string{
         let params = [];
