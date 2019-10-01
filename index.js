@@ -279,33 +279,33 @@ function Plastique(options){
                     return true;
                 }
 
-                function getClickAndDblClickEvents(elem){
-                    let events = {};
-                    let size = 0;
-                    for(var attr of elem.attributes){
+                // function getClickAndDblClickEvents(elem){
+                //     let events = {};
+                //     let size = 0;
+                //     for(var attr of elem.attributes){
 
-                        if(attr.name.startsWith('v-on:click')){
-                            size++;
-                            events['click'] = attr;
-                        }else if(attr.name.startsWith('v-on:dblclick')){
-                            size++;
-                            events['dblClick'] = attr;
-                        }
-                        if(size == 2)
-                            return events;
-                    }
-                }
+                //         if(attr.name.startsWith('v-on:click')){
+                //             size++;
+                //             events['click'] = attr;
+                //         }else if(attr.name.startsWith('v-on:dblclick')){
+                //             size++;
+                //             events['dblClick'] = attr;
+                //         }
+                //         if(size == 2)
+                //             return events;
+                //     }
+                // }
 
                 function handleUnknownAttr(elem, attrName, modifiers, attrVal){
                     if(is18nExpression(attrVal)){
                         elem.setAttribute('v-bind:'+ attrName, extract18nExpression(attrVal));
                     }else if(attrName.startsWith('on')){
                         elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
-                        let eventNameToAttr = getClickAndDblClickEvents(elem);
-                        if(eventNameToAttr){
-                            elem.removeAttribute(eventNameToAttr['dblClick'].name);
-                            eventNameToAttr['click'].value = `$convDblClick(${eventNameToAttr['click'].value},${eventNameToAttr['dblClick'].value})`;
-                        }
+                        // let eventNameToAttr = getClickAndDblClickEvents(elem);
+                        // if(eventNameToAttr){
+                        //     elem.removeAttribute(eventNameToAttr['dblClick'].name);
+                        //     eventNameToAttr['click'].value = `$convDblClick($event,${eventNameToAttr['click'].value},${eventNameToAttr['dblClick'].value})`;
+                        // }
                     }else
                         elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
                 }

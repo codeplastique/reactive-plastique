@@ -64,9 +64,10 @@ class SimpleMap<V> implements Map<string, V>, Serializable, Jsonable{
      */
     public serialize(): Object | Object[]{
         let obj: object;
-        for(let entry of this.entries())
-            ///@ts-ignore
-            obj[entry[0]] = entry[1].serialize? entry[1].serialize(): entry[1]
+        for(let key in this.keyToVal){
+            let val = this.keyToVal[key];
+            obj[key] = val.serialize? val.serialize(): val
+        }
         return obj;
     }
     /**
@@ -77,8 +78,8 @@ class SimpleMap<V> implements Map<string, V>, Serializable, Jsonable{
     }
 
     public merge(map: SimpleMap<V>){
-        for(let entry of map.entries())
-            this.set(entry[0], entry[1]);
+        for(let key in map.keyToVal)
+            this.set(key, map.keyToVal[key]);
     }
     
 }

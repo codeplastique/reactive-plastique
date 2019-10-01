@@ -237,23 +237,23 @@ abstract class App{
                         delete component.app$.pc;
                     return component;
                 },
-                $convDblClick: function(event, clickAction: any, dblClickAction: Function) {
-                    let target = event.target;
-                    if(target.cc == null)
-                        target.cc = 1; // click count
-                    else 
-                        target.cc++;
-                    if(target.cc == 1) {
-                        target.cct = setTimeout(() => {
-                            target.cc = 0;
-                            clickAction(event);
-                        }, 700);
-                    }else{
-                        clearTimeout(target.cct);  
-                        target.cc = 0;
-                        dblClickAction(event);
-                    }  
-                }
+                // $convDblClick: function(event, clickAction: any, dblClickAction: Function) {
+                //     let target = event.currentTarget;
+                //     if(target.cc == null)
+                //         target.cc = 1; // click count
+                //     else 
+                //         target.cc++;
+                //     if(target.cc == 1) {
+                //         target.cct = setTimeout(() => {
+                //             target.cc = 0;
+                //             clickAction(event);
+                //         }, 700);
+                //     }else{
+                //         clearTimeout(target.cct);  
+                //         target.cc = 0;
+                //         dblClickAction(event);
+                //     }  
+                // }
             }
         });
     }
