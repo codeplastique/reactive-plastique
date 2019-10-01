@@ -9,16 +9,15 @@ class RestService{
             url: req.url,
             method: req.method == null? 'GET': req.method
         };
-        if(req.data != null){
-            if(req.data instanceof JsonRequestContent)
-                 ///@ts-ignore
-                props.data = req.data.toJson? req.data.toJson(): JSON.stringify(req.data)
+        if(req.content != null){
+            let data = req.content.data;
+            if(req.content instanceof JsonRequestContent)
+                props.data = data.toJson? data.toJson(): JSON.stringify(data)
             else
-                ///@ts-ignore
-                props.data = req.data.serialize? req.data.serialize(): req.data
+                props.data = data.serialize? data.serialize(): data
         
             props.headers = {
-                'content-type': req.data.contentType
+                'content-type': req.content.contentType
             }
         }
         return axios(props);

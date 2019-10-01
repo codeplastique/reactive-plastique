@@ -4,7 +4,7 @@ class HttpRequest{
     constructor(
         public url: string,
         public method?: "GET"|"POST"|"PUT"|"DELETE",
-        public data?: HttpRequestContent
+        public content?: HttpRequestContent
     ){}
 }
 
