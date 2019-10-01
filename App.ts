@@ -25,17 +25,17 @@ Array.prototype.remove = function (index: number) {
     return this;
 }
 Array.prototype.removeValue = function (value: any) {
-    let index = this.indexOf(value);
-    if(index >= 0){
-        this.remove(index);
-        return true;
+    for(let i = 0; i < this.length; i++){
+        let val = this[i];
+        if(val == value || (val.app$ && value.app$ && val.app$.id == value.app$.id)){
+            this.remove(i);
+            return true;
+        }
     }
 }
 Array.prototype.removeValues = function (values: any[]) {
-    for(let value of values){
-        let index = this.indexOf(value)
-        if(index >= 0)
-            this.remove(index);
+    for(let val of values){
+        this.removeValue(val);
     }
 }
 Array.prototype.set = function (index: number, value: any) {
