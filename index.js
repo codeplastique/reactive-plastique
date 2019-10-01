@@ -109,10 +109,10 @@ function Plastique(options){
             var rootTag = dom.window.document.body.firstElementChild.content;
             let elems = rootTag.querySelectorAll('*');
             if(handle(rootTag.children, elems, componentName)){
-                let blockTags = rootTag.querySelectorAll('block');
+                let blockTags = Array.from(elems).filter(e => e.tagName == 'V:BLOCK');
                 for(let blockTag of blockTags){
-                    blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHt}</template>`);
-                    let templateTag = elem.previousSibling;
+                    blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHTML}</template>`);
+                    let templateTag = blockTag.previousSibling;
                     for(attr of blockTag.attributes)
                         templateTag.setAttribute(attr.name, attr.value);
                     blockTag.remove();
@@ -278,11 +278,34 @@ function Plastique(options){
                     }
                     return true;
                 }
+
+                function getClickAndDblClickEvents(elem){
+                    let events = {};
+                    let size = 0;
+                    for(var attr of elem.attributes){
+
+                        if(attr.name.startsWith('v-on:click')){
+                            size++;
+                            events['click'] = attr;
+                        }else if(attr.name.startsWith('v-on:dblclick')){
+                            size++;
+                            events['dblClick'] = attr;
+                        }
+                        if(size == 2)
+                            return events;
+                    }
+                }
+
                 function handleUnknownAttr(elem, attrName, modifiers, attrVal){
                     if(is18nExpression(attrVal)){
                         elem.setAttribute('v-bind:'+ attrName, extract18nExpression(attrVal));
                     }else if(attrName.startsWith('on')){
                         elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
+                        let eventNameToAttr = getClickAndDblClickEvents(elem);
+                        if(eventNameToAttr){
+                            elem.removeAttribute(eventNameToAttr['dblClick'].name);
+                            eventNameToAttr['click'].value = `$convDblClick(${eventNameToAttr['click'].value},${eventNameToAttr['dblClick'].value})`;
+                        }
                     }else
                         elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
                 }
