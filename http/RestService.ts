@@ -1,6 +1,7 @@
 import HttpRequest from "./HttpRequest";
 import HttpResponse from "./HttpResponse";
 import JsonRequestContent from "./JsonRequestContent";
+import TextRequestContent from "./TextRequestContent";
 declare let axios;
 
 class RestService{
@@ -13,8 +14,10 @@ class RestService{
             let data = req.content.data;
             if(req.content instanceof JsonRequestContent)
                 props.data = data.toJson? data.toJson(): JSON.stringify(data)
-            else
+            else if(req.content instanceof TextRequestContent)
                 props.data = data.serialize? data.serialize(): data
+            else // FormDataRequestContent
+                props.data = data;
         
             props.headers = {
                 'content-type': req.content.contentType
