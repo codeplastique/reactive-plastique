@@ -168,27 +168,16 @@ function Plastique(options){
                 return true;
     
                 
-                function wrapExpression(prefix, suffix, val){
-                    return prefix + val + suffix;
-                }
-                function extractExpression(val, prefix, suffix){
-                    let wrapExpr = wrapExpression.bind(this, prefix || "", suffix || "");
+                function extractExpression(val){
                     val = val.trim();
                     let isWithBrackets = val.match(/[$#]\{(.+?)\}/g).length > 1;
-                    return val.replace(/\$\{(.+?)\}/g, wrapExpr(isWithBrackets? '($1)': '$1'))
-                            .replace(/#\{(.+?)\}/g, wrapExpr(I18N_METHOD +'($1)'));
+                    return val.replace(/#\{(.+?)\}/g, I18N_METHOD +'($1)')
+                        .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
                 }
                 function isExpression(val){
                     return val.trim().search(/\$\{(.+?)\}/i) == 0;
                 }
-                function extract18nExpression(val, prefix, suffix){
-                    let wrapExpr = wrapExpression.bind(this, prefix || "", suffix || "");
-                    val = val.trim();
-                    return val.replace(/#\{(.+?)\}/g, wrapExpr(I18N_METHOD +'("$1")'));
-                }
-                function is18nExpression(val){
-                    return val.trim().search(/#\{(.+?)\}/i) == 0;
-                }
+            
                 function getModifiers(attrName){
                     return attrName.split('.').slice(1);
                 }
@@ -218,7 +207,7 @@ function Plastique(options){
                             elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
                             break;
                         case 'text':
-                            let expression = is18nExpression(attr.value)? extract18nExpression(attr.value): extractExpression(attr.value)
+                            let expression = extractExpression(attr.value)
                             elem.textContent = '{{'+ expression +'}}';
                             break;
                         case 'if':
@@ -232,14 +221,15 @@ function Plastique(options){
                             for(let dynamicAttr of attr.value.split(',')){
                                 if(dynamicAttr.trim().length == 0)
                                     continue;
-                                let keyToVal = dynamicAttr.trim().split('=');
-                                if(isExpression(keyToVal[0])){
+                                let [dynAttrName, dynAttrVal] = dynamicAttr.trim().split('=');
+                                dynAttrName = dynAttrName.trim();
+                                if(isExpression(dynAttrName)){
                                     var macrosType = attrName == 'attrappend'? '__:': '___:';
-                                    elem.setAttribute(macrosType + extractExpression(keyToVal[0]) + macrosType, extractExpression(keyToVal[1]));
-                                }else if(isExpression(keyToVal[1])){
-                                    handleUnknownAttr(elem, keyToVal[0].trim(), keyToVal[1]);
+                                    elem.setAttribute(macrosType + extractExpression(dynAttrName) + macrosType, extractExpression(dynAttrVal));
+                                }else if(isExpression(dynAttrVal)){
+                                    handleUnknownAttr(elem, dynAttrName, dynAttrVal);
                                 }else{
-                                    elem.setAttribute(keyToVal[0], keyToVal[1]);
+                                    elem.setAttribute(dynAttrName, dynAttrVal);
                                 }
                             }
                             break;
@@ -266,6 +256,7 @@ function Plastique(options){
                             let rightExpr = iterateParts[1].trim();
                             let isWithState = leftExpr.includes(',')? 1: 0;
                             rightExpr = extractExpression(rightExpr, `$convState(${isWithState},`, ')');
+                            rightExpr = `$convState(${isWithState},${extractExpression(rightExpr)})`;
                             if(isWithState){
                                 let leftPartVars = leftExpr.split(',');
                                 elem.insertAdjacentText('afterBegin',
@@ -297,9 +288,7 @@ function Plastique(options){
                 // }
 
                 function handleUnknownAttr(elem, attrName, modifiers, attrVal){
-                    if(is18nExpression(attrVal)){
-                        elem.setAttribute('v-bind:'+ attrName, extract18nExpression(attrVal));
-                    }else if(attrName.startsWith('on')){
+                    if(attrName.startsWith('on')){
                         elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
                         // let eventNameToAttr = getClickAndDblClickEvents(elem);
                         // if(eventNameToAttr){
