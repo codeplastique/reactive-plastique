@@ -5,9 +5,8 @@ class I18n {
         if(!I18n.keyToValue[key])
             alert('Bundle key "'+ key +'" is not found!')
         let result = I18n.keyToValue[key]; 
-        if(arguments.length > 1)
-            for(let i in arguments)
-                result = result.replace(new RegExp('\\{'+ i +'\\}', 'g'), arguments[i + 1])
+        for(let i = 0; i < args.length; i++)
+            result = result.replace(new RegExp('\\{'+ i +'\\}', 'g'), args[i])
         return result;
     }
 }
