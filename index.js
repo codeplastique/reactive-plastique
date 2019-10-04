@@ -171,7 +171,7 @@ function Plastique(options){
                 function extractExpression(val){
                     val = val.trim();
                     let isWithBrackets = val.match(/[$#]\{(.+?)\}/g).length > 1;
-                    return val.replace(/#\{(.+?)\}/g, I18N_METHOD +'($1)')
+                    return val.replace(/#\{(.+?)\}/g, I18N_METHOD +"('$1')")
                         .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
                 }
                 function isExpression(val){
