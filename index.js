@@ -255,7 +255,6 @@ function Plastique(options){
                             let leftExpr = iterateParts[0].trim();
                             let rightExpr = iterateParts[1].trim();
                             let isWithState = leftExpr.includes(',')? 1: 0;
-                            rightExpr = extractExpression(rightExpr, `$convState(${isWithState},`, ')');
                             rightExpr = `$convState(${isWithState},${extractExpression(rightExpr)})`;
                             if(isWithState){
                                 let leftPartVars = leftExpr.split(',');
