@@ -27,9 +27,10 @@ class RestService{
     }
     protected buildQuery(url: string, attrToVal: Map<string, string>): string{
         let params = [];
-        for (let param in attrToVal)
-            if(attrToVal[param] != null)
-                params.push(param +'='+ encodeURIComponent(attrToVal[param]));
+        attrToVal.forEach((val, paramKey) => {
+            if(val != null)
+                params.push(paramKey +'='+ encodeURIComponent(val));
+        });
         return url +'?'+ params.join('&');
     }
 }
