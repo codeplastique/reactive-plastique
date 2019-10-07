@@ -103,7 +103,9 @@ abstract class App{
 
     private static initComponent(componentName: string, configuration: string, obj: any){
         let config = JSON.parse(configuration);
-        let componentMethod = function(methodName: string){return this.app$.clazz[methodName].apply(this, arguments)};
+        let componentMethod = function(methodName: string){
+            return function(){ return this.app$.clazz[methodName].apply(this, arguments)}
+        };
         config.ah = config.ah? componentMethod(config.ah): null;
         config.dh = config.dh? componentMethod(config.dh): null;
         if(obj.app$){
