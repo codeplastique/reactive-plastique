@@ -100,13 +100,33 @@ abstract class App{
         return App.getBean(beanFunction);
     }   
     
+
     private static initComponent(componentName: string, configuration: string, obj: any){
         let config = JSON.parse(configuration);
+        let componentMethod = function(methodName: string){return this.app$.clazz[methodName].apply(this, arguments)};
+        config.ah = config.ah? componentMethod(config.ah): null;
+        config.dh = config.dh? componentMethod(config.dh): null;
         if(obj.app$){
             //from super
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
             obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
+            
+            if(obj.app$.pc.ah && config.ah){// if parent and child has attachHook
+                obj.app$.pc.ah = function(ph, th) {
+                    ph(); 
+                    th()
+                }(obj.app$.pc.ah, config.ah);
+            }else if(config.ah)
+                obj.app$.pc.ah = config.ah
+
+            if(obj.app$.pc.dh && config.dh){// if parent and child has attachHook
+                obj.app$.pc.dh = function(ph, th) {
+                    ph(); 
+                    th()
+                }(obj.app$.pc.dh, config.dh);
+            }else if(config.dh)
+                obj.app$.pc.dh = config.dh
         }else{
             obj.app$ = {
                 cn: componentName,
@@ -125,14 +145,14 @@ abstract class App{
         let memberNameToWatchMethodName: {[methid: string]: string} = configurator.w;
         let memberNameToWatchMethod: {[methid: string]: Function} = {};
         for(let methodName in obj.constructor.prototype){
-            if(computedMethods.indexOf(methodName) >= 0)
-                methodNameToComputed['$s' + methodName] = function(){return this.app$.clazz[methodName].apply(this, arguments)}
-            else
-                methodNameToMethod[methodName] = function(){return this.app$.clazz[methodName].apply(this, arguments);}
+            // if(computedMethods.indexOf(methodName) >= 0)
+            //     methodNameToComputed['$s' + methodName] = function(){return this.app$.clazz[methodName].apply(this, arguments)}
+            methodNameToMethod[methodName] = componentMethod(methodName)
         }
         for(let member in memberNameToWatchMethodName){
             let methodName = memberNameToWatchMethodName[member];
-            memberNameToWatchMethod[member] = function(){return this.app$.clazz[methodName].apply(this, arguments)};
+            memberNameToWatchMethod[member] = methodNameToMethod[methodName];
+            // memberNameToWatchMethod[member] = componentMethod(methodName);
         }
 
         Vue.component(componentName, {
@@ -144,7 +164,9 @@ abstract class App{
             watch: memberNameToWatchMethod,
             // computed: {},
             render: _VueTemplates[componentName].r,
-            staticRenderFns: _VueTemplates[componentName].s
+            staticRenderFns: _VueTemplates[componentName].s,
+            mounted: configurator.ah,
+            beforeDestroyed: configurator.dh
         });
     }
 

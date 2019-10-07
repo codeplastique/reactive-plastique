@@ -19,6 +19,8 @@ function Plastique(options){
     const ANNOTATION_ONCHANGE = 'OnChange';
     const ANNOTATION_BEAN = 'Bean';
     const ANNOTATION_LISTENER = 'Listener';
+    const ANNOTATION_AFTERATTACH = 'AfterAttach';
+    const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const I18N_METHOD = '_app.i18n';
@@ -406,6 +408,8 @@ function Plastique(options){
 
 
         let onchangeMethods = {};
+        let attachHook = null; 
+        let detachHook = null; 
         let constructorNode = getOrCreateConstructor(componentNode);
         if(componentNode.members){
             for(let member of componentNode.members){
@@ -421,6 +425,14 @@ function Plastique(options){
                         onchangeMethods[member.name.escapedText] = methodName;
                         removeDecorator(member, ANNOTATION_ONCHANGE);
                     }
+                }else if(member.kind == ts.SyntaxKind.MethodDeclaration){
+                    let methodName = member.name.escapedText;
+                    if(isNodeHasDecorator(member, ANNOTATION_AFTERATTACH)){
+                        attachHook = methodName;
+                    }
+                    if(isNodeHasDecorator(member, ANNOTATION_BEFOREDETACH)){
+                        detachHook = methodName;
+                    }
                 }
             }
         }
@@ -428,6 +440,11 @@ function Plastique(options){
             w: onchangeMethods, //onchange methods
             c: [] //cached methods
         };
+        if(attachHook)
+            configuration.ah = attachHook;
+        if(detachHook)
+            configuration.dh = detachHook;
+            
         constructorNode.body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
