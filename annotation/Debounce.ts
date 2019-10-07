@@ -5,12 +5,18 @@
 function Debounce(delayInMilliseconds: number) {
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
         let originalMethod = descriptor.value;
-        let isCooldown = false;
+        let lastTimeoutId = null;
         descriptor.value = function () {
-            if (isCooldown) return;
-            originalMethod.apply(this, arguments);
-            isCooldown = true;
-            setTimeout(() => isCooldown = false, delayInMilliseconds);
+            if (lastTimeoutId)
+                clearTimeout(lastTimeoutId);
+            let args = arguments;
+            lastTimeoutId = setTimeout(
+                () => {
+                    lastTimeoutId = null;
+                    originalMethod.apply(this, args);
+                },
+                delayInMilliseconds
+            );
         }
     }
 }
