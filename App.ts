@@ -108,7 +108,7 @@ abstract class App{
         };
         if(obj.app$){
             //from super
-            obj.app$.pc.super = obj.app$.cn;
+            // obj.app$.pc.super = obj.app$.cn;
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
             obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
@@ -121,10 +121,10 @@ abstract class App{
                 pc: config// parent configuration
             }
         }
-        if(Vue.component(componentName) != null)
+        if(_VueTemplates[componentName] == null || Vue.component(componentName) != null)
             return;
         let configurator = obj.app$.pc;
-        let methodNameToMethod: any = Object.create(configurator.super? Vue.component(configurator.super).options.methods: null);
+        let methodNameToMethod: any = {};
         // let methodNameToComputed: any = {};
         // let computedMethods = configurator.c;
         let memberNameToWatchMethodName: {[methid: string]: string} = configurator.w;
@@ -139,24 +139,19 @@ abstract class App{
             memberNameToWatchMethod[member] = methodNameToMethod[methodName];
         }
 
-        if(_VueTemplates[componentName].r)
-            Vue.component(componentName, {
-                props: ['m'],
-                data: function () {
-                    return this.m
-                },
-                methods: methodNameToMethod,
-                watch: memberNameToWatchMethod,
-                // computed: {},
-                render: _VueTemplates[componentName].r,
-                staticRenderFns: _VueTemplates[componentName].s,
-                mounted: config.ah? methodNameToMethod[config.ah]: null,
-                beforeDestroyed: config.dh? methodNameToMethod[config.dh]: null
-            });
-        else
-            Vue.component(componentName, {
-                methods: methodNameToMethod
-            })
+        Vue.component(componentName, {
+            props: ['m'],
+            data: function () {
+                return this.m
+            },
+            methods: methodNameToMethod,
+            watch: memberNameToWatchMethod,
+            // computed: {},
+            render: _VueTemplates[componentName].r,
+            staticRenderFns: _VueTemplates[componentName].s,
+            mounted: config.ah? methodNameToMethod[config.ah]: null,
+            beforeDestroy: config.dh? methodNameToMethod[config.dh]: null
+        });
     }
 
     private static addListeners(configuration: string, obj: any){
