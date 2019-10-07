@@ -106,29 +106,12 @@ abstract class App{
         let componentMethod = function(methodName: string){
             return function(){ return this.app$.clazz[methodName].apply(this, arguments)}
         };
-        config.ah = config.ah? componentMethod(config.ah): null;
-        config.dh = config.dh? componentMethod(config.dh): null;
         if(obj.app$){
             //from super
+            obj.app$.pc.super = obj.app$.cn;
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
             obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
-            
-            if(obj.app$.pc.ah && config.ah){// if parent and child has attachHook
-                obj.app$.pc.ah = function(ph, th) {
-                    ph(); 
-                    th()
-                }(obj.app$.pc.ah, config.ah);
-            }else if(config.ah)
-                obj.app$.pc.ah = config.ah
-
-            if(obj.app$.pc.dh && config.dh){// if parent and child has attachHook
-                obj.app$.pc.dh = function(ph, th) {
-                    ph(); 
-                    th()
-                }(obj.app$.pc.dh, config.dh);
-            }else if(config.dh)
-                obj.app$.pc.dh = config.dh
         }else{
             obj.app$ = {
                 cn: componentName,
@@ -141,9 +124,9 @@ abstract class App{
         if(Vue.component(componentName) != null)
             return;
         let configurator = obj.app$.pc;
-        let methodNameToMethod: any = {};
-        let methodNameToComputed: any = {};
-        let computedMethods = configurator.c;
+        let methodNameToMethod: any = Object.create(configurator.super? Vue.component(configurator.super).options.methods: null);
+        // let methodNameToComputed: any = {};
+        // let computedMethods = configurator.c;
         let memberNameToWatchMethodName: {[methid: string]: string} = configurator.w;
         let memberNameToWatchMethod: {[methid: string]: Function} = {};
         for(let methodName in obj.constructor.prototype){
@@ -154,22 +137,26 @@ abstract class App{
         for(let member in memberNameToWatchMethodName){
             let methodName = memberNameToWatchMethodName[member];
             memberNameToWatchMethod[member] = methodNameToMethod[methodName];
-            // memberNameToWatchMethod[member] = componentMethod(methodName);
         }
 
-        Vue.component(componentName, {
-            props: ['m'],
-            data: function () {
-                return this.m
-            },
-            methods: methodNameToMethod,
-            watch: memberNameToWatchMethod,
-            // computed: {},
-            render: _VueTemplates[componentName].r,
-            staticRenderFns: _VueTemplates[componentName].s,
-            mounted: configurator.ah,
-            beforeDestroyed: configurator.dh
-        });
+        if(_VueTemplates[componentName].r)
+            Vue.component(componentName, {
+                props: ['m'],
+                data: function () {
+                    return this.m
+                },
+                methods: methodNameToMethod,
+                watch: memberNameToWatchMethod,
+                // computed: {},
+                render: _VueTemplates[componentName].r,
+                staticRenderFns: _VueTemplates[componentName].s,
+                mounted: config.ah? methodNameToMethod[config.ah]: null,
+                beforeDestroyed: config.dh? methodNameToMethod[config.dh]: null
+            });
+        else
+            Vue.component(componentName, {
+                methods: methodNameToMethod
+            })
     }
 
     private static addListeners(configuration: string, obj: any){

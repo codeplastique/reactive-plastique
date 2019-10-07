@@ -366,19 +366,33 @@ function Plastique(options){
     function getAllRootComponentsData(componentNode, context){
         let maxParents = 0;
         let members = [];
+        let attachHook = null;
+        let detachHook = null;
         while(componentNode = getParentClass(componentNode, context)){
             if(componentNode.members){
                 members = members.concat(componentNode.members
                     .filter(m => m.kind == ts.SyntaxKind.PropertyDeclaration)
                     .map(m => m.name.escapedText)
                 )
-                
+                for(let member of componentNode.members){
+                    if(member.kind == ts.SyntaxKind.MethodDeclaration){
+                        let methodName = member.name.escapedText;
+                        if(!attachHook && isNodeHasDecorator(member, ANNOTATION_AFTERATTACH)){
+                            attachHook = methodName;
+                        }
+                        if(!detachHook && isNodeHasDecorator(member, ANNOTATION_BEFOREDETACH)){
+                            detachHook = methodName;
+                        }
+                    }
+                }
             }
             if(++maxParents > 100)
                 throw new Error('More than 100 parents!!');
         }
         return {
-            members: members
+            members: members,
+            attachHook: attachHook,
+            detachHook: detachHook
             // onChangeMethods: {}
         }
     }
@@ -427,12 +441,22 @@ function Plastique(options){
                     }
                 }else if(member.kind == ts.SyntaxKind.MethodDeclaration){
                     let methodName = member.name.escapedText;
-                    if(isNodeHasDecorator(member, ANNOTATION_AFTERATTACH)){
+                    if(!attachHook && isNodeHasDecorator(member, ANNOTATION_AFTERATTACH)){
                         attachHook = methodName;
+                        if(componentRoot.attachHook){
+                            member.body.statements.unshift(
+                                ts.createExpressionStatement(ts.createCall(ts.createPropertyAccess(ts.createSuper(), ts.createIdentifier(componentRoot.attachHook))))
+                            );
+                        }
                         removeDecorator(member, ANNOTATION_AFTERATTACH);
                     }
-                    if(isNodeHasDecorator(member, ANNOTATION_BEFOREDETACH)){
+                    if(!detachHook && isNodeHasDecorator(member, ANNOTATION_BEFOREDETACH)){
                         detachHook = methodName;
+                        if(componentRoot.detachHook){
+                            member.body.statements.unshift(
+                                ts.createExpressionStatement(ts.createCall(ts.createPropertyAccess(ts.createSuper(), ts.createIdentifier(componentRoot.detachHook))))
+                            );
+                        }
                         removeDecorator(member, ANNOTATION_BEFOREDETACH);
                     }
                 }
@@ -444,8 +468,12 @@ function Plastique(options){
         };
         if(attachHook)
             configuration.ah = attachHook;
+        else
+            configuration.ah = componentRoot.attachHook
         if(detachHook)
             configuration.dh = detachHook;
+        else
+            configuration.dh = componentRoot.detachHook
 
         constructorNode.body.statements.push(ts.createCall(
             ts.createPropertyAccess(
