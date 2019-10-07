@@ -429,9 +429,11 @@ function Plastique(options){
                     let methodName = member.name.escapedText;
                     if(isNodeHasDecorator(member, ANNOTATION_AFTERATTACH)){
                         attachHook = methodName;
+                        removeDecorator(member, ANNOTATION_AFTERATTACH);
                     }
                     if(isNodeHasDecorator(member, ANNOTATION_BEFOREDETACH)){
                         detachHook = methodName;
+                        removeDecorator(member, ANNOTATION_BEFOREDETACH);
                     }
                 }
             }
@@ -444,7 +446,7 @@ function Plastique(options){
             configuration.ah = attachHook;
         if(detachHook)
             configuration.dh = detachHook;
-            
+
         constructorNode.body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
@@ -619,6 +621,8 @@ function Plastique(options){
                         name == ANNOTATION_ENTRY_POINT_CLASS ||
                         name == ANNOTATION_ONCHANGE ||
                         name == ANNOTATION_LISTENER ||
+                        name == ANNOTATION_BEFOREDETACH ||
+                        name == ANNOTATION_AFTERATTACH ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
                         return;
