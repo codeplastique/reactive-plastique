@@ -1,2 +1,4 @@
-declare const Reactive: Function;
+declare const Reactive: (
+    templateName?: string //by default class name
+) => Function;
 export default Reactive;

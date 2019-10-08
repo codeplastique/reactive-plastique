@@ -66,7 +66,7 @@ function Plastique(options){
         // if(decorators.length == 0)
         //     nodeClass.decorators = null;
     }
-    function getDecoratorArgumentMethodName(nodeClass, decoratorName){
+    function getDecoratorArgumentMethodName(nodeClass, decoratorName, required){
         let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
         if(decorators.length > 0){
             for(let decorator of nodeClass.decorators){
@@ -78,7 +78,8 @@ function Plastique(options){
                         let text = decorator.expression.arguments[0].text;
                         return text? text: decorator.expression.arguments[0].name.escapedText;
                     }
-                    throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
+                    if(required)
+                        throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
                 }
             }
         }
@@ -413,6 +414,7 @@ function Plastique(options){
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
+        let customComponentName = getDecoratorArgumentMethodName(componentNode, ANNOTATION_REACTIVE_CLASS) || componentName;
 
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
@@ -434,7 +436,7 @@ function Plastique(options){
                         && !hasPropertyAssignmentInConstructor(constructorNode, member)
                     )
                         member.initializer = ts.createNull();
-                    let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE);
+                    let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE, true);
                     if(methodName != null){
                         onchangeMethods[member.name.escapedText] = methodName;
                         removeDecorator(member, ANNOTATION_ONCHANGE);
@@ -475,6 +477,7 @@ function Plastique(options){
         else
             configuration.dh = componentRoot.detachHook
 
+
         constructorNode.body.statements.push(ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
@@ -482,7 +485,7 @@ function Plastique(options){
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
-                ts.createLiteral(componentName.toUpperCase()),
+                ts.createLiteral(customComponentName.toUpperCase()),
                 ts.createLiteral(JSON.stringify(configuration)),
                 ts.createThis()
             ]
@@ -593,7 +596,7 @@ function Plastique(options){
             for(let member of classNode.members){
                 if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
                     hasListeners = true;
-                    let eventName = getDecoratorArgumentMethodName(member, ANNOTATION_LISTENER);
+                    let eventName = getDecoratorArgumentMethodName(member, ANNOTATION_LISTENER, true);
                     methodToEvent[member.name.escapedText] = eventName.toLowerCase();
                     removeDecorator(member, ANNOTATION_LISTENER);
                 }
