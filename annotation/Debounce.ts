@@ -1,6 +1,6 @@
 /**
  * Ограничивает частоту вызовов метода до delay.
- * Метод возвращает undefined если метод вызывается до 
+ * Метод возвращает всегда undefined
  */
 function Debounce(delayInMilliseconds: number) {
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {

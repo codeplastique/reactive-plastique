@@ -16,6 +16,10 @@ declare global {
         removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
     }
+
+    interface Event{
+        getClosestComponent: () => Component
+    }
 }
 Array.prototype.remove = function (index: number) {
     if("__ob__" in this)
@@ -55,6 +59,11 @@ Array.prototype.serialize = function() {
 }
 Array.prototype.toJson = function () {
     return JSON.stringify(this.serialize());
+}
+
+Event.prototype.getClosestComponent = function() {
+    let elem = this.target.closest('[data-cn]')
+    return elem? elem.__vue__: null;
 }
 
 //ES 6 support
