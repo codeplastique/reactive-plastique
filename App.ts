@@ -63,7 +63,7 @@ Array.prototype.toJson = function () {
 
 Event.prototype.getClosestComponent = function() {
     let elem = this.target.closest('[data-cn]')
-    return elem? elem.__vue__: null;
+    return elem? elem.__vue__._data: null;
 }
 
 //ES 6 support
