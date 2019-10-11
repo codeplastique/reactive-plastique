@@ -252,6 +252,12 @@ abstract class App{
                         delete component.app$.pc;
                     return component;
                 },
+                // mounted: function(){
+                //     if(this.attachedComponents[this]){
+                //         let func = (res, rej) => {res(this);}
+                //         this.attachedComponents[this].promise = new Promise(func);
+                //     }
+                // }
                 // $convDblClick: function(event, clickAction: any, dblClickAction: Function) {
                 //     let target = event.currentTarget;
                 //     if(target.cc == null)
@@ -296,6 +302,16 @@ abstract class App{
             parent = parent.app$.parent;
         }
     }
+
+
+    // protected attachedComponents = {};
+    // public whenAttached(component: Component): Promise<Component>{
+    //     if(this.isComponentAttached(component))
+    //         return Promise.resolve(component);
+    //     return this.attachedComponents[component];
+    // }
+    
+
     public setLocale(locale: string){
         ///@ts-ignore
         // if(I18n.locale != locale){
