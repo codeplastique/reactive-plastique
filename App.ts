@@ -239,9 +239,9 @@ abstract class App{
 
     private genVueMixins(){
         Vue.mixin({
-            created: function(vueObj){
-                if(vueObj._data.app$)
-                    vueObj._data.app$.$v = this;
+            created: function(){
+                if(this._data.app$)
+                    this._data.app$.$v = this;
             },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
