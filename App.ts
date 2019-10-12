@@ -160,6 +160,13 @@ abstract class App{
             memberNameToWatchMethod[member] = methodNameToMethod[methodName];
         }
 
+        if(config.ep){ // element props
+            for(let prop of config.ep)
+                Object.defineProperty(obj, prop, {
+                    get: function(prop){ return function(){ return this.$refs? this.$refs[prop]: null}}(prop)
+                })
+        }
+
         Vue.component(componentName, {
             props: ['m'],
             data: function () {
@@ -173,13 +180,6 @@ abstract class App{
             mounted: config.ah? methodNameToMethod[config.ah]: null,
             beforeDestroy: config.dh? methodNameToMethod[config.dh]: null
         });
-
-        if(config.ep){ // element props
-            for(let prop of config.ep)
-                Object.defineProperty(obj, prop, {
-                    get: function(prop){ return function(){ return this.$refs[prop]}}(prop)
-                })
-        }
     }
 
     private static addListeners(configuration: string, obj: any){
