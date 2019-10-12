@@ -21,7 +21,7 @@ function Plastique(options){
     const ANNOTATION_LISTENER = 'Listener';
     const ANNOTATION_AFTERATTACH = 'AfterAttach';
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
-    const ANNOTATION_ELEMENT = 'Element';
+    const ANNOTATION_ELEMENT = 'Inject';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const I18N_METHOD = '_app.i18n';
