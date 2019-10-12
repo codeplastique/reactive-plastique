@@ -174,7 +174,10 @@ function Plastique(options){
                 
                 function extractExpression(val){
                     val = val.trim();
-                    let isWithBrackets = val.match(/[$#]\{(.+?)\}/g).length > 1;
+                    let exprMatch = val.match(/[$#]\{(.+?)\}/g);
+                    if(exprMatch == null)
+                        return val;
+                    let isWithBrackets = exprMatch.length > 1;
                     return val.replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
                         .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
                 }
@@ -207,6 +210,9 @@ function Plastique(options){
                     let modifiers = getModifiers(attrName);
                     attrName = attrName.split('.')[0]
                     switch(attrName){
+                        case 'ref':
+                            elem.setAttribute('v-ref', extractExpression(attr.value));
+                            break;
                         case 'model':
                             elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
                             break;
