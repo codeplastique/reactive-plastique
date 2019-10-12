@@ -163,7 +163,10 @@ abstract class App{
         if(config.ep){ // element props
             for(let prop of config.ep)
                 Object.defineProperty(obj, prop, {
-                    get: function(prop){ return function(){ return this.$refs? this.$refs[prop]: null}}(prop)
+                    enumerable: true,
+                    get: function(prop){ return function(){ 
+                        return this.app$.v$? this.app$.v$.$refs[prop]: null}
+                    }(prop)
                 })
         }
 
@@ -236,6 +239,10 @@ abstract class App{
 
     private genVueMixins(){
         Vue.mixin({
+            created: function(vueObj){
+                if(vueObj._data.app$)
+                    vueObj._data.app$.$v = this;
+            },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
                     let arr = [], size: number, getValue: (i: number) => object;
@@ -270,7 +277,7 @@ abstract class App{
                     if(component.app$.pc)
                         delete component.app$.pc;
                     return component;
-                },
+                }
                 // mounted: function(){
                 //     if(this.attachedComponents[this]){
                 //         let func = (res, rej) => {res(this);}
