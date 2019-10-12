@@ -211,7 +211,7 @@ function Plastique(options){
                     attrName = attrName.split('.')[0]
                     switch(attrName){
                         case 'ref':
-                            elem.setAttribute('v-ref', extractExpression(attr.value));
+                            elem.setAttribute('v-bind:ref', extractExpression(attr.value));
                             break;
                         case 'model':
                             elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));

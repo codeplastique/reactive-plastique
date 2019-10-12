@@ -16,6 +16,7 @@
     <attribute-processor name="classappend"  />
     <attribute-processor name="component"  />
     <attribute-processor name="each"  />
+    <attribute-processor name="ref"  />
 	<element-processor name="block"/>
 
 
