@@ -21,6 +21,7 @@ function Plastique(options){
     const ANNOTATION_LISTENER = 'Listener';
     const ANNOTATION_AFTERATTACH = 'AfterAttach';
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
+    const ANNOTATION_ELEMENT = 'Element';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const I18N_METHOD = '_app.i18n';
@@ -424,6 +425,7 @@ function Plastique(options){
 
 
         let onchangeMethods = {};
+        let elementProps = [];
         let attachHook = null; 
         let detachHook = null; 
         let constructorNode = getOrCreateConstructor(componentNode);
@@ -431,11 +433,19 @@ function Plastique(options){
             for(let member of componentNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                     let memberName = member.name.escapedText;
-                    if(member.initializer == null 
-                        && !componentRoot.members.includes(memberName) 
-                        && !hasPropertyAssignmentInConstructor(constructorNode, member)
-                    )
-                        member.initializer = ts.createNull();
+
+                    let isElementProp = isNodeHasDecorator(member, ANNOTATION_ELEMENT);
+                    if(isElementProp){
+                        elementProps.push(memberName);
+                        removeDecorator(member, ANNOTATION_ELEMENT);
+                    }else{
+                        if(member.initializer == null 
+                            && !componentRoot.members.includes(memberName) 
+                            && !hasPropertyAssignmentInConstructor(constructorNode, member)
+                        ){
+                            member.initializer = ts.createNull();
+                        }
+                    }
                     let methodName = getDecoratorArgumentMethodName(member, ANNOTATION_ONCHANGE, true);
                     if(methodName != null){
                         onchangeMethods[member.name.escapedText] = methodName;
@@ -476,6 +486,9 @@ function Plastique(options){
             configuration.dh = detachHook;
         else
             configuration.dh = componentRoot.detachHook
+
+        if(elementProps.length > 0)
+            configuration.ep = elementProps;
 
 
         constructorNode.body.statements.push(ts.createCall(
@@ -654,6 +667,7 @@ function Plastique(options){
                         name == ANNOTATION_LISTENER ||
                         name == ANNOTATION_BEFOREDETACH ||
                         name == ANNOTATION_AFTERATTACH ||
+                        name == ANNOTATION_ELEMENT ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
                         return;

@@ -18,7 +18,7 @@ declare global {
     }
 
     interface Event{
-        getClosestComponent: () => Component
+        getClosestComponent: (types?: Component[]) => Component
     }
 }
 Array.prototype.remove = function (index: number) {
@@ -61,9 +61,21 @@ Array.prototype.toJson = function () {
     return JSON.stringify(this.serialize());
 }
 
-Event.prototype.getClosestComponent = function() {
-    let elem = this.target.closest('[data-cn]')
-    return elem? elem.__vue__._data: null;
+Event.prototype.getClosestComponent = function(types?: Function[]) {
+    let parent = this.target;
+    while(true){
+        if(parent.hasAttribute('data-cn')){
+            if(types){
+                for(let type of types)
+                    if(parent.__vue__._data instanceof type)
+                        return parent.__vue__._data;
+            }else
+                return parent.__vue__._data
+        }
+        parent = parent.closest('[data-cn]');
+        if(parent == null || !this.currentTarget.contains(parent))
+            return;
+    }
 }
 
 //ES 6 support
@@ -161,6 +173,13 @@ abstract class App{
             mounted: config.ah? methodNameToMethod[config.ah]: null,
             beforeDestroy: config.dh? methodNameToMethod[config.dh]: null
         });
+
+        if(config.ep){ // element props
+            for(let prop of config.ep)
+                Object.defineProperty(obj, prop, {
+                    get: function(prop){ return function(){ return this.$refs[prop]}}(prop)
+                })
+        }
     }
 
     private static addListeners(configuration: string, obj: any){
