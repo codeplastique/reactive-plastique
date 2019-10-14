@@ -164,21 +164,32 @@ abstract class App{
             memberNameToWatchMethod[member] = methodNameToMethod[methodName];
         }
 
-        if(config.ep){ // element props
-            for(let prop of config.ep)
-                Object.defineProperty(obj, prop, {
-                    enumerable: true,
-                    get: function(prop){ return function(){ 
-                        return this.app$.v$? this.app$.v$.$refs[prop]: null}
-                    }(prop)
-                })
-        }
+        // if(config.ep){ // element props
+        //     for(let prop of config.ep)
+        //         Object.defineProperty(obj, prop, {
+        //             enumerable: true,
+        //             get: function(prop){ return function(){ 
+        //                 return this.app$.v$? this.app$.v$.$refs[prop]: null}
+        //             }(prop)
+        //         })
+        // }
 
         Vue.component(componentName, {
             props: ['m'],
-            data: function () {
-                return this.m
-            },
+            data: function(elementProps: string[]){
+                return function () {
+                    if(elementProps){ // element props
+                        for(let prop of elementProps)
+                            Object.defineProperty(this.m, prop, {
+                                enumerable: true,
+                                get: function(prop){ return function(){ 
+                                    return this.app$.v$? this.app$.v$.$refs[prop]: null}
+                                }(prop)
+                            })
+                    }
+                    return this.m
+                }
+            }(config.ep),
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             // computed: {},
