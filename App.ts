@@ -117,7 +117,7 @@ abstract class App{
         }
         let bean: any = App.beanNameToDef[beanName];
         if(bean instanceof Function)
-            App.beanNameToDef[beanName] = bean = bean();
+            App.beanNameToDef[beanName] = bean = bean.call(App.ep);
         return bean;
     }   
     public getBean<T>(beanFunction: string): T{
