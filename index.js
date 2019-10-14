@@ -496,7 +496,7 @@ function Plastique(options){
         if(elementProps.length > 0)
             configuration.ep = elementProps;
         if(templateName)
-            configuration.tn = templateName;
+            configuration.tn = templateName.toUpperCase();
 
 
         constructorNode.body.statements.push(ts.createCall(
@@ -506,7 +506,7 @@ function Plastique(options){
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
-                ts.createLiteral(componentName),
+                ts.createLiteral(componentName.toUpperCase()),
                 ts.createLiteral(JSON.stringify(configuration)),
                 ts.createThis()
             ]
