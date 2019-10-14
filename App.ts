@@ -137,6 +137,7 @@ abstract class App{
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
             obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
+            obj.app$.pc.ec = (obj.app$.pc.ec || []).concat(config.ec); // element components
         }else{
             obj.app$ = {
                 cn: componentName,
@@ -182,14 +183,14 @@ abstract class App{
                         for(let prop of elementProps)
                             Object.defineProperty(this.m, prop, {
                                 enumerable: true,
-                                get: function(prop){ return function(){ 
-                                    return this.app$.v$? this.app$.v$.$refs[prop]: null}
-                                }(prop)
+                                get:  function(){ 
+                                    return this.app$.v$? this.app$.v$.$refs[prop]: null
+                                }
                             })
                     }
                     return this.m
                 }
-            }(config.ep),
+            }(configurator.ep),
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             // computed: {},
