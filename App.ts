@@ -10,9 +10,6 @@ declare const _VueTemplates: any;
 
 
 declare global {
-    interface Object{
-        getClazz(): Clazz;
-    }
     interface Clazz extends Function{}
 
     interface Array<T> extends Serializable, Jsonable{
@@ -25,10 +22,6 @@ declare global {
     interface Event{
         getClosestComponent: (types?: Component[]) => Component
     }
-}
-
-Object.prototype.getClazz = function() {
-    return this.app$? this._data: this;
 }
 
 Array.prototype.remove = function (index: number) {
