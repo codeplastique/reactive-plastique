@@ -10,6 +10,11 @@ declare const _VueTemplates: any;
 
 
 declare global {
+    interface Object{
+        getClazz(): Clazz;
+    }
+    interface Clazz extends Function{}
+
     interface Array<T> extends Serializable, Jsonable{
         remove(index: number): Array<T>;
         removeValue(value: T): boolean;
@@ -21,6 +26,11 @@ declare global {
         getClosestComponent: (types?: Component[]) => Component
     }
 }
+
+Object.prototype.getClazz = function() {
+    return this.app$? this._data: this;
+}
+
 Array.prototype.remove = function (index: number) {
     if("__ob__" in this)
         Vue.delete(this, index);
@@ -61,7 +71,7 @@ Array.prototype.toJson = function () {
     return JSON.stringify(this.serialize());
 }
 
-Event.prototype.getClosestComponent = function(types?: Function[]) {
+Event.prototype.getClosestComponent = function(types?: Clazz[]) {
     let parent = this.target;
     while(true){
         if(parent.hasAttribute('data-cn')){
@@ -124,6 +134,7 @@ abstract class App{
 
     private static initComponent(componentName: string, configuration: string, obj: any){
         let config = JSON.parse(configuration);
+        let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
             return function(){ return this.app$.clazz[methodName].apply(this, arguments)}
         };
@@ -142,7 +153,7 @@ abstract class App{
                 pc: config// parent configuration
             }
         }
-        if(_VueTemplates[componentName] == null || Vue.component(componentName) != null)
+        if(_VueTemplates[teplateName] == null || Vue.component(componentName) != null)
             return;
         let configurator = obj.app$.pc;
         let methodNameToMethod: any = {};
@@ -178,8 +189,8 @@ abstract class App{
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             // computed: {},
-            render: _VueTemplates[componentName].r,
-            staticRenderFns: _VueTemplates[componentName].s,
+            render: _VueTemplates[teplateName].r,
+            staticRenderFns: _VueTemplates[teplateName].s,
             mounted: config.ah? methodNameToMethod[config.ah]: null,
             beforeDestroy: config.dh? methodNameToMethod[config.dh]: null
         });

@@ -421,7 +421,7 @@ function Plastique(options){
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
-        let customComponentName = getDecoratorArgumentMethodName(componentNode, ANNOTATION_REACTIVE_CLASS) || componentName;
+        let templateName = getDecoratorArgumentMethodName(componentNode, ANNOTATION_REACTIVE_CLASS);
 
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
@@ -495,6 +495,8 @@ function Plastique(options){
 
         if(elementProps.length > 0)
             configuration.ep = elementProps;
+        if(templateName)
+            configuration.tn = templateName;
 
 
         constructorNode.body.statements.push(ts.createCall(
@@ -504,7 +506,7 @@ function Plastique(options){
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
-                ts.createLiteral(customComponentName.toUpperCase()),
+                ts.createLiteral(componentName),
                 ts.createLiteral(JSON.stringify(configuration)),
                 ts.createThis()
             ]
