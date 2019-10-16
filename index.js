@@ -316,7 +316,7 @@ function Plastique(options){
     function buildLocales(){
         let langToPropertiesReader = {};
         let regexp = new RegExp('"([^(\")"]+)":', 'g');
-        glob(I18N_DIR +'/**/*', {sync: true}).forEach(function(filePath) {
+        glob(I18N_DIR +'/**/*.properties', {sync: true}).forEach(function(filePath) {
             let fileName = getFileNameWithoutExt(filePath);
             let [bundle, locale] = fileName.split('_');
             if(langToPropertiesReader[locale] == null)
