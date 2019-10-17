@@ -1,9 +1,9 @@
 import AppEvent from "./AppEvent";
 
  class EventManager {
-    private static listeners: {[eventName: string]: Array<(event?: any) => Promise<any>>} = {} 
+    private static listeners: {[eventName: string]: Array<(event?: any, caller?: any) => Promise<any>>} = {} 
     private constructor(
-        private component
+        private caller
     ){}
 
     private static addListener(eventName: string, func: Function): void{
@@ -19,16 +19,16 @@ import AppEvent from "./AppEvent";
             ///@ts-ignore
             return Promise.resolve();
         }
-        return Promise.all(EventManager.listeners[eventName as string].map(func => func(eventObject)));
+        return Promise.all(EventManager.listeners[eventName as string].map(func => func(eventObject, this.caller)));
     }
     public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
-        if(this.component == null)
+        if(this.caller.app$ == null)
             throw new Error('fireEventOnParents works only with components!')
         eventName = eventName.toLowerCase();
-        let parent = this.component.app$.parent;
+        let parent = this.caller.app$.parent;
         while(parent){
             if(parent.app$.events[eventName as string])
-                return Promise.resolve(parent.app$.events[eventName as string][0](eventObject));
+                return Promise.resolve(parent.app$.events[eventName as string][0](eventObject, this.caller));
             parent = parent.app$.parent;
         }
         console.log('No parent listeners for event: '+ eventName);

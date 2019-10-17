@@ -638,7 +638,7 @@ function Plastique(options){
                                 ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
                             ]
                         );
-                        if(member.type.typeName.escapedText == 'EventManager' && isComponentNode(node)) {
+                        if(member.type.typeName.escapedText == 'EventManager') {
                             member.initializer.arguments.push(ts.createThis());
                         }
                         removeDecorator(member, ANNOTATION_AUTOWIRED)
