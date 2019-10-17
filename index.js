@@ -381,11 +381,16 @@ function Plastique(options){
     }
 
     function getNodePath(node, className){
-        let relativeModulePath = node.getSourceFile()
+        let f =  node.getSourceFile()
             .locals
             .get(className? className: node.expression.escapedText)
             .declarations[0]
-            .parent
+            .parent;
+
+        if(f.fileName)
+            return f.fileName;
+
+        let relativeModulePath = f
             .moduleSpecifier
             .text
         return node.getSourceFile().resolvedModules.get(relativeModulePath).resolvedFileName;
@@ -689,9 +694,9 @@ function Plastique(options){
             let className = classNode.name.escapedText;
             for(let member of classNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
+                    let memberName = member.name.escapedText;
                     let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword)); 
-                    if(neededModifiers.length == 2 && member.type.typeName.escapedText == APP_EVENT_TYPE){
-                        let memberName = member.name.escapedText;
+                    if(neededModifiers.length == 2 && member.type.typeName && member.type.typeName.escapedText == APP_EVENT_TYPE){
                         let eventId;
                         let classFile = classNode.getSourceFile().path;
                         for(let i = 0; i < eventToIdentifier.length; i++){
@@ -711,7 +716,7 @@ function Plastique(options){
                             }) - 1;
                         member.initializer = ts.createStringLiteral(String(eventId));
                     }else
-                        throw new Error('Event must be static, readonly and has type '+ APP_EVENT_TYPE)
+                        throw new Error(`Event "${className}.${memberName}" must be a static & readonly and has ${APP_EVENT_TYPE} type`)
                     removeDecorator(member, ANNOTATION_INIT_EVENT);
                 }
             }
@@ -767,9 +772,9 @@ function Plastique(options){
         };
         return function (node) { 
             let result = ts.visitNode(node, visitor); 
-            let notInitEvent = eventToIdentifier.find(e => e.init == false);
-            if(notInitEvent)
-                throw new Error('Event "'+ (notInitEvent.className +"."+ notInitEvent.memberName) +" is not found!")
+            // let notInitEvent = eventToIdentifier.find(e => e.init == false);
+            // if(notInitEvent)
+            //     throw new Error('Event "'+ (notInitEvent.className +"."+ notInitEvent.memberName) +" is not found!")
 
             return result;
         };
