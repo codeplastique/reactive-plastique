@@ -363,7 +363,7 @@ function Plastique(options){
     beanToId['EventManager'] = beanCounter++; //add EventManager as bean
     let entryPointsNames = [];
     let componentsNames = [];
-    let eventToIdentifier = {};
+    let eventToIdentifier = [];
 
     function getOrCreateConstructor(classNode){
         for(let member of classNode.members)
@@ -655,7 +655,12 @@ function Plastique(options){
                     let path = getNodePath(classNode, className);
                     let index = eventToIdentifier.findIndex(o => o.classFile == path && o.className == className && o.memberName == propName);
                     if(index == null || index < 0)
-                        throw new Error('Event "'+ (className +"."+ propName) +" is not found!")
+                        index = eventToIdentifier.push({
+                            classFile: path,
+                            className: className,
+                            memberName: propName,
+                            init: false
+                        }) - 1;
 
                     methodToEvent[member.name.escapedText] = String(index);
                     removeDecorator(member, ANNOTATION_LISTENER);
@@ -687,11 +692,23 @@ function Plastique(options){
                     let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword)); 
                     if(neededModifiers.length == 2 && member.type.typeName.escapedText == APP_EVENT_TYPE){
                         let memberName = member.name.escapedText;
-                        let eventId = eventToIdentifier.push({
-                            classFile: classNode.getSourceFile().path,
-                            className: className,
-                            memberName: memberName
-                        }) - 1;
+                        let eventId;
+                        let classFile = classNode.getSourceFile().path;
+                        for(let i = 0; i < eventToIdentifier.length; i++){
+                            let event = eventToIdentifier[i];
+                            if(event.classFile == classFile && event.className == className && event.memberName == memberName){
+                                event.init = true;
+                                eventId = i;
+                                break;
+                            }
+                        }
+                        if(eventId == null)
+                            eventId = eventToIdentifier.push({
+                                classFile: classNode.getSourceFile().path,
+                                className: className,
+                                memberName: memberName,
+                                init: true
+                            }) - 1;
                         member.initializer = ts.createStringLiteral(String(eventId));
                     }else
                         throw new Error('Event must be static, readonly and has type '+ APP_EVENT_TYPE)
@@ -749,7 +766,12 @@ function Plastique(options){
             }
         };
         return function (node) { 
-            return ts.visitNode(node, visitor); 
+            let result = ts.visitNode(node, visitor); 
+            let notInitEvent = eventToIdentifier.find(e => e.init == false);
+            if(notInitEvent)
+                throw new Error('Event "'+ (notInitEvent.className +"."+ notInitEvent.memberName) +" is not found!")
+
+            return result;
         };
     };
 

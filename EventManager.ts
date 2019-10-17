@@ -12,7 +12,7 @@ import AppEvent from "./AppEvent";
         ///@ts-ignore
         EventManager.listeners[eventName].push(func);
     }
-    public fireEvent<T>(eventName: AppEvent<any>, eventObject?: any): Promise<T[]>{
+    public fireEvent<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T[]>{
         eventName = eventName.toLowerCase();
         if(EventManager.listeners[eventName as string] == null){
             console.log('No listeners for event: '+ eventName);
@@ -21,7 +21,7 @@ import AppEvent from "./AppEvent";
         }
         return Promise.all(EventManager.listeners[eventName as string].map(func => func(eventObject)));
     }
-    public fireEventOnParents<T>(eventName: AppEvent<any>, eventObject?: any): Promise<T>{
+    public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
         if(this.component == null)
             throw new Error('fireEventOnParents works only with components!')
         eventName = eventName.toLowerCase();
