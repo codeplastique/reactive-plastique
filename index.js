@@ -22,8 +22,10 @@ function Plastique(options){
     const ANNOTATION_AFTERATTACH = 'AfterAttach';
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
     const ANNOTATION_ELEMENT = 'Inject';
+    const ANNOTATION_INIT_EVENT = 'InitEvent';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
+    const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
 
     // --------------------------------------------------------------------------------------------------------------------
@@ -67,7 +69,8 @@ function Plastique(options){
         // if(decorators.length == 0)
         //     nodeClass.decorators = null;
     }
-    function getDecoratorArgumentMethodName(nodeClass, decoratorName, required){
+
+    function getDecoratorArguments(nodeClass, decoratorName, required){
         let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
         if(decorators.length > 0){
             for(let decorator of nodeClass.decorators){
@@ -76,8 +79,7 @@ function Plastique(options){
 
                 if(name == decoratorName){
                     if(decorator.expression.arguments && decorator.expression.arguments.length > 0){
-                        let text = decorator.expression.arguments[0].text;
-                        return text? text: decorator.expression.arguments[0].name.escapedText;
+                        return decorator.expression.arguments;
                     }
                     if(required)
                         throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
@@ -85,6 +87,26 @@ function Plastique(options){
             }
         }
         return null;
+    }
+
+    function getDecoratorArgumentMethodName(nodeClass, decoratorName, required){
+        let args = getDecoratorArguments(nodeClass, decoratorName, required);
+        if(args == null)
+            return null;
+
+        let text = args[0].text;
+        return text? text: args[0].name.escapedText;
+    }
+
+    function getDecoratorArgumentCallExpr(nodeClass, decoratorName, required){
+        let args = getDecoratorArguments(nodeClass, decoratorName, required);
+        if(args == null)
+            return null;
+        let arg = args[0];
+        return [
+            arg.expression.escapedText,
+            arg.name.escapedText
+        ]
     }
     // function isHasEmptyPublicConscructor(classNode){
     //     let className = classNode.name.escapedText;
@@ -341,6 +363,7 @@ function Plastique(options){
     beanToId['EventManager'] = beanCounter++; //add EventManager as bean
     let entryPointsNames = [];
     let componentsNames = [];
+    let eventToIdentifier = {};
 
     function getOrCreateConstructor(classNode){
         for(let member of classNode.members)
@@ -357,14 +380,23 @@ function Plastique(options){
         memberNode.modifierFlagsCache = memberNode.transformFlags = null;
     }
 
+    function getNodePath(node, className){
+        let relativeModulePath = node.getSourceFile()
+            .locals
+            .get(className? className: node.expression.escapedText)
+            .declarations[0]
+            .parent
+            .moduleSpecifier
+            .text
+        return node.getSourceFile().resolvedModules.get(relativeModulePath).resolvedFileName;
+    }
 
     function getParentClass(classNode, context){
         let parent = ts.getClassExtendsHeritageElement(classNode);
         if(parent == null)
             return;
         let parentClassName = parent.expression.escapedText;
-        let relativeModulePath = classNode.getSourceFile().locals.get(parentClassName).declarations[0].parent.moduleSpecifier.text
-        let fullModulePath = classNode.getSourceFile().resolvedModules.get(relativeModulePath).resolvedFileName;
+        let fullModulePath = getNodePath(classNode, parentClassName);
         let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
         for(let node of module.statements)
             if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == parentClassName)
@@ -585,6 +617,8 @@ function Plastique(options){
         }
         ts.visitEachChild(rootNode, (node) => {
             if (node.kind === ts.SyntaxKind.ClassDeclaration && node.members) {
+                tryBindListeners(node);
+
                 for(let member of node.members){
                     if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
                         if(member.type.typeName == null)
@@ -617,8 +651,13 @@ function Plastique(options){
             for(let member of classNode.members){
                 if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
                     hasListeners = true;
-                    let eventName = getDecoratorArgumentMethodName(member, ANNOTATION_LISTENER, true);
-                    methodToEvent[member.name.escapedText] = eventName.toLowerCase();
+                    let [className, propName] = getDecoratorArgumentCallExpr(member, ANNOTATION_LISTENER, true);
+                    let path = getNodePath(classNode, className);
+                    let index = eventToIdentifier.findIndex(o => o.classFile == path && o.className == className && o.memberName == propName);
+                    if(index == null || index < 0)
+                        throw new Error('Event "'+ (className +"."+ propName) +" is not found!")
+
+                    methodToEvent[member.name.escapedText] = String(index);
                     removeDecorator(member, ANNOTATION_LISTENER);
                 }
             }
@@ -639,6 +678,29 @@ function Plastique(options){
         }
     }
 
+
+    function initAppEvents(classNode){
+        if(classNode.members){
+            let className = classNode.name.escapedText;
+            for(let member of classNode.members){
+                if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
+                    let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword)); 
+                    if(neededModifiers.length == 2 && member.type.typeName.escapedText == APP_EVENT_TYPE){
+                        let memberName = member.name.escapedText;
+                        let eventId = eventToIdentifier.push({
+                            classFile: classNode.getSourceFile().path,
+                            className: className,
+                            memberName: memberName
+                        }) - 1;
+                        member.initializer = ts.createStringLiteral(String(eventId));
+                    }else
+                        throw new Error('Event must be static, readonly and has type '+ APP_EVENT_TYPE)
+                    removeDecorator(member, ANNOTATION_INIT_EVENT);
+                }
+            }
+        }
+    }
+
     var transformer = function (context) {
         var visitor = function (node) {
             if (node.kind === ts.SyntaxKind.ClassDeclaration) {
@@ -654,9 +716,10 @@ function Plastique(options){
                     configureComponent(node, context);
                 }
 
+                initAppEvents(node);
                 
 
-                tryBindListeners(node);
+                // tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
                     // beans.push(className);
             }
@@ -676,6 +739,7 @@ function Plastique(options){
                         name == ANNOTATION_BEFOREDETACH ||
                         name == ANNOTATION_AFTERATTACH ||
                         name == ANNOTATION_ELEMENT ||
+                        name == ANNOTATION_INIT_EVENT ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
                         return;
