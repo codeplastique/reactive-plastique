@@ -75,7 +75,7 @@ Event.prototype.getClosestComponent = function(types?: Clazz[]) {
             }else
                 return parent.__vue__._data
         }
-        parent = parent.closest('[data-cn]');
+        parent = parent.parentElement.closest('[data-cn]');
         if(parent == null || !this.currentTarget.contains(parent))
             return;
     }
