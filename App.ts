@@ -22,6 +22,10 @@ declare global {
     interface Event{
         getClosestComponent: (types?: Component[]) => Component
     }
+
+    interface HTMLElement{
+        getClosestComponent: (types?: Component[]) => Component
+    }
 }
 
 Array.prototype.remove = function (index: number) {
@@ -64,21 +68,29 @@ Array.prototype.toJson = function () {
     return JSON.stringify(this.serialize());
 }
 
-Event.prototype.getClosestComponent = function(types?: Clazz[]) {
-    let parent = this.target;
+function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Component[]) {
     while(true){
         if(parent.hasAttribute('data-cn')){
             if(types){
-                for(let type of types)
+                for(let type of types){
+                    ///@ts-ignore
                     if(parent.__vue__._data instanceof type)
                         return parent.__vue__._data;
+                }
             }else
                 return parent.__vue__._data
         }
         parent = parent.parentElement.closest('[data-cn]');
-        if(parent == null || !this.currentTarget.contains(parent))
+        if(parent == null || (topLimitElem && !this.currentTarget.contains(parent)))
             return;
     }
+}
+
+HTMLElement.prototype.getClosestComponent = function(types?: Component[]) {
+    return getClosestComponent(this, null, types);
+}
+Event.prototype.getClosestComponent = function(types?: Component[]) {
+    return getClosestComponent(this.target, this.currentTarget, types);
 }
 
 //ES 6 support

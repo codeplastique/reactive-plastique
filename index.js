@@ -12,6 +12,7 @@ function Plastique(options){
 
     // const APP_CLASS_NAME = 'App';
     const ANNOTATION_REACTIVE_CLASS = 'Reactive';
+    const ANNOTATION_TEMPLATE = 'Template';
     const ANNOTATION_ENTRY_POINT_CLASS = 'EntryPoint';
     // const ANNOTATION_REACTIVE_FIELD = 'Reactive';
     const ANNOTATION_CACHED_METHOD = 'Cached';
@@ -103,9 +104,10 @@ function Plastique(options){
         if(args == null)
             return null;
         let arg = args[0];
+        let isCompositeName = arg.expression.expression != null;
         return [
-            arg.expression.escapedText,
-            arg.name.escapedText
+            (isCompositeName? arg.expression.expression.escapedText: arg.expression.escapedText),
+            (isCompositeName? (arg.expression.name.escapedText +'.'): '') + arg.name.escapedText
         ]
     }
     // function isHasEmptyPublicConscructor(classNode){
@@ -458,7 +460,7 @@ function Plastique(options){
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
-        let templateName = getDecoratorArgumentMethodName(componentNode, ANNOTATION_REACTIVE_CLASS);
+        let templateName = getDecoratorArgumentMethodName(componentNode, ANNOTATION_TEMPLATE);
 
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
@@ -694,29 +696,45 @@ function Plastique(options){
             let className = classNode.name.escapedText;
             for(let member of classNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
-                    let memberName = member.name.escapedText;
+                    let classFile = classNode.getSourceFile().path;
                     let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword)); 
-                    if(neededModifiers.length == 2 && member.type.typeName && member.type.typeName.escapedText == APP_EVENT_TYPE){
-                        let eventId;
-                        let classFile = classNode.getSourceFile().path;
-                        for(let i = 0; i < eventToIdentifier.length; i++){
-                            let event = eventToIdentifier[i];
-                            if(event.classFile == classFile && event.className == className && event.memberName == memberName){
-                                event.init = true;
-                                eventId = i;
-                                break;
-                            }
+                    let memberName = member.name.escapedText;
+                    if(neededModifiers.length == 2){
+                        let isCompositeEvent = member.type.members != null;
+                        let events = member.type.members || [member];
+                        let properies = [];
+                        for(let event of events){
+                            let eventName = memberName + (isCompositeEvent? ('.'+ event.name.escapedText): '');
+                            if(event.type.typeName && event.type.typeName.escapedText == APP_EVENT_TYPE){
+                                let eventId;
+                                for(let i = 0; i < eventToIdentifier.length; i++){
+                                    let event = eventToIdentifier[i];
+                                    if(event.classFile == classFile && event.className == className && event.memberName == eventName){
+                                        event.init = true;
+                                        eventId = i;
+                                        break;
+                                    }
+                                }
+                                if(eventId == null)
+                                    eventId = eventToIdentifier.push({
+                                        classFile: classNode.getSourceFile().path,
+                                        className: className,
+                                        memberName: eventName,
+                                        init: true
+                                    }) - 1;
+
+                                if(isCompositeEvent)
+                                    properies.push(ts.createPropertyAssignment(event.name.escapedText, ts.createStringLiteral(String(eventId))));
+                                else
+                                    member.initializer = ts.createStringLiteral(String(eventId));
+                            }else
+                                throw new Error(`Event "${className}.${eventName}" must have ${APP_EVENT_TYPE} type`)
                         }
-                        if(eventId == null)
-                            eventId = eventToIdentifier.push({
-                                classFile: classNode.getSourceFile().path,
-                                className: className,
-                                memberName: memberName,
-                                init: true
-                            }) - 1;
-                        member.initializer = ts.createStringLiteral(String(eventId));
+
+                        if(isCompositeEvent)
+                            member.initializer = ts.createObjectLiteral(properies);
                     }else
-                        throw new Error(`Event "${className}.${memberName}" must be a static & readonly and has ${APP_EVENT_TYPE} type`)
+                        throw new Error(`Event "${className}.${memberName}" must be a static & readonly`)
                     removeDecorator(member, ANNOTATION_INIT_EVENT);
                 }
             }
@@ -762,6 +780,7 @@ function Plastique(options){
                         name == ANNOTATION_AFTERATTACH ||
                         name == ANNOTATION_ELEMENT ||
                         name == ANNOTATION_INIT_EVENT ||
+                        name == ANNOTATION_TEMPLATE ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
                         return;
