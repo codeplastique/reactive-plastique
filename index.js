@@ -399,16 +399,20 @@ function Plastique(options){
         return node.getSourceFile().resolvedModules.get(relativeModulePath).resolvedFileName;
     }
 
+    function getClass(currentNode, className, context){
+        let fullModulePath = getNodePath(currentNode, className);
+        let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
+        for(let node of module.statements)
+            if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == className)
+                return node;
+    }
+
     function getParentClass(classNode, context){
         let parent = ts.getClassExtendsHeritageElement(classNode);
         if(parent == null)
             return;
         let parentClassName = parent.expression.escapedText;
-        let fullModulePath = getNodePath(classNode, parentClassName);
-        let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
-        for(let node of module.statements)
-            if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == parentClassName)
-                return node;
+        return getClass(classNode, parentClassName, context);
     }
 
     function getAllRootComponentsData(componentNode, context){
@@ -585,16 +589,17 @@ function Plastique(options){
         return beansDeclarations;
     }
 
-    function configureEntryPointClass(entryPointNode){
+    function configureEntryPointClass(entryPointNode, context){
         let beansDeclarations = {};
         let entryPointClassName = entryPointNode.name.escapedText;
 
         let beansOfEntryPoint = [];
 
-        let beansClasses = getDecoratorArguments(entryPointNode, ANNOTATION_BEANS, true) || [];
+        let beansClassesArg = getDecoratorArguments(entryPointNode, ANNOTATION_BEANS, true);
+        let beansClasses = beansClassesArg != null? beansClassesArg.elements: [];
         for(let beanClass of beansClasses){
-            let beanClassName = beanClass.name.escapedText;
-            getBeansDeclarations(beanClass, beansOfEntryPoint);
+            let beanClassName = beanClass.escapedText;
+            getBeansDeclarations(getClass(entryPointNode, beanClassName, context), beansOfEntryPoint);
         }
 
         for(let member of entryPointNode.members){
@@ -630,7 +635,7 @@ function Plastique(options){
                 [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                 ts.createIdentifier('$beans'),
                 undefined,
-                ts.createKeywordTypeNode(beansClasses.kind),
+                ts.createKeywordTypeNode(ts.SyntaxKind.ArrayLiteralExpression),
                 beanClasses
             )
         );
@@ -799,7 +804,7 @@ function Plastique(options){
                 // else 
                 if(isNodeHasDecorator(node, ANNOTATION_ENTRY_POINT_CLASS)){
                     // entryPointClassNodes.push(node);
-                    configureEntryPointClass(node)
+                    configureEntryPointClass(node, context)
                 }
                 if(isComponentNode(node)){
                     // components[className] = node;
