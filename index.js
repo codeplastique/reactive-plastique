@@ -19,6 +19,7 @@ function Plastique(options){
     const ANNOTATION_AUTOWIRED = 'Autowired';
     const ANNOTATION_ONCHANGE = 'OnChange';
     const ANNOTATION_BEAN = 'Bean';
+    const ANNOTATION_BEANS = 'Beans';
     const ANNOTATION_LISTENER = 'Listener';
     const ANNOTATION_AFTERATTACH = 'AfterAttach';
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
@@ -71,7 +72,7 @@ function Plastique(options){
         //     nodeClass.decorators = null;
     }
 
-    function getDecoratorArguments(nodeClass, decoratorName, required){
+    function getDecoratorArguments(nodeClass, decoratorName, isArgRequired){
         let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
         if(decorators.length > 0){
             for(let decorator of nodeClass.decorators){
@@ -82,7 +83,7 @@ function Plastique(options){
                     if(decorator.expression.arguments && decorator.expression.arguments.length > 0){
                         return decorator.expression.arguments;
                     }
-                    if(required)
+                    if(isArgRequired)
                         throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
                 }
             }
@@ -554,9 +555,47 @@ function Plastique(options){
         componentsNames.push(componentName);
     }
 
+    function getBeansDeclarations(beanClass, beansOfEntryPoint){
+        let beansDeclarations = {};
+        for(let member of beanClass.members){
+            if(member.kind == ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
+                if(member.type.typeName == null)
+                    throw new Error('Method '+ member.name.escapedText +' is not typed!')
+                if(member.parameters && member.parameters.length != 0)
+                    throw new Error('Method '+ member.name.escapedText +' should not have parameters')
+                // beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
+
+                let typeName = member.type.typeName.escapedText
+
+                let beanId = beanToId[typeName];
+                if(beanId === undefined){
+                    beanId = beanCounter;
+                    beanToId[typeName] = beanCounter;
+                    beanCounter++;
+                    if(beansOfEntryPoint)
+                        beansOfEntryPoint.push(typeName);
+                }else if(beansOfEntryPoint && beansOfEntryPoint.includes(typeName)){
+                    throw new Error(`Bean with type ${typeName} is initialized twice!`)
+                }
+                beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
+                removeDecorator(member, ANNOTATION_BEAN);
+                cleanMemberCache(member);
+            }
+        }
+        return beansDeclarations;
+    }
+
     function configureEntryPointClass(entryPointNode){
         let beansDeclarations = {};
         let entryPointClassName = entryPointNode.name.escapedText;
+
+        let beansOfEntryPoint = [];
+
+        let beansClasses = getDecoratorArguments(entryPointNode, ANNOTATION_BEANS, true) || [];
+        for(let beanClass of beansClasses){
+            let beanClassName = beanClass.name.escapedText;
+            getBeansDeclarations(beanClass, beansOfEntryPoint);
+        }
 
         for(let member of entryPointNode.members){
             if(member.kind == ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
@@ -585,6 +624,16 @@ function Plastique(options){
         }
 
         // $ = (window[class] = class, jsonConfiguration)
+        entryPointNode.members.push(
+            ts.createProperty(
+                undefined,
+                [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+                ts.createIdentifier('$beans'),
+                undefined,
+                ts.createKeywordTypeNode(beansClasses.kind),
+                beanClasses
+            )
+        );
         entryPointNode.members.push(
             ts.createProperty(
                 undefined,
@@ -751,7 +800,8 @@ function Plastique(options){
                 if(isNodeHasDecorator(node, ANNOTATION_ENTRY_POINT_CLASS)){
                     // entryPointClassNodes.push(node);
                     configureEntryPointClass(node)
-                }else if(isComponentNode(node)){
+                }
+                if(isComponentNode(node)){
                     // components[className] = node;
                     configureComponent(node, context);
                 }
@@ -773,6 +823,7 @@ function Plastique(options){
                     if(
                         name == ANNOTATION_AUTOWIRED ||
                         name == ANNOTATION_BEAN ||
+                        name == ANNOTATION_BEANS ||
                         name == ANNOTATION_ENTRY_POINT_CLASS ||
                         name == ANNOTATION_ONCHANGE ||
                         name == ANNOTATION_LISTENER ||
