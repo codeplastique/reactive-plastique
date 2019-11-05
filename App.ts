@@ -23,7 +23,7 @@ declare global {
         getClosestComponent: (types?: Component[]) => Component
     }
 
-    interface HTMLElement{
+    interface Element{
         getClosestComponent: (types?: Component[]) => Component
     }
 }
@@ -86,7 +86,7 @@ function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Com
     }
 }
 
-HTMLElement.prototype.getClosestComponent = function(types?: Component[]) {
+Element.prototype.getClosestComponent = function(types?: Component[]) {
     return getClosestComponent(this, null, types);
 }
 Event.prototype.getClosestComponent = function(types?: Component[]) {

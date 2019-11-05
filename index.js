@@ -372,8 +372,10 @@ function Plastique(options){
         for(let member of classNode.members)
             if(member.kind == ts.SyntaxKind.Constructor)
                 return member;
-        constructorNode = ts.createConstructor(null, null, null, ts.createBlock([]));
+        let constructorNode = ts.createConstructor(null, null, null, ts.createBlock([]));
         classNode.members.push(constructorNode);
+        if(ts.getClassExtendsHeritageElement(classNode) != null)
+            constructorNode.body.statements.push(ts.createExpressionStatement(ts.createCall(ts.createSuper())));
         return constructorNode;
     }
 
