@@ -243,7 +243,7 @@ abstract class App{
                 for(let bean in beanClassBeans){
                     let [beanId, beanName] = bean.split(';');
                     App.beanIdToName[beanId] = beanName;
-                    App.beanNameToDef[beanName] = beanClass[configurator.beans[bean]].bind(beanClass);
+                    App.beanNameToDef[beanName] = beanClass[configurator.beans[i][bean]].bind(beanClass);
                 }
             }
             App.epName = configurator.name;
