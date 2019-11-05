@@ -81,7 +81,7 @@ function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Com
                 return parent.__vue__._data
         }
         parent = parent.parentElement.closest('[data-cn]');
-        if(parent == null || (topLimitElem && !this.currentTarget.contains(parent)))
+        if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
             return;
     }
 }
@@ -129,7 +129,7 @@ abstract class App{
         }
         let bean: any = App.beanNameToDef[beanName];
         if(bean instanceof Function)
-            App.beanNameToDef[beanName] = bean = bean.call(App.ep);
+            App.beanNameToDef[beanName] = bean = bean();
         return bean;
     }   
     public getBean<T>(beanFunction: string): T{
@@ -234,10 +234,17 @@ abstract class App{
             App.beanIdToName['0'] = 'EventManager';
             ///@ts-ignore 
             App.beanNameToDef['EventManager'] = new EventManager();
-            for(let bean in configurator.beans){
-                let beanIdAndName = bean.split(';');
-                App.beanIdToName[beanIdAndName[0]] = beanIdAndName[1];
-                App.beanNameToDef[beanIdAndName[1]] = this[configurator.beans[bean]];
+
+            let beansClasses = this.constructor['$beans'] || [];
+            beansClasses.push(this);
+            for(let i = 0; i < configurator.beans.length; i++){
+                let beanClassBeans = configurator.beans[i];
+                let beanClass = beansClasses[i] != this? new beansClasses[i](): beansClasses[i];
+                for(let bean in beanClassBeans){
+                    let [beanId, beanName] = bean.split(';');
+                    App.beanIdToName[beanId] = beanName;
+                    App.beanNameToDef[beanName] = beanClass[configurator.beans[bean]].bind(beanClass);
+                }
             }
             App.epName = configurator.name;
             App.ep = this;

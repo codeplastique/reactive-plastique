@@ -590,42 +590,22 @@ function Plastique(options){
     }
 
     function configureEntryPointClass(entryPointNode, context){
-        let beansDeclarations = {};
         let entryPointClassName = entryPointNode.name.escapedText;
-
+        let beansClassesBeans = [];
         let beansOfEntryPoint = [];
 
         let beansClassesArg = getDecoratorArguments(entryPointNode, ANNOTATION_BEANS, true);
-        let beansClasses = beansClassesArg != null? beansClassesArg.elements: [];
+        let beansClasses = beansClassesArg != null? beansClassesArg[0].elements: [];
         for(let beanClass of beansClasses){
             let beanClassName = beanClass.escapedText;
-            getBeansDeclarations(getClass(entryPointNode, beanClassName, context), beansOfEntryPoint);
+            beansClassesBeans.push(getBeansDeclarations(getClass(entryPointNode, beanClassName, context), beansOfEntryPoint));
         }
 
-        for(let member of entryPointNode.members){
-            if(member.kind == ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
-                if(member.type.typeName == null)
-                    throw new Error('Method '+ member.name.escapedText +' is not typed!')
-                if(member.parameters && member.parameters.length != 0)
-                    throw new Error('Method '+ member.name.escapedText +' should not have parameters')
-                // beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
-
-                let typeName = member.type.typeName.escapedText
-
-                let beanId = beanToId[typeName];
-                if(beanId === undefined){
-                    beanId = beanCounter;
-                    beanToId[typeName] = beanCounter;
-                    beanCounter++;
-                }
-                beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
-                removeDecorator(member, ANNOTATION_BEAN);
-                cleanMemberCache(member);
-            }
-        }
+        beansClassesBeans.push(getBeansDeclarations(entryPointNode, beansOfEntryPoint));
+        
         let configurator = {
             name: entryPointClassName,
-            beans: beansDeclarations
+            beans: beansClassesBeans
         }
 
         // $ = (window[class] = class, jsonConfiguration)
@@ -636,7 +616,7 @@ function Plastique(options){
                 ts.createIdentifier('$beans'),
                 undefined,
                 ts.createKeywordTypeNode(ts.SyntaxKind.ArrayLiteralExpression),
-                beanClasses
+                ts.createArrayLiteral(beansClasses)
             )
         );
         entryPointNode.members.push(
@@ -658,6 +638,7 @@ function Plastique(options){
             )
         );
         entryPointsNames.push(entryPointNode.name.escapedText);
+        removeDecorator(entryPointNode, ANNOTATION_BEANS)
         removeDecorator(entryPointNode, ANNOTATION_ENTRY_POINT_CLASS)
     }
 
