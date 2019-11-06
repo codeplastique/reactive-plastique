@@ -545,9 +545,10 @@ function Plastique(options){
             configuration.tn = templateName.toUpperCase();
 
 
-        let callExpr = ts.createCall(
+        
+        let callExpr = (isStatic) => ts.createCall(
             ts.createPropertyAccess(
-            ts.createIdentifier('_app'),
+            ts.createIdentifier(isStatic? '_super': '_app'),
             ts.createIdentifier('initComp')
             ),
             undefined, // type arguments, e.g. Foo<T>()
@@ -558,10 +559,10 @@ function Plastique(options){
             ]
         );
         if(isEntryPointNode(componentNode))
-            constructorNode.body.statements.unshift(callExpr);
+            constructorNode.body.statements.unshift(callExpr(true));
         else
-            constructorNode.body.statements.push(callExpr);
-            
+            constructorNode.body.statements.push(callExpr(false));
+
         removeDecorator(componentNode, ANNOTATION_REACTIVE_CLASS)
         componentsNames.push(componentName);
     }
@@ -722,9 +723,9 @@ function Plastique(options){
             }
             
             if(hasListeners){
-                let callExpr = ts.createCall(
+                let callExpr = (isStatic) => ts.createCall(
                     ts.createPropertyAccess(
-                    ts.createIdentifier('_app'),
+                    ts.createIdentifier(isStatic? '_super': '_app'),
                     ts.createIdentifier('listeners')
                     ),
                     undefined, // type arguments, e.g. Foo<T>()
@@ -734,9 +735,9 @@ function Plastique(options){
                     ]
                 );
                 if(isEntryPointNode(classNode))
-                    getOrCreateConstructor(classNode).body.statements.unshift(callExpr);
+                    getOrCreateConstructor(classNode).body.statements.unshift(callExpr(true));
                 else
-                    getOrCreateConstructor(classNode).body.statements.push(callExpr);
+                    getOrCreateConstructor(classNode).body.statements.push(callExpr(false));
             }
         }
     }
