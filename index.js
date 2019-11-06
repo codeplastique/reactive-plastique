@@ -549,7 +549,7 @@ function Plastique(options){
         let callExpr = (isStatic) => ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier(isStatic? '_super': '_app'),
-            ts.createIdentifier('initComp')
+            ts.createIdentifier(isStatic? 'initComponent': 'initComp')
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
@@ -726,7 +726,7 @@ function Plastique(options){
                 let callExpr = (isStatic) => ts.createCall(
                     ts.createPropertyAccess(
                     ts.createIdentifier(isStatic? '_super': '_app'),
-                    ts.createIdentifier('listeners')
+                    ts.createIdentifier(isStatic? 'addListeners': 'listeners')
                     ),
                     undefined, // type arguments, e.g. Foo<T>()
                     [
