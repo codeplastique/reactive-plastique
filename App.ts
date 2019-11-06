@@ -270,10 +270,6 @@ abstract class App{
             return components.join(' => ');
         }
         this.genVueMixins();
-
-        ///@ts-ignore
-        if(element && this.app$)
-            this.attachComponent(element, this);
     }
 
     private genVueMixins(){

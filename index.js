@@ -62,7 +62,7 @@ function Plastique(options){
             let expr = decorator.expression;//.expression.escapedText
             let dName = expr.expression? expr.expression.escapedText: expr.escapedText;
             if(dName == decoratorName){
-                decorators.end = decorators.pos = -1; 
+                decorators.end = decorators.pos = -1;
                 decorators.transformFlags = null;
                 decorators.splice(i, 1);
                 return;
@@ -130,7 +130,7 @@ function Plastique(options){
 
     function buildTemplates(){
         const templatesFunctions = [];
-    
+
         glob(VUE_TEMPLATES_DIR +'/**/*.pug', {sync: true}).forEach(function(element) {
             let componentName = getFileNameWithoutExt(element);
             var vueTemplate = pug.compileFile(element)();
@@ -162,7 +162,7 @@ function Plastique(options){
             fs.mkdirSync(OUTPUT_DIR, {recursive: true});
         }
         fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
-    
+
         function handle(rootComponents, elems, componentName){
             let prefix;
             if(elems.length > 0){
@@ -195,8 +195,8 @@ function Plastique(options){
                     }
                 }
                 return true;
-    
-                
+
+
                 function extractExpression(val){
                     val = val.trim();
                     let exprMatch = val.match(/[$#]\{(.+?)\}/g);
@@ -209,7 +209,7 @@ function Plastique(options){
                 function isExpression(val){
                     return val.trim().search(/\$\{(.+?)\}/i) == 0;
                 }
-            
+
                 function getModifiers(attrName){
                     return attrName.split('.').slice(1);
                 }
@@ -217,7 +217,7 @@ function Plastique(options){
                     // let modifiers = attrName.split('.').slice(1).join('.');
                     return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
                 }
-                
+
                 function copyIfUnlessEachAttributesToComponent(from, to) {
                     let ifAttr = from.getAttribute('v-if');
                     let forAttr = from.getAttribute('v-for');
@@ -226,8 +226,8 @@ function Plastique(options){
                     if(forAttr)
                         to.setAttribute('v-for', forAttr);
                 }
-    
-    
+
+
                 function handleAttr(elem, attr){
                     if(!attr.name.startsWith(prefix +':'))
                         return;
@@ -299,7 +299,7 @@ function Plastique(options){
                             elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
                             break;
                         default:
-                                handleUnknownAttr(elem, attrName, modifiers, attr.value);
+                            handleUnknownAttr(elem, attrName, modifiers, attr.value);
                     }
                     return true;
                 }
@@ -334,7 +334,7 @@ function Plastique(options){
                 }
             }
         }
-    
+
     }
 
 
@@ -360,7 +360,7 @@ function Plastique(options){
 
     buildTemplates();
     buildLocales();
-   
+
     let beanToId = {};
     let beanCounter = 0;
     beanToId['EventManager'] = beanCounter++; //add EventManager as bean
@@ -454,10 +454,10 @@ function Plastique(options){
     function hasPropertyAssignmentInConstructor(constructorNode, member){
         let memberName = member.name.escapedText;
         for(let node of constructorNode.body.statements){
-            if(node.kind == ts.SyntaxKind.ExpressionStatement 
+            if(node.kind == ts.SyntaxKind.ExpressionStatement
                 && node.expression.kind == ts.SyntaxKind.BinaryExpression
-                && node.expression.operatorToken.kind == ts.SyntaxKind.FirstAssignment 
-                && node.expression.left.kind == ts.SyntaxKind.PropertyAccessExpression 
+                && node.expression.operatorToken.kind == ts.SyntaxKind.FirstAssignment
+                && node.expression.left.kind == ts.SyntaxKind.PropertyAccessExpression
                 && node.expression.left.name.escapedText == memberName
             )
                 return true;
@@ -472,15 +472,35 @@ function Plastique(options){
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
         // if(parent)
-            // configureComponent(parent);
+        // configureComponent(parent);
 
 
 
         let onchangeMethods = {};
         let elementProps = [];
-        let attachHook = null; 
-        let detachHook = null; 
+        let attachHook = null;
+        let detachHook = null;
         let constructorNode = getOrCreateConstructor(componentNode);
+        if(isEntryPointNode(componentNode)){
+            let superStatement = constructorNode.body.statements.filter(s =>
+                (s.kind == ts.SyntaxKind.ExpressionStatement)
+                && (s.expression.kind == ts.SyntaxKind.CallExpression)
+                && (s.expression.expression.kind == ts.SyntaxKind.SuperKeyword))[0];
+
+            let elementArgument = superStatement.expression.arguments.shift();
+
+            constructorNode.body.statements.push(
+                ts.createExpressionStatement(
+                    ts.createCall(
+                        ts.createPropertyAccess(
+                            ts.createThis(),
+                            "attachComponent"),
+                        null,
+                        [elementArgument, ts.createThis()]
+                    )
+                )
+            )
+        }
         if(componentNode.members){
             for(let member of componentNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
@@ -491,8 +511,8 @@ function Plastique(options){
                         elementProps.push(memberName);
                         removeDecorator(member, ANNOTATION_ELEMENT);
                     }else{
-                        if(member.initializer == null 
-                            && !componentRoot.members.includes(memberName) 
+                        if(member.initializer == null
+                            && !componentRoot.members.includes(memberName)
                             && !hasPropertyAssignmentInConstructor(constructorNode, member)
                         ){
                             member.initializer = ts.createNull();
@@ -545,11 +565,11 @@ function Plastique(options){
             configuration.tn = templateName.toUpperCase();
 
 
-        
+
         let callExpr = (isStatic) => ts.createCall(
             ts.createPropertyAccess(
-            ts.createIdentifier(isStatic? '_super': '_app'),
-            ts.createIdentifier(isStatic? 'initComponent': 'initComp')
+                ts.createIdentifier(isStatic? '_super': '_app'),
+                ts.createIdentifier(isStatic? 'initComponent': 'initComp')
             ),
             undefined, // type arguments, e.g. Foo<T>()
             [
@@ -610,7 +630,7 @@ function Plastique(options){
         }
 
         beansClassesBeans.push(getBeansDeclarations(entryPointNode, beansOfEntryPoint));
-        
+
         let configurator = {
             name: entryPointClassName,
             beans: beansClassesBeans
@@ -636,11 +656,11 @@ function Plastique(options){
                 ts.createKeywordTypeNode(ts.SyntaxKind.StringLiteral),
                 ts.createBinary(
                     ts.createBinary(
-                        ts.createElementAccess(ts.createIdentifier('window'), ts.createLiteral(entryPointClassName)), 
-                        ts.SyntaxKind.FirstAssignment, 
+                        ts.createElementAccess(ts.createIdentifier('window'), ts.createLiteral(entryPointClassName)),
+                        ts.SyntaxKind.FirstAssignment,
                         ts.createIdentifier(entryPointClassName)
-                    ), 
-                    ts.SyntaxKind.CommaToken, 
+                    ),
+                    ts.SyntaxKind.CommaToken,
                     ts.createLiteral(JSON.stringify(configurator))
                 )
             )
@@ -653,7 +673,6 @@ function Plastique(options){
     function isComponentNode(classNode){
         let className = classNode.name.escapedText;
         return componentsNames.includes(className) || isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS);
-            // (isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS));
     }
 
     function isEntryPointNode(classNode){
@@ -721,12 +740,12 @@ function Plastique(options){
                     removeDecorator(member, ANNOTATION_LISTENER);
                 }
             }
-            
+
             if(hasListeners){
                 let callExpr = (isStatic) => ts.createCall(
                     ts.createPropertyAccess(
-                    ts.createIdentifier(isStatic? '_super': '_app'),
-                    ts.createIdentifier(isStatic? 'addListeners': 'listeners')
+                        ts.createIdentifier(isStatic? '_super': '_app'),
+                        ts.createIdentifier(isStatic? 'addListeners': 'listeners')
                     ),
                     undefined, // type arguments, e.g. Foo<T>()
                     [
@@ -749,7 +768,7 @@ function Plastique(options){
             for(let member of classNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
                     let classFile = classNode.getSourceFile().path;
-                    let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword)); 
+                    let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                     let memberName = member.name.escapedText;
                     if(neededModifiers.length == 2){
                         let isCompositeEvent = member.type.members != null;
@@ -792,6 +811,7 @@ function Plastique(options){
             }
         }
     }
+    let files = [];
 
     var transformer = function (context) {
         var visitor = function (node) {
@@ -810,11 +830,11 @@ function Plastique(options){
                 }
 
                 initAppEvents(node);
-                
+
 
                 // tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
-                    // beans.push(className);
+                // beans.push(className);
             }
             if(node.kind == ts.SyntaxKind.SourceFile){
                 var result = ts.visitEachChild(node, visitor, context);
@@ -843,13 +863,18 @@ function Plastique(options){
                 return ts.visitEachChild(node, visitor, context);
             }
         };
-        return function (node) { 
-            let result = ts.visitNode(node, visitor); 
+
+        return function (node) {
+            if(!files.includes(node.fileName)) {
+                let result = ts.visitNode(node, visitor);
+                files.push(node.fileName)
+                return result
+            }
             // let notInitEvent = eventToIdentifier.find(e => e.init == false);
             // if(notInitEvent)
             //     throw new Error('Event "'+ (notInitEvent.className +"."+ notInitEvent.memberName) +" is not found!")
 
-            return result;
+            return node;
         };
     };
 
