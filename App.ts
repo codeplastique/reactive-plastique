@@ -70,7 +70,7 @@ Array.prototype.toJson = function () {
 
 function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Component[]) {
     while(true){
-        if(parent.hasAttribute('data-cn')){
+        if(parent.hasAttribute('data-cn') && parent.__vue__){
             if(types){
                 for(let type of types){
                     ///@ts-ignore
@@ -80,8 +80,8 @@ function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Com
             }else
                 return parent.__vue__._data
         }
-        parent = parent.parentElement.closest('[data-cn]');
-        if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
+        parent = parent.parentElement && parent.parentElement.closest('[data-cn]');
+        if(parent == null || parent.__vue__ == null || (topLimitElem && !topLimitElem.contains(parent)))
             return;
     }
 }
@@ -227,7 +227,7 @@ abstract class App{
         }
     }
 
-    constructor(){
+    constructor(element?: HTMLElement){
         let $ = this.constructor['$'];
         if($){
             let configurator = JSON.parse($);
@@ -270,6 +270,10 @@ abstract class App{
             return components.join(' => ');
         }
         this.genVueMixins();
+
+        ///@ts-ignore
+        if(element && this.app$)
+            this.attachComponent(element, this);
     }
 
     private genVueMixins(){

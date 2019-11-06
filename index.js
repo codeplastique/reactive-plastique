@@ -545,7 +545,7 @@ function Plastique(options){
             configuration.tn = templateName.toUpperCase();
 
 
-        constructorNode.body.statements.push(ts.createCall(
+        let callExpr = ts.createCall(
             ts.createPropertyAccess(
             ts.createIdentifier('_app'),
             ts.createIdentifier('initComp')
@@ -556,7 +556,12 @@ function Plastique(options){
                 ts.createLiteral(JSON.stringify(configuration)),
                 ts.createThis()
             ]
-        ));
+        );
+        if(isEntryPointNode(componentNode))
+            constructorNode.body.statements.unshift(callExpr);
+        else
+            constructorNode.body.statements.push(callExpr);
+            
         removeDecorator(componentNode, ANNOTATION_REACTIVE_CLASS)
         componentsNames.push(componentName);
     }
@@ -650,6 +655,11 @@ function Plastique(options){
             // (isClassImplementsInterface(classNode, COMPONENT_INTERFACE_NAME) && isNodeHasDecorator(classNode, ANNOTATION_REACTIVE_CLASS));
     }
 
+    function isEntryPointNode(classNode){
+        let className = classNode.name.escapedText;
+        return entryPointsNames.includes(className) || isNodeHasDecorator(classNode, ANNOTATION_ENTRY_POINT_CLASS);
+    }
+
     function injectAutowiredEverywhere(rootNode, context){
         function getBeanId(beanName){
             if(entryPointsNames.includes(beanName))
@@ -712,7 +722,7 @@ function Plastique(options){
             }
             
             if(hasListeners){
-                getOrCreateConstructor(classNode).body.statements.push(ts.createCall(
+                let callExpr = ts.createCall(
                     ts.createPropertyAccess(
                     ts.createIdentifier('_app'),
                     ts.createIdentifier('listeners')
@@ -722,7 +732,11 @@ function Plastique(options){
                         ts.createLiteral(JSON.stringify(methodToEvent)),
                         ts.createThis()
                     ]
-                ));
+                );
+                if(isEntryPointNode(classNode))
+                    getOrCreateConstructor(classNode).body.statements.unshift(callExpr);
+                else
+                    getOrCreateConstructor(classNode).body.statements.push(callExpr);
             }
         }
     }
@@ -785,7 +799,7 @@ function Plastique(options){
                 // if(className == APP_CLASS_NAME)
                 //     appClassNode = node;
                 // else 
-                if(isNodeHasDecorator(node, ANNOTATION_ENTRY_POINT_CLASS)){
+                if(isEntryPointNode(node)){
                     // entryPointClassNodes.push(node);
                     configureEntryPointClass(node, context)
                 }
