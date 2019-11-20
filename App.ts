@@ -17,6 +17,7 @@ declare global {
         removeValue(value: T): boolean;
         removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
+        includes(searchElement: T, fromIndex?: number): boolean;
     }
 
     interface Event{
@@ -112,6 +113,14 @@ if (!Object.values || !Object.entries) {
 		return reduce(keys(O), (e, k) => concat(e, typeof k === 'string' && isEnumerable(O, k) ? [[k, O[k]]] : []), []);
 	};
 }
+if(!Array.prototype.includes){
+    Array.prototype.includes = function(searchElement: any, fromIndex?: number){
+        for(let i = fromIndex || 0; i < this.length; i++)
+            if(searchElement === this[i] || (isNaN(searchElement) && isNaN(this[i])))
+                return true;
+        return false;
+    }
+}
 
 abstract class App{
     private static beanNameToDef: {[beanName: string]: Function | Object} = {};
@@ -149,7 +158,7 @@ abstract class App{
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
             obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
-            obj.app$.pc.ec = (obj.app$.pc.ec || []).concat(config.ec); // element components
+            obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element props
         }else{
             obj.app$ = {
                 cn: componentName,
