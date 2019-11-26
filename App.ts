@@ -11,7 +11,9 @@ declare const _VueTemplates: any;
 
 declare global {
     interface Clazz extends Function{}
-
+    interface Object{
+        equals(obj: Object): boolean;
+    }
     interface Array<T> extends Serializable, Jsonable{
         remove(index: number): Array<T>;
         removeValue(value: T): boolean;
@@ -28,7 +30,14 @@ declare global {
         getClosestComponent: (types?: Component[]) => Component
     }
 }
-
+Object.prototype.equals = function(obj: Object) {
+    return this == obj;
+}
+Object.defineProperty(Object.prototype, 'equals', {
+    value: function(obj) {
+        return this === obj;
+    }
+});
 Array.prototype.remove = function (index: number) {
     if("__ob__" in this)
         Vue.delete(this, index);
@@ -158,7 +167,7 @@ abstract class App{
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
             obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
-            obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element props
+            obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element prop
         }else{
             obj.app$ = {
                 cn: componentName,
