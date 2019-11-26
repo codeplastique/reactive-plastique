@@ -33,7 +33,9 @@ declare global {
 Object.defineProperty(Object.prototype, 'equals', {
     value: function(obj: Object) {
         return this === obj;
-    }
+    }, 
+    writable: true,
+    configurable: true
 });
 Array.prototype.remove = function (index: number) {
     if("__ob__" in this)
