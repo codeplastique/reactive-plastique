@@ -30,11 +30,8 @@ declare global {
         getClosestComponent: (types?: Component[]) => Component
     }
 }
-Object.prototype.equals = function(obj: Object) {
-    return this == obj;
-}
 Object.defineProperty(Object.prototype, 'equals', {
-    value: function(obj) {
+    value: function(obj: Object) {
         return this === obj;
     }
 });
