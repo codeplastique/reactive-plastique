@@ -35,14 +35,13 @@ function Plastique(options){
     var glob = require('glob');
     var fs = require('fs');
     const pug = require('pug');
-    const vueCompiler = require('vue-template-compiler');
+    const vueCompiler = require('vue-template-es2015-compiler');
     const { JSDOM } = require('jsdom');
     const ts = require("typescript");
     const PropertiesReader = require('properties-reader');
     Array.prototype.flatMap = function(f) {
         return this.map(f).reduce((x,y) => x.concat(y), [])
     }
-
 
     function isClassImplementsInterface(nodeClass, interfaceName){
         let interfaces = ts.getClassImplementsHeritageClauseElements(nodeClass);
@@ -97,7 +96,7 @@ function Plastique(options){
             return null;
 
         let text = args[0].text;
-        return text? text: args[0].name.escapedText;
+        return text? text: (args[0].name? args[0].name.escapedText: args[0].getFullText());
     }
 
     function getDecoratorArgumentCallExpr(nodeClass, decoratorName, required){
@@ -111,57 +110,36 @@ function Plastique(options){
             (isCompositeName? (arg.expression.name.escapedText +'.'): '') + arg.name.escapedText
         ]
     }
-    // function isHasEmptyPublicConscructor(classNode){
-    //     let className = classNode.name.escapedText;
-    //     let constructorDeclaration = classNode.members.filter(m => m.symbol.escapedName == '__constructor')
-    //     if(constructorDeclaration.length > 0){
-    //         if(classNode.parameters && classNode.parameters.length > 0)
-    //             throw new Error('Class '+ className +' has no empty constructor!')
-    //         if(classNode.modifiers && classNode.modifiers.length > 0 && classNode.modifiers[0].kind != ts.SyntaxKind.PublicKeyword)
-    //             throw new Error('Class '+ className +' has no public constructor!')
-    //     }
-    //     return true;
-    // }
 
     function getFileNameWithoutExt(filePath){
         var nameArray = filePath.split('/');
         return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
     }
 
-    function buildTemplates(){
-        const templatesFunctions = [];
-
-        glob(VUE_TEMPLATES_DIR +'/**/*.pug', {sync: true}).forEach(function(element) {
-            let componentName = getFileNameWithoutExt(element);
-            var vueTemplate = pug.compileFile(element)();
-            let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
-            var rootTag = dom.window.document.body.firstElementChild.content;
-            let elems = rootTag.querySelectorAll('*');
-            if(handle(rootTag.children, elems, componentName)){
-                let blockTags = Array.from(elems).filter(e => e.tagName == 'V:BLOCK');
-                for(let blockTag of blockTags){
-                    blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHTML}</template>`);
-                    let templateTag = blockTag.previousSibling;
-                    for(attr of blockTag.attributes)
-                        templateTag.setAttribute(attr.name, attr.value);
-                    blockTag.remove();
-                }
-                let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
-                let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
-                if(vueCompilerResult.errors.length != 0)
-                    throw new Error('Vue compile error!' + vueCompilerResult.errors);
-                let staticRenders = [];
-                for(let staticRender of vueCompilerResult.staticRenderFns){
-                    staticRenders.push(`function(){${staticRender}}`);
-                }
-                templatesFunctions.push(`"${componentName.toUpperCase()}":{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`);
+    function getVueTemplateRender(vueTemplate, componentName){
+        let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
+        var rootTag = dom.window.document.body.firstElementChild.content;
+        let elems = rootTag.querySelectorAll('*');
+        if(handle(rootTag.children, elems, componentName)){
+            let blockTags = Array.from(elems).filter(e => e.tagName == 'V:BLOCK');
+            for(let blockTag of blockTags){
+                blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHTML}</template>`);
+                let templateTag = blockTag.previousSibling;
+                for(attr of blockTag.attributes)
+                    templateTag.setAttribute(attr.name, attr.value);
+                blockTag.remove();
             }
-        });
-        let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
-        if (!fs.existsSync(OUTPUT_DIR)) {
-            fs.mkdirSync(OUTPUT_DIR, {recursive: true});
-        }
-        fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
+            let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
+            let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
+            if(vueCompilerResult.errors.length != 0)
+                throw new Error('Vue compile error!' + vueCompilerResult.errors);
+            let staticRenders = [];
+            for(let staticRender of vueCompilerResult.staticRenderFns){
+                staticRenders.push(`function(){${staticRender}}`);
+            }
+            return `{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`;
+        }else
+            return null;
 
         function handle(rootComponents, elems, componentName){
             let prefix;
@@ -203,7 +181,8 @@ function Plastique(options){
                     if(exprMatch == null)
                         return val;
                     let isWithBrackets = exprMatch.length > 1;
-                    return val.replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
+                    return val.replace(/(?<!\w)this\./g, '')
+                        .replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
                         .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
                 }
                 function isExpression(val){
@@ -304,39 +283,34 @@ function Plastique(options){
                     return true;
                 }
 
-                // function getClickAndDblClickEvents(elem){
-                //     let events = {};
-                //     let size = 0;
-                //     for(var attr of elem.attributes){
-
-                //         if(attr.name.startsWith('v-on:click')){
-                //             size++;
-                //             events['click'] = attr;
-                //         }else if(attr.name.startsWith('v-on:dblclick')){
-                //             size++;
-                //             events['dblClick'] = attr;
-                //         }
-                //         if(size == 2)
-                //             return events;
-                //     }
-                // }
-
                 function handleUnknownAttr(elem, attrName, modifiers, attrVal){
                     if(attrName.startsWith('on')){
                         elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
-                        // let eventNameToAttr = getClickAndDblClickEvents(elem);
-                        // if(eventNameToAttr){
-                        //     elem.removeAttribute(eventNameToAttr['dblClick'].name);
-                        //     eventNameToAttr['click'].value = `$convDblClick($event,${eventNameToAttr['click'].value},${eventNameToAttr['dblClick'].value})`;
-                        // }
                     }else
                         elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
                 }
             }
         }
-
     }
 
+    function buildTemplates(){
+        const templatesFunctions = [];
+        glob(VUE_TEMPLATES_DIR +'/**/*.@(pug|html)', {sync: true}).forEach(function(element) {
+            let componentName = getFileNameWithoutExt(element);
+            var vueTemplate = element.endsWith('.pug')? pug.compileFile(element)(): fs.readFileSync(element, 'utf8');
+            let render = getVueTemplateRender(vueTemplate, componentName);
+            if(render){
+                templatesFunctions.push(`"${componentName.toUpperCase()}":${render}`);
+            }
+        });
+        if(templatesFunctions.length > 0){
+            let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
+            if (!fs.existsSync(OUTPUT_DIR)) {
+                fs.mkdirSync(OUTPUT_DIR, {recursive: true});
+            }
+            fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
+        }
+    }
 
     function buildLocales(){
         let langToPropertiesReader = {};
@@ -561,8 +535,13 @@ function Plastique(options){
 
         if(elementProps.length > 0)
             configuration.ep = elementProps;
-        if(templateName)
-            configuration.tn = templateName.toUpperCase();
+
+        let renderObj
+        if(templateName){
+            // configuration.tn = templateName.toUpperCase();
+            let render = getVueTemplateRender(templateName, componentName);
+            renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
+        }
 
 
 
@@ -575,7 +554,8 @@ function Plastique(options){
             [
                 ts.createLiteral(componentName.toUpperCase()),
                 ts.createLiteral(JSON.stringify(configuration)),
-                ts.createThis()
+                ts.createThis(),
+                renderObj == null? ts.createNull(): renderObj
             ]
         );
         if(isEntryPointNode(componentNode))
