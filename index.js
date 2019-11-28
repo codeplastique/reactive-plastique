@@ -35,7 +35,7 @@ function Plastique(options){
     var glob = require('glob');
     var fs = require('fs');
     const pug = require('pug');
-    const vueCompiler = require('vue-template-es2015-compiler');
+    const vueCompiler = require('vue-template-es2015-loader');
     const { JSDOM } = require('jsdom');
     const ts = require("typescript");
     const PropertiesReader = require('properties-reader');
