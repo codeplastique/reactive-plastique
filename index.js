@@ -1,3 +1,4 @@
+const VUE_TEMPLATE_FUNC_NAME = '$vue_templ';
 let componentPathToTemplate = {};
 function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
@@ -30,7 +31,6 @@ function Plastique(options){
     const COMPONENT_INTERFACE_NAME = 'Component';
     const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
-    const VUE_TEMPLATE_FUNC_NAME = '$vue_templ';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -859,45 +859,51 @@ function Plastique(options){
             return node;
         };
     };
-
     return transformer;
+}
+
+class CompilePlugin{
+    apply(compiler){
+        compiler.hooks.emit.tap('plastique compile plugin', function(compilation){
+            const ast = require('abstract-syntax-tree');
+            const uglifyJS = require("uglify-js");
+
+            for(let asset in compilation.assets){
+                let source = compilation.assets[asset].source();
+                let tree = ast.parse(source);
+
+                let modulesWrapper = tree.body[0].expression.arguments[0];
+                let isDevelopmentMode = modulesWrapper.properties != null;
+                let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
+
+                modules.forEach((element, index) => {
+                    let modulePath = compilation.modules[index].resource;
+                    let template = componentPathToTemplate[modulePath];
+                    if(template == null)
+                        return;
+
+                    element = isDevelopmentMode? element.value: element;
+                    let origBody = element.body;
+                    let fakeWrap = ast.parse('(function(){1}());');
+                    fakeWrap.body[0] = ast.parse(`"__vueTemplateGenerator${modulePath}__"`).body[0];
+                    fakeWrap.body[1].expression.callee.body = origBody;
+                    element.body = {body: fakeWrap.body, type: "BlockStatement"}
+                });
+                let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
+                for(let componentPath in componentPathToTemplate){
+                    let vueTemplateGeneratorFunc = `function ${VUE_TEMPLATE_FUNC_NAME}(){return ${template}};`;
+                    newCode = newCode.replace(`__vueTemplateGenerator${componentPath}__`, vueTemplateGeneratorFunc);
+                }
+                compilation.assets[asset]._cachedSource = newCode;
+            }
+        });
+    }
 }
 
 module.exports = {
     Plastique: Plastique,
-    CompilePlugin: function(varToLibPath){
-        this.apply = function(compiler){
-            compiler.hooks.emit.tap('plastique compile plugin', function(compilation){
-                const ast = require('abstract-syntax-tree');
-                const uglifyJS = require("uglify-js");
-
-                for(let asset in compilation.assets){
-                    let source = compilation.assets[asset].source();
-                    let tree = ast.parse(source);
-
-                    let modulesWrapper = tree.body[0].expression.arguments[0];
-                    let isDevelopmentMode = modulesWrapper.properties != null;
-                    let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
-
-                    modules.forEach((element, index) => {
-                        let modulePath = compilation.modules[index + 1].resource;
-                        let template = componentPathToTemplate[modulePath];
-                        if(template == null)
-                            return;
-
-                        let vueTemplateGeneratorFunc = ast.parse(`function ${VUE_TEMPLATE_FUNC_NAME}(){return ${template}}`);
-                        element = isDevelopmentMode? element.value: element;
-                        let origBody = element.body;
-                        let fakeWrap = ast.parse('(function(){1}());');
-                        fakeWrap.body[0] = vueTemplateGeneratorFunc;
-                        fakeWrap.body[1].expression.callee.body = origBody;
-                        element.body = {body: fakeWrap.body, type: "BlockStatement"}
-                    });
-                    compilation.assets[asset]._cachedSource = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
-                }
-
-            });
-        };
+    CompilePlugin: CompilePlugin,
+    LibraryPlugin: function(varToLibPath){
         const path = require("path");
         const webpack = require("webpack");
         varToLibPath = varToLibPath || {};
