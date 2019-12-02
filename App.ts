@@ -6,7 +6,7 @@ import SimpleMap from "./SimpleMap";
 import Serializable from "./annotation/Serializable";
 import Jsonable from "./annotation/Jsonable";
 declare const Vue: any;
-declare const _VueTemplates: any;
+// declare const _VueTemplates: any;
 
 
 declare global {
@@ -154,7 +154,7 @@ abstract class App{
     }   
     
 
-    private static initComponent(componentName: string, configuration: string, obj: any){
+    private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator: Function){
         let config = JSON.parse(configuration);
         let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
@@ -176,7 +176,7 @@ abstract class App{
                 pc: config// parent configuration
             }
         }
-        if(_VueTemplates[teplateName] == null || Vue.component(componentName) != null)
+        if(templateGenerator == null || Vue.component(componentName) != null)
             return;
         let configurator = obj.app$.pc;
         let methodNameToMethod: any = {};
@@ -204,6 +204,7 @@ abstract class App{
         //         })
         // }
 
+        let render = templateGenerator();
         Vue.component(componentName, {
             props: ['m'],
             data: function(elementProps: string[]){
@@ -223,8 +224,8 @@ abstract class App{
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             // computed: {},
-            render: _VueTemplates[teplateName].r,
-            staticRenderFns: _VueTemplates[teplateName].s,
+            render: render.r,
+            staticRenderFns: render.s,
             mounted: config.ah? methodNameToMethod[config.ah]: null,
             beforeDestroy: config.dh? methodNameToMethod[config.dh]: null
         });

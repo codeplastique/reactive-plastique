@@ -444,7 +444,7 @@ function Plastique(options){
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
         let template = getDecoratorArgumentMethodName(componentNode, ANNOTATION_TEMPLATE);
-
+        
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
         // if(parent)
@@ -545,6 +545,7 @@ function Plastique(options){
             // renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
             componentPathToTemplate[componentNode.parent.path] = getVueTemplateRender(template, componentName);
+            removeDecorator(componentNode, ANNOTATION_TEMPLATE)
         }
 
         let callExpr = (isStatic) => ts.createCall(
@@ -885,14 +886,18 @@ class CompilePlugin{
                     element = isDevelopmentMode? element.value: element;
                     let origBody = element.body;
                     let fakeWrap = ast.parse('(function(){1}());');
-                    fakeWrap.body[0] = ast.parse(`"__vueTemplateGenerator${modulePath}__"`).body[0];
-                    fakeWrap.body[1].expression.callee.body = origBody;
+                    fakeWrap.body[0].expression.callee.body = origBody;
+                    fakeWrap.body.unshift(ast.parse(`$["__vueTemplateGenerator${modulePath}__"]`).body[0]);
                     element.body = {body: fakeWrap.body, type: "BlockStatement"}
                 });
                 let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
                 for(let componentPath in componentPathToTemplate){
-                    let vueTemplateGeneratorFunc = `function ${VUE_TEMPLATE_FUNC_NAME}(){return ${template}};`;
-                    newCode = newCode.replace(`__vueTemplateGenerator${componentPath}__`, vueTemplateGeneratorFunc);
+                    let vueTemplateGeneratorFunc = `function ${VUE_TEMPLATE_FUNC_NAME}(){return ${componentPathToTemplate[componentPath]}}`;
+                    if(isDevelopmentMode)
+                        newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"]`, vueTemplateGeneratorFunc);
+                    else
+                        newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"],`, vueTemplateGeneratorFunc +'!');
+
                 }
                 compilation.assets[asset]._cachedSource = newCode;
             }
