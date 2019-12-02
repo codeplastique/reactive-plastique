@@ -1,3 +1,4 @@
+let componentPathToTemplate = {};
 function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
     const VUE_TEMPLATES_DIR = options.vueTemplatesDir || 'templates';
@@ -29,6 +30,7 @@ function Plastique(options){
     const COMPONENT_INTERFACE_NAME = 'Component';
     const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
+    const VUE_TEMPLATE_FUNC_NAME = '$vue_templ';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -441,7 +443,7 @@ function Plastique(options){
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
-        let templateName = getDecoratorArgumentMethodName(componentNode, ANNOTATION_TEMPLATE);
+        let template = getDecoratorArgumentMethodName(componentNode, ANNOTATION_TEMPLATE);
 
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
@@ -537,13 +539,13 @@ function Plastique(options){
             configuration.ep = elementProps;
 
         let renderObj
-        if(templateName){
+        if(template){
             // configuration.tn = templateName.toUpperCase();
-            let render = getVueTemplateRender(templateName, componentName);
-            renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
+            // let render = getVueTemplateRender(template, componentName);
+            // renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
+            renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
+            componentPathToTemplate[componentNode.parent.path] = getVueTemplateRender(template, componentName);
         }
-
-
 
         let callExpr = (isStatic) => ts.createCall(
             ts.createPropertyAccess(
@@ -864,8 +866,40 @@ function Plastique(options){
 module.exports = {
     Plastique: Plastique,
     CompilePlugin: function(varToLibPath){
-        let path = require("path");
-        let webpack = require("webpack");
+        this.apply = function(compiler){
+            compiler.hooks.emit.tap('plastique compile plugin', function(compilation){
+                const ast = require('abstract-syntax-tree');
+                const uglifyJS = require("uglify-js");
+
+                for(let asset in compilation.assets){
+                    let source = compilation.assets[asset].source();
+                    let tree = ast.parse(source);
+
+                    let modulesWrapper = tree.body[0].expression.arguments[0];
+                    let isDevelopmentMode = modulesWrapper.properties != null;
+                    let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
+
+                    modules.forEach((element, index) => {
+                        let modulePath = compilation.modules[index + 1].resource;
+                        let template = componentPathToTemplate[modulePath];
+                        if(template == null)
+                            return;
+
+                        let vueTemplateGeneratorFunc = ast.parse(`function ${VUE_TEMPLATE_FUNC_NAME}(){return ${template}}`);
+                        element = isDevelopmentMode? element.value: element;
+                        let origBody = element.body;
+                        let fakeWrap = ast.parse('(function(){1}());');
+                        fakeWrap.body[0] = vueTemplateGeneratorFunc;
+                        fakeWrap.body[1].expression.callee.body = origBody;
+                        element.body = {body: fakeWrap.body, type: "BlockStatement"}
+                    });
+                    compilation.assets[asset]._cachedSource = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
+                }
+
+            });
+        };
+        const path = require("path");
+        const webpack = require("webpack");
         varToLibPath = varToLibPath || {};
         for(let lib in varToLibPath){
             if(varToLibPath[lib] == null || varToLibPath[lib] == '')
