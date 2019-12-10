@@ -362,11 +362,13 @@ function Plastique(options){
     }
 
     function getNodePath(node, className){
-        let f =  node.getSourceFile()
+        let d = node.getSourceFile()
             .locals
-            .get(className? className: node.expression.escapedText)
-            .declarations[0]
-            .parent;
+            .get(className? className: node.expression.escapedText);
+
+        if(d == null)
+            return;
+        let f =  d.declarations[0].parent;
 
         if(f.fileName)
             return f.fileName;
@@ -379,17 +381,25 @@ function Plastique(options){
 
     function getClass(currentNode, className, context){
         let fullModulePath = getNodePath(currentNode, className);
-        let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
-        for(let node of module.statements)
-            if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == className)
-                return node;
+        if(fullModulePath != null){
+            let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
+            for(let node of module.statements)
+                if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == className)
+                    return node;
+        }
     }
 
-    function getParentClass(classNode, context){
+    function getParentClassName(classNode) {
         let parent = ts.getClassExtendsHeritageElement(classNode);
         if(parent == null)
             return;
-        let parentClassName = parent.expression.escapedText;
+        return parent.expression.escapedText;
+    }
+
+    function getParentClass(classNode, context){
+        let parentClassName = getParentClassName(classNode);
+        if(parentClassName == null)
+            return;
         return getClass(classNode, parentClassName, context);
     }
 
@@ -438,7 +448,13 @@ function Plastique(options){
             )
                 return true;
         }
+    }
 
+    function getSuperNode(constructorNode){
+        return constructorNode.body.statements.filter(s =>
+            (s.kind == ts.SyntaxKind.ExpressionStatement)
+            && (s.expression.kind == ts.SyntaxKind.CallExpression)
+            && (s.expression.expression.kind == ts.SyntaxKind.SuperKeyword))[0]
     }
 
     function configureComponent(componentNode, context){
@@ -458,11 +474,7 @@ function Plastique(options){
         let detachHook = null;
         let constructorNode = getOrCreateConstructor(componentNode);
         if(isEntryPointNode(componentNode)){
-            let superStatement = constructorNode.body.statements.filter(s =>
-                (s.kind == ts.SyntaxKind.ExpressionStatement)
-                && (s.expression.kind == ts.SyntaxKind.CallExpression)
-                && (s.expression.expression.kind == ts.SyntaxKind.SuperKeyword))[0];
-
+            let superStatement = getSuperNode(constructorNode);
             let elementArgument = superStatement.expression.arguments.shift();
 
             constructorNode.body.statements.push(
@@ -803,6 +815,17 @@ function Plastique(options){
                 // if(className == APP_CLASS_NAME)
                 //     appClassNode = node;
                 // else 
+                if(getParentClassName(node) == 'Array'){
+                    let constructorNode = getOrCreateConstructor(node);
+                    let superNode = getSuperNode(constructorNode);
+                    if(superNode != null){
+                        if(superNode.expression.arguments && superNode.expression.arguments.length > 0){
+                            throw new Error('Super node should be without arguments when you extending array');
+                        }
+                        let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
+                        constructorNode.body.statements.splice(superNodeIndex, 1);
+                    }
+                }
                 if(isEntryPointNode(node)){
                     // entryPointClassNodes.push(node);
                     configureEntryPointClass(node, context)
