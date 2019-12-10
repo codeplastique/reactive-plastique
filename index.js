@@ -536,7 +536,8 @@ function Plastique(options){
         }
         let configuration = {
             w: onchangeMethods, //onchange methods
-            c: [] //cached methods
+            // c: [], //cached methods
+            ep: elementProps //element properties
         };
         if(attachHook)
             configuration.ah = attachHook;
@@ -546,9 +547,6 @@ function Plastique(options){
             configuration.dh = detachHook;
         else
             configuration.dh = componentRoot.detachHook
-
-        if(elementProps.length > 0)
-            configuration.ep = elementProps;
 
         let renderObj
         if(template){

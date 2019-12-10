@@ -156,7 +156,7 @@ abstract class App{
 
     private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator: Function){
         let config = JSON.parse(configuration);
-        let teplateName = config.tn || componentName;
+        // let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
             return function(){ return this.app$.clazz[methodName].apply(this, arguments)}
         };
@@ -165,7 +165,7 @@ abstract class App{
             // obj.app$.pc.super = obj.app$.cn;
             obj.app$.cn = componentName; //replace parent name to child name
             Object.assign(obj.app$.pc.w, config.w);
-            obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
+            // obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
             obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element prop
         }else{
             obj.app$ = {
