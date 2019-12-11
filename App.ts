@@ -167,16 +167,18 @@ abstract class App{
             Object.assign(obj.app$.pc.w, config.w);
             // obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
             obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element prop
+            obj.app$.tg = templateGenerator? templateGenerator: obj.app$.tg
         }else{
             obj.app$ = {
                 cn: componentName,
                 id: ++App.componentId,
                 clazz: obj,
                 events: {},
-                pc: config// parent configuration
+                pc: config,// parent configuration
+                tg: templateGenerator
             }
         }
-        if(templateGenerator == null || Vue.component(componentName) != null)
+        if(obj.app$.tg == null || Vue.component(componentName) != null)
             return;
         let configurator = obj.app$.pc;
         let methodNameToMethod: any = {};
@@ -204,7 +206,7 @@ abstract class App{
         //         })
         // }
 
-        let render = templateGenerator();
+        let render = obj.app$.tg();
         Vue.component(componentName, {
             props: ['m'],
             data: function(elementProps: string[]){
