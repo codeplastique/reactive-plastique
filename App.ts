@@ -213,12 +213,13 @@ abstract class App{
                 return function () {
                     if(elementProps){ // element props
                         for(let prop of elementProps)
-                            Object.defineProperty(this.m, prop, {
-                                enumerable: true,
-                                get:  function(){ 
-                                    return this.app$.v$? this.app$.v$.$refs[prop]: null
-                                }
-                            })
+                            if(!(prop in this.m))
+                                Object.defineProperty(this.m, prop, {
+                                    enumerable: true,
+                                    get:  function(){ 
+                                        return this.app$.v$? this.app$.v$.$refs[prop]: null
+                                    }
+                                })
                     }
                     return this.m
                 }
