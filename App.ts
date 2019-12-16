@@ -3,7 +3,6 @@ import EventManager from "./EventManager";
 import I18n from "./I18n";
 import HashSet from "./HashSet";
 import SimpleMap from "./SimpleMap";
-import Serializable from "./annotation/Serializable";
 import Jsonable from "./annotation/Jsonable";
 declare const Vue: any;
 // declare const _VueTemplates: any;
@@ -14,7 +13,7 @@ declare global {
     interface Object{
         equals(obj: Object): boolean;
     }
-    interface Array<T> extends Serializable, Jsonable{
+    interface Array<T> extends Jsonable{
         remove(index: number): Array<T>;
         removeValue(value: T): boolean;
         removeValues(value: T[]): void;
@@ -67,15 +66,12 @@ Array.prototype.set = function (index: number, value: any) {
         this[index] = value;
     return this;
 }
-Array.prototype.serialize = function() {
-    let result = [];
-    for(let elem of this)
-        result.push(elem.serialize? elem.serialize(): elem);
-    return result;
-}
-Array.prototype.toJson = function () {
-    return JSON.stringify(this.serialize());
-}
+// Array.prototype.toJSON = function () {
+//     let result = [];
+//     for(let elem of this)
+//         result.push(elem.toJSON? elem.toJSON(): elem);
+//     return result;
+// }
 
 function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Component[]) {
     while(true){

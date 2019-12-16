@@ -1,10 +1,9 @@
 import Hashable from "./Hashable";
 import SimpleMap from "./SimpleMap";
-import Serializable from "./annotation/Serializable";
 import Jsonable from "./annotation/Jsonable";
 
 ///@ts-ignore
-class HashSet<T extends Hashable> implements Set<T>, Serializable, Jsonable{
+class HashSet<T extends Hashable> implements Set<T>, Jsonable{
     public size: number;
     private hashToElem: SimpleMap<T>;
     constructor(elems?: Hashable[]){
@@ -54,14 +53,8 @@ class HashSet<T extends Hashable> implements Set<T>, Serializable, Jsonable{
     /**
      * @override
      */
-    public serialize(): Object | Object[]{
-        return this.toArray().serialize();
-    }
-    /**
-     * @override
-     */
-    public toJson(): string{
-        return JSON.stringify(this.serialize());
+    public toJSON(): Object | Object[]{
+        return this.toArray();
     }
 }
 

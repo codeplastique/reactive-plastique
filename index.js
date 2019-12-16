@@ -27,6 +27,7 @@ function Plastique(options){
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
     const ANNOTATION_ELEMENT = 'Inject';
     const ANNOTATION_INIT_EVENT = 'InitEvent';
+    const ANNOTATION_TO_JSON = 'ToJson';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const APP_EVENT_TYPE = 'AppEvent';
@@ -158,8 +159,8 @@ function Plastique(options){
                     }
                 }
                 if(prefix == null){
-                    console.warn('Ignore template of component: '+ componentName)
-                    return;
+                    // console.warn('Ignore template of component: '+ componentName)
+                    return true;
                 }
                 for(let i = 0; i < elems.length; i++){
                     let elem = elems[i];
@@ -756,9 +757,29 @@ function Plastique(options){
 
 
     function initAppEvents(classNode){
+        let jsonFields = [];
+        let jsonNameToAlias = [];
+        let noStaticFieldsCount = 0;
         if(classNode.members){
             let className = classNode.name.escapedText;
             for(let member of classNode.members){
+                if(member.kind == ts.SyntaxKind.PropertyDeclaration){
+                    if(member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
+                        noStaticFieldsCount++;
+                        if(isNodeHasDecorator(member, ANNOTATION_TO_JSON)){
+                            let memberName = member.name.escapedText;
+                            let aliasName = getDecoratorArgumentMethodName(member, ANNOTATION_TO_JSON);
+                            if(aliasName){
+                                jsonNameToAlias.push(
+                                    ts.createPropertyAssignment(memberName, ts.createStringLiteral(aliasName))
+                                );
+                            }else{
+                                jsonFields.push(ts.createStringLiteral(memberName));
+                            }
+                        }
+                    }
+                    removeDecorator(member, ANNOTATION_TO_JSON);
+                }
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
                     let classFile = classNode.getSourceFile().path;
                     let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
@@ -802,6 +823,21 @@ function Plastique(options){
                     removeDecorator(member, ANNOTATION_INIT_EVENT);
                 }
             }
+        }
+        if(noStaticFieldsCount != jsonFields.length && jsonFields.length > 0){
+            classNode.members.push(
+                ts.createProperty(
+                    undefined,
+                    [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+                    ts.createIdentifier('$json'),
+                    undefined,
+                    undefined,
+                    ts.createObjectLiteral(
+                        ts.createPropertyAssignment('f', ts.createArrayLiteral(jsonFields)),
+                        ts.createPropertyAssignment('a', ts.createObjectLiteral(jsonNameToAlias))
+                    )
+                )
+            );
         }
     }
     let files = [];
@@ -859,6 +895,7 @@ function Plastique(options){
                         name == ANNOTATION_ELEMENT ||
                         name == ANNOTATION_INIT_EVENT ||
                         name == ANNOTATION_TEMPLATE ||
+                        name == ANNOTATION_TO_JSON ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
                         return;

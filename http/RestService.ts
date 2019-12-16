@@ -3,6 +3,7 @@ import HttpResponse from "./HttpResponse";
 import JsonRequestContent from "./JsonRequestContent";
 import UrlEncodedRequestContent from "./UrlEncodedRequestContent";
 import SimpleMap from "../SimpleMap";
+import JsonGenerator from "../JsonParser";
 declare let axios;
 
 class RestService{
@@ -14,7 +15,7 @@ class RestService{
         if(req.content != null){
             let data = req.content.data;
             if(req.content instanceof JsonRequestContent)
-                props.data = data.toJson? data.toJson(): JSON.stringify(data.serialize? data.serialize(): data)
+                props.data = typeof data == 'string'? data: new JsonGenerator().toJson(data)
             else if(req.content instanceof UrlEncodedRequestContent)
                 props.data = this.encodeMap(data);
             else // FormDataRequestContent

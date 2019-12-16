@@ -1,5 +1,5 @@
 interface Jsonable{
-    toJson(): string
+    toJSON(): Object | Object[]
 }
 
 export default Jsonable;
