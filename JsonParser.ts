@@ -14,9 +14,10 @@ class JsonGenerator{
                 return result;
             }else if(obj != null && typeof obj === 'object'){
                 let fields: string[], aliasToField = {};
-                if(obj.constructor.$json){
-                    fields = obj.constructor.$json.f;
-                    aliasToField = obj.constructor.$json.a || {};
+                let jsonConfiguration = obj.constructor['$json']? obj.constructor['$json']: (obj._data? obj._data.constructor['$json']: null);
+                if(jsonConfiguration){
+                    fields = jsonConfiguration.f;
+                    aliasToField = jsonConfiguration.a || {};
                 }
                 let result = {};
                 for(let fieldName in obj){

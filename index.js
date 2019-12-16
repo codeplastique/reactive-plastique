@@ -764,7 +764,7 @@ function Plastique(options){
             let className = classNode.name.escapedText;
             for(let member of classNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
-                    if(member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
+                    if(member.modifiers && member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
                         noStaticFieldsCount++;
                         if(isNodeHasDecorator(member, ANNOTATION_TO_JSON)){
                             let memberName = member.name.escapedText;
@@ -832,10 +832,10 @@ function Plastique(options){
                     ts.createIdentifier('$json'),
                     undefined,
                     undefined,
-                    ts.createObjectLiteral(
+                    ts.createObjectLiteral([
                         ts.createPropertyAssignment('f', ts.createArrayLiteral(jsonFields)),
                         ts.createPropertyAssignment('a', ts.createObjectLiteral(jsonNameToAlias))
-                    )
+                    ])
                 )
             );
         }
