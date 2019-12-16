@@ -1,8 +1,9 @@
-class JsonGenerator{
-    public toJson(obj: Object | Object[]): string{
-        return JSON.stringify(this.serialize(obj));
+class Serializator{
+    public static toJson(obj: Object | Object[]): string{
+        obj = obj['_data']? obj['_data']: obj;
+        return JSON.stringify(new Serializator().serialize(obj));
     }
-    public serialize(obj: any): Object | Object[]{
+    private serialize(obj: any): Object | Object[]{
         if(obj != null && obj.toJSON){
             return obj.toJSON();
         }else{
@@ -14,7 +15,7 @@ class JsonGenerator{
                 return result;
             }else if(obj != null && typeof obj === 'object'){
                 let fields: string[], aliasToField = {};
-                let jsonConfiguration = obj.constructor['$json']? obj.constructor['$json']: (obj._data? obj._data.constructor['$json']: null);
+                let jsonConfiguration = obj.constructor['$json'];
                 if(jsonConfiguration){
                     fields = jsonConfiguration.f;
                     aliasToField = jsonConfiguration.a || {};
@@ -36,4 +37,4 @@ class JsonGenerator{
     }
 }
 
-export default JsonGenerator;
+export default Serializator;
