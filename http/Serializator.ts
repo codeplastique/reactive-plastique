@@ -14,12 +14,7 @@ class Serializator{
                 }
                 return result;
             }else if(obj != null && typeof obj === 'object'){
-                let fields: string[], aliasToField = {};
-                let jsonConfiguration = obj.constructor['$json'];
-                if(jsonConfiguration){
-                    fields = jsonConfiguration.f;
-                    aliasToField = jsonConfiguration.a || {};
-                }
+                let [fields, aliasToField] = this.getJsonFields(obj);
                 let result = {};
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
@@ -34,6 +29,20 @@ class Serializator{
             }else
                 return obj;
         }
+    }
+
+    private getJsonFields(obj: Object): [string[], object]{
+        let fields: string[], aliasToField = {};
+        let proto = Object.getPrototypeOf(obj);
+        while(proto != null){
+            let jsonConfiguration = proto.constructor['$json'];
+            if(jsonConfiguration){
+                fields = fields.concat(jsonConfiguration.f);
+                Object.assign(aliasToField, jsonConfiguration.a);
+            }
+            proto = Object.getPrototypeOf(proto)
+        }
+        return [fields, aliasToField];
     }
 }
 

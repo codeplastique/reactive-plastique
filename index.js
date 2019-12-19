@@ -123,7 +123,9 @@ function Plastique(options){
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
-        if(handle(rootTag.children, elems, componentName)){
+        if(rootTag.children.length > 1)
+            throw new Error('Component '+ componentName +' has multiple root tags!')
+        if(handle(rootTag.children[0], elems, componentName)){
             let blockTags = Array.from(elems).filter(e => e.tagName == 'V:BLOCK');
             for(let blockTag of blockTags){
                 blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHTML}</template>`);
@@ -144,22 +146,18 @@ function Plastique(options){
         }else
             return null;
 
-        function handle(rootComponents, elems, componentName){
+        function handle(rootComponent, elems, componentName){
             let prefix;
+            rootComponent.setAttribute('data-cn', componentName);
             if(elems.length > 0){
-                for(var attr of rootComponents[0].attributes){
+                for(var attr of rootComponent.attributes){
                     if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
-                        let elem = rootComponents[0];
-                        if(rootComponents.length > 1)
-                            throw new Error('Component '+ componentName +' has multiple root tags!')
                         prefix = attr.name.substr(6);
-                        elem.removeAttribute(attr.name);
-                        elem.setAttribute('data-cn', componentName);
+                        rootComponent.removeAttribute(attr.name);
                         break;
                     }
                 }
                 if(prefix == null){
-                    // console.warn('Ignore template of component: '+ componentName)
                     return true;
                 }
                 for(let i = 0; i < elems.length; i++){
@@ -824,7 +822,7 @@ function Plastique(options){
                 }
             }
         }
-        if(noStaticFieldsCount != jsonFields.length && jsonFields.length > 0){
+        if(jsonNameToAlias.length > 0 || jsonFields.length > 0){
             classNode.members.push(
                 ts.createProperty(
                     undefined,
