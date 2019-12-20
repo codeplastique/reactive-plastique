@@ -32,7 +32,7 @@ class Serializator{
     }
 
     private getJsonFields(obj: Object): [string[], object]{
-        let fields: string[], aliasToField = {};
+        let fields = [], aliasToField = {};
         let proto = Object.getPrototypeOf(obj);
         while(proto != null){
             let jsonConfiguration = proto.constructor['$json'];
