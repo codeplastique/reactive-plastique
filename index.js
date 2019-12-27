@@ -16,10 +16,9 @@ let Interfaces = new function(){
         return Object.keys(interfaceNameToId).find(key => interfaceNameToId[key] === id);
     }
     this.getMask = function(interfaces){
-        let allInterfaces = Object.keys(interfaceNameToId);
         let mask = 0;
         for(let interface of interfaces)
-            mask = mask | (allInterfaces[interface] || 0)
+            mask = mask | (interfaceNameToId[interface] || 0)
         return mask;
     }
 }
@@ -72,15 +71,16 @@ function Plastique(options){
     function isClassImplementsInterface(context, nodeClass, interfaceName, deep){
         if(nodeClass == null)
             return;
-        let interfaces = ts.getClassImplementsHeritageClauseElements(nodeClass) || [];
-        let isImplements = interfaces.map(t => t.expression.escapedText).includes(interfaceName);
+        interfaceName = interfaceName.toLowerCase();
+        let interfaces = (ts.getClassImplementsHeritageClauseElements(nodeClass) || []).map(t => t.expression.escapedText.toLowerCase());
+        let isImplements = interfaces.includes(interfaceName);
         if(isImplements)
             return isImplements;
         if(deep){
             for(let interface of interfaces){
                 if(isClassImplementsInterface(
                     context,
-                    getClass(nodeClass, interface.expression.escapedText, context),
+                    getClass(nodeClass, interface, context),
                     interfaceName,
                     true
                 ))
@@ -97,7 +97,7 @@ function Plastique(options){
     }
 
     function getInterfaces(classNode) {
-        return (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => t.expression.escapedText)
+        return (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => t.expression.escapedText.toLowerCase())
     }
 
     function isNodeHasDecorator(nodeClass, decoratorName){
@@ -311,7 +311,7 @@ function Plastique(options){
                             if(virtualComponent){
                                 let virtualComponentId = virtualComponent[1];
                                 elem.setAttribute('data-vcn', virtualComponentId);
-                                virtualComponents.push(virtualComponentId);
+                                virtualComponents.push(parseInt(virtualComponentId));
                             }else{
                                 let componentCast = modifiers[0];
                                 let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
@@ -842,7 +842,7 @@ function Plastique(options){
                 let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
                 constructorNode.body.statements.splice(superNodeIndex + 1, 0, initInterfacesCall); // after super
             }else
-                constructorNode.body.statements.push(initInterfacesCall);
+                constructorNode.body.statements.unshift(initInterfacesCall);
         }
     }
 
@@ -1060,9 +1060,9 @@ function Loader(content) {
     })
     return content;
 }
-Plastique.Plastique = Plastique,
-Plastique.CompilePlugin = CompilePlugin,
-Plastique.LibraryPlugin = function(varToLibPath){
+Loader.Plastique = Plastique,
+Loader.CompilePlugin = CompilePlugin,
+Loader.LibraryPlugin = function(varToLibPath){
     const path = require("path");
     const webpack = require("webpack");
     varToLibPath = varToLibPath || {};
