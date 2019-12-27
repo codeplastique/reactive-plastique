@@ -1,5 +1,28 @@
 const VUE_TEMPLATE_FUNC_NAME = '$vue_templ';
 let componentPathToTemplate = {};
+let Interfaces = new function(){
+    var counter = 1;
+    let interfaceNameToId = {};
+    this.getId = function(name){
+        name = name.trim().toLowerCase();
+        if(interfaceNameToId[name])
+            return interfaceNameToId[name];
+        let index = counter;
+        interfaceNameToId[name] = index;
+        counter = counter << 1;
+        return index;
+    }
+    this.getNameById = function(id){
+        return Object.keys(interfaceNameToId).find(key => interfaceNameToId[key] === id);
+    }
+    this.getMask = function(interfaces){
+        let allInterfaces = Object.keys(interfaceNameToId);
+        let mask = 0;
+        for(let interface of interfaces)
+            mask = mask | (allInterfaces[interface] || 0)
+        return mask;
+    }
+}
 function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
     const VUE_TEMPLATES_DIR = options.vueTemplatesDir || 'templates';
@@ -46,10 +69,37 @@ function Plastique(options){
         return this.map(f).reduce((x,y) => x.concat(y), [])
     }
 
-    function isClassImplementsInterface(nodeClass, interfaceName){
-        let interfaces = ts.getClassImplementsHeritageClauseElements(nodeClass);
-        return interfaces.map(t => t.expression.escapedText).includes(interfaceName);
+    function isClassImplementsInterface(context, nodeClass, interfaceName, deep){
+        if(nodeClass == null)
+            return;
+        let interfaces = ts.getClassImplementsHeritageClauseElements(nodeClass) || [];
+        let isImplements = interfaces.map(t => t.expression.escapedText).includes(interfaceName);
+        if(isImplements)
+            return isImplements;
+        if(deep){
+            for(let interface of interfaces){
+                if(isClassImplementsInterface(
+                    context,
+                    getClass(nodeClass, interface.expression.escapedText, context),
+                    interfaceName,
+                    true
+                ))
+                    return true;
+            }
+            if(isClassImplementsInterface(
+                context,
+                getParentClass(nodeClass, context),
+                interfaceName,
+                true
+            ))
+                return true;
+        }
     }
+
+    function getInterfaces(classNode) {
+        return (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => t.expression.escapedText)
+    }
+
     function isNodeHasDecorator(nodeClass, decoratorName){
         let decorators = nodeClass.decorators != null? nodeClass.decorators: [];
         return decorators.map(d => {
@@ -120,6 +170,7 @@ function Plastique(options){
     }
 
     function getVueTemplateRender(vueTemplate, componentName){
+        let virtualComponents = [];
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
@@ -142,7 +193,10 @@ function Plastique(options){
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
             }
-            return `{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`;
+            return {
+                virtualComponents: virtualComponents,
+                template: `{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`
+            };
         }else
             return null;
 
@@ -252,18 +306,25 @@ function Plastique(options){
                             elem.setAttribute('v-bind:class', extractExpression(attr.value));
                             break;
                         case 'component':
-                            let componentCast = modifiers[0];
                             var componentVar = extractExpression(attr.value);
-                            let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                            elem.insertAdjacentHTML('beforebegin',
-                                `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
-                            );
-                            let clone = elem.previousSibling;
-                            copyIfUnlessEachAttributesToComponent(elem, clone);
-                            elem.setAttribute = function(){
-                                clone.setAttribute.apply(clone, arguments);
+                            let virtualComponent = componentVar.replace(/\s/g, '').match(/Type<.+>\((\d+)\)/)
+                            if(virtualComponent){
+                                let virtualComponentId = virtualComponent[1];
+                                elem.setAttribute('data-vcn', virtualComponentId);
+                                virtualComponents.push(virtualComponentId);
+                            }else{
+                                let componentCast = modifiers[0];
+                                let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                                elem.insertAdjacentHTML('beforebegin',
+                                    `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
+                                );
+                                let clone = elem.previousSibling;
+                                copyIfUnlessEachAttributesToComponent(elem, clone);
+                                elem.setAttribute = function(){
+                                    clone.setAttribute.apply(clone, arguments);
+                                }
+                                elem.remove();
                             }
-                            elem.remove();
                             break;
                         case 'each':
                             let iterateParts = attr.value.split(':');
@@ -301,7 +362,7 @@ function Plastique(options){
             var vueTemplate = element.endsWith('.pug')? pug.compileFile(element)(): fs.readFileSync(element, 'utf8');
             let render = getVueTemplateRender(vueTemplate, componentName);
             if(render){
-                templatesFunctions.push(`"${componentName.toUpperCase()}":${render}`);
+                templatesFunctions.push(`"${componentName.toUpperCase()}":${render.template}`);
             }
         });
         if(templatesFunctions.length > 0){
@@ -383,7 +444,7 @@ function Plastique(options){
         if(fullModulePath != null){
             let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
             for(let node of module.statements)
-                if(node.kind === ts.SyntaxKind.ClassDeclaration && node.name.escapedText == className)
+                if((node.kind === ts.SyntaxKind.ClassDeclaration || node.kind == ts.SyntaxKind.InterfaceDeclaration) && node.name.escapedText == className)
                     return node;
         }
     }
@@ -553,7 +614,13 @@ function Plastique(options){
             // let render = getVueTemplateRender(template, componentName);
             // renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
-            componentPathToTemplate[componentNode.parent.path] = getVueTemplateRender(template, componentName);
+            let templateRender = getVueTemplateRender(template, componentName);
+            for(let interfaceId of templateRender.virtualComponents){
+                let interfaceName = Interfaces.getNameById(interfaceId);
+                if(!isClassImplementsInterface(context, componentNode, interfaceName, true))
+                    throw new Error('Invalid template virtual component "Type<'+ interfaceName +'>". Component "'+ componentName + '" does not implement interface: '+ interfaceName);
+            }
+            componentPathToTemplate[componentNode.parent.path] = templateRender.template;
             removeDecorator(componentNode, ANNOTATION_TEMPLATE)
         }
 
@@ -754,6 +821,31 @@ function Plastique(options){
     }
 
 
+    function initInterfacesDef(classNode) {
+        let interfaceMask = Interfaces.getMask(getInterfaces(classNode));
+        if(interfaceMask > 0){
+            // getOrCreateConstructor(classNode).body.statements.unshift(callExpr(true));
+            let initInterfacesCall = ts.createCall(
+                ts.createPropertyAccess(
+                    ts.createIdentifier('_app'),
+                    ts.createIdentifier('interface')
+                ),
+                undefined, // type arguments, e.g. Foo<T>()
+                [
+                    ts.createNumericLiteral(interfaceMask),
+                    ts.createThis()
+                ]
+            );
+            let constructorNode = getOrCreateConstructor(classNode);
+            let superNode = getSuperNode(constructorNode);
+            if(superNode != null){
+                let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
+                constructorNode.body.statements.splice(superNodeIndex + 1, 0, initInterfacesCall); // after super
+            }else
+                constructorNode.body.statements.push(initInterfacesCall);
+        }
+    }
+
     function initAppEvents(classNode){
         let jsonFields = [];
         let jsonNameToAlias = [];
@@ -869,6 +961,8 @@ function Plastique(options){
 
                 initAppEvents(node);
 
+                initInterfacesDef(node);
+
 
                 // tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
@@ -960,22 +1054,26 @@ class CompilePlugin{
         });
     }
 }
-
-module.exports = {
-    Plastique: Plastique,
-    CompilePlugin: CompilePlugin,
-    LibraryPlugin: function(varToLibPath){
-        const path = require("path");
-        const webpack = require("webpack");
-        varToLibPath = varToLibPath || {};
-        for(let lib in varToLibPath){
-            if(varToLibPath[lib] == null || varToLibPath[lib] == '')
-                varToLibPath[lib] = path.join(__dirname, './compileUtils', 'empty.ts')
-        }
-        return new webpack.ProvidePlugin(Object.assign(varToLibPath ,{
-            '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
-            '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
-            '__assign': path.join(__dirname, './compileUtils', 'assign.ts')
-        }))
-    }
+function Loader(content) {
+    content = content.replace(/Type\s*<\s*(\w+)>\s*\(\s*\)/g, function(typeDef, interfaceName){
+        return typeDef.replace(/\(\s*\)/, '('+ Interfaces.getId(interfaceName) +')')
+    })
+    return content;
 }
+Plastique.Plastique = Plastique,
+Plastique.CompilePlugin = CompilePlugin,
+Plastique.LibraryPlugin = function(varToLibPath){
+    const path = require("path");
+    const webpack = require("webpack");
+    varToLibPath = varToLibPath || {};
+    for(let lib in varToLibPath){
+        if(varToLibPath[lib] == null || varToLibPath[lib] == '')
+            varToLibPath[lib] = path.join(__dirname, './compileUtils', 'empty.ts')
+    }
+    return new webpack.ProvidePlugin(Object.assign(varToLibPath ,{
+        '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
+        '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
+        '__assign': path.join(__dirname, './compileUtils', 'assign.ts')
+    }))
+}
+module.exports = Loader;

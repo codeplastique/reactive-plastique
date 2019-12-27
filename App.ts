@@ -4,6 +4,7 @@ import I18n from "./I18n";
 import HashSet from "./HashSet";
 import SimpleMap from "./SimpleMap";
 import Jsonable from "./annotation/Jsonable";
+import { TypeDef } from "./Type";
 declare const Vue: any;
 // declare const _VueTemplates: any;
 
@@ -12,6 +13,7 @@ declare global {
     interface Clazz extends Function{}
     interface Object{
         equals(obj: Object): boolean;
+        instanceOf(type: any | Function | TypeDef<any>): boolean
     }
     interface Array<T> extends Jsonable{
         remove(index: number): Array<T>;
@@ -32,6 +34,16 @@ declare global {
 Object.defineProperty(Object.prototype, 'equals', {
     value: function(obj: Object) {
         return this === obj;
+    }, 
+    writable: true,
+    configurable: true
+});
+Object.defineProperty(Object.prototype, 'instanceOf', {
+    value: function(type: any) {
+        if(typeof type == 'number'){
+            return ((this._intf || 0) & type) == type;
+        }
+        return this instanceof type;
     }, 
     writable: true,
     configurable: true
@@ -73,28 +85,34 @@ Array.prototype.set = function (index: number, value: any) {
 //     return result;
 // }
 
-function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Component[]) {
+function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any>>) {
     while(true){
-        if(parent.hasAttribute('data-cn') && parent.__vue__){
+        if(parent.hasAttribute('data-cn')){
+            if(parent.__vue__ == null) //if server template
+                return;
             if(types){
                 for(let type of types){
                     ///@ts-ignore
-                    if(parent.__vue__._data instanceof type)
+                    if(parent.__vue__._data.instanceOf(type))
                         return parent.__vue__._data;
                 }
             }else
                 return parent.__vue__._data
+        }else if(parent.hasAttribute('data-vcn')){
+            if(types == null || types.indexOf(parseInt(parent.getAttribute('data-vcn'))) >= 0){
+                return parent.parentElement.closest('[data-cn]');
+            }
         }
-        parent = parent.parentElement && parent.parentElement.closest('[data-cn]');
-        if(parent == null || parent.__vue__ == null || (topLimitElem && !topLimitElem.contains(parent)))
+        parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
+        if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
             return;
     }
 }
 
-Element.prototype.getClosestComponent = function(types?: Component[]) {
+Element.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
     return getClosestComponent(this, null, types);
 }
-Event.prototype.getClosestComponent = function(types?: Component[]) {
+Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
     return getClosestComponent(this.target, this.currentTarget, types);
 }
 
@@ -165,14 +183,16 @@ abstract class App{
             obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element prop
             obj.app$.tg = templateGenerator? templateGenerator: obj.app$.tg
         }else{
-            obj.app$ = {
-                cn: componentName,
-                id: ++App.componentId,
-                clazz: obj,
-                events: {},
-                pc: config,// parent configuration
-                tg: templateGenerator
-            }
+            Object.defineProperty(obj, 'app$', {
+                value: {
+                    cn: componentName,
+                    id: ++App.componentId,
+                    clazz: obj,
+                    events: {},
+                    pc: config,// parent configuration
+                    tg: templateGenerator
+                }
+            });
         }
         if(obj.app$.tg == null || Vue.component(componentName) != null)
             return;
@@ -243,6 +263,11 @@ abstract class App{
             EventManager.addListener(event, method);
         }
     }
+    private static initInterfaces(interfaceMask: number, obj: any){
+        Object.defineProperty(obj, '_intf', {
+            value: (obj._intf || 0) | interfaceMask
+        });
+    }
 
     constructor(element?: HTMLElement){
         let $ = this.constructor['$'];
@@ -276,7 +301,8 @@ abstract class App{
             bean: App.getBean,
             initComp: App.initComponent,
             i18n: I18n.text,
-            listeners: App.addListeners
+            listeners: App.addListeners,
+            interface: App.initInterfaces
         };
         window['getComponentPath'] =  function(elem){
             let components = [];
