@@ -825,24 +825,35 @@ function Plastique(options){
         let interfaceMask = Interfaces.getMask(getInterfaces(classNode));
         if(interfaceMask > 0){
             // getOrCreateConstructor(classNode).body.statements.unshift(callExpr(true));
-            let initInterfacesCall = ts.createCall(
-                ts.createPropertyAccess(
-                    ts.createIdentifier('_app'),
-                    ts.createIdentifier('interface')
-                ),
-                undefined, // type arguments, e.g. Foo<T>()
-                [
-                    ts.createNumericLiteral(interfaceMask),
-                    ts.createThis()
-                ]
+            // let initInterfacesCall = ts.createCall(
+            //     ts.createPropertyAccess(
+            //         ts.createIdentifier('_app'),
+            //         ts.createIdentifier('interface')
+            //     ),
+            //     undefined, // type arguments, e.g. Foo<T>()
+            //     [
+            //         ts.createNumericLiteral(String(interfaceMask)),
+            //         ts.createThis()
+            //     ]
+            // );
+            classNode.members.push(
+                ts.createProperty(
+                    undefined,
+                    [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+                    ts.createIdentifier('$intf'),
+                    undefined,
+                    undefined,
+                    ts.createNumericLiteral(String(interfaceMask))
+                )
             );
-            let constructorNode = getOrCreateConstructor(classNode);
-            let superNode = getSuperNode(constructorNode);
-            if(superNode != null){
-                let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
-                constructorNode.body.statements.splice(superNodeIndex + 1, 0, initInterfacesCall); // after super
-            }else
-                constructorNode.body.statements.unshift(initInterfacesCall);
+
+            // let constructorNode = getOrCreateConstructor(classNode);
+            // let superNode = getSuperNode(constructorNode);
+            // if(superNode != null){
+            //     let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
+            //     constructorNode.body.statements.splice(superNodeIndex + 1, 0, initInterfacesCall); // after super
+            // }else
+            //     constructorNode.body.statements.unshift(initInterfacesCall);
         }
     }
 
@@ -973,7 +984,7 @@ function Plastique(options){
                 injectAutowiredEverywhere(node, context);
                 return result;
             }else {
-                if(node.kind == ts.SyntaxKind.ImportDeclaration){
+                if(node.kind == ts.SyntaxKind.ImportDeclaration && node.importClause.name){
                     let name = node.importClause.name.escapedText;
                     if(
                         name == ANNOTATION_AUTOWIRED ||
@@ -1015,6 +1026,9 @@ function Plastique(options){
 
 class CompilePlugin{
     apply(compiler){
+        compiler.hooks.afterCompile.tap('plastique', function (compilation) {
+            compilation.compiler.parentCompilation = true; // to ignore ts-loader afterCompile hook, because its diagnostic fails
+        });
         compiler.hooks.emit.tap('plastique compile plugin', function(compilation){
             const ast = require('abstract-syntax-tree');
             const uglifyJS = require("uglify-js");
@@ -1055,6 +1069,8 @@ class CompilePlugin{
     }
 }
 function Loader(content) {
+    if(this.resourcePath.endsWith('node_modules/plastique/Type.ts'))
+        return content;
     content = content.replace(/Type\s*<\s*(\w+)>\s*\(\s*\)/g, function(typeDef, interfaceName){
         return typeDef.replace(/\(\s*\)/, '('+ Interfaces.getId(interfaceName) +')')
     })

@@ -41,7 +41,14 @@ Object.defineProperty(Object.prototype, 'equals', {
 Object.defineProperty(Object.prototype, 'instanceOf', {
     value: function(type: any) {
         if(typeof type == 'number'){
-            return ((this._intf || 0) & type) == type;
+            let proto = Object.getPrototypeOf(this);
+            while(proto != null){
+                let isImplements = ((proto.constructor['$intf'] || 0) & type) == type;
+                if(isImplements)
+                    return true;
+                proto = Object.getPrototypeOf(proto)
+            }
+            return false;
         }
         return this instanceof type;
     }, 
@@ -263,11 +270,11 @@ abstract class App{
             EventManager.addListener(event, method);
         }
     }
-    private static initInterfaces(interfaceMask: number, obj: any){
-        Object.defineProperty(obj, '_intf', {
-            value: (obj._intf || 0) | interfaceMask
-        });
-    }
+    // private static initInterfaces(interfaceMask: number, obj: any){
+    //     Object.defineProperty(obj, '_intf', {
+    //         value: (obj._intf || 0) | interfaceMask
+    //     });
+    // }
 
     constructor(element?: HTMLElement){
         let $ = this.constructor['$'];
@@ -302,7 +309,6 @@ abstract class App{
             initComp: App.initComponent,
             i18n: I18n.text,
             listeners: App.addListeners,
-            interface: App.initInterfaces
         };
         window['getComponentPath'] =  function(elem){
             let components = [];
