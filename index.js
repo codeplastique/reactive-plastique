@@ -64,6 +64,7 @@ function Plastique(options){
     const { JSDOM } = require('jsdom');
     const ts = require("typescript");
     const PropertiesReader = require('properties-reader');
+    const mkdirp = require('mkdirp');
     Array.prototype.flatMap = function(f) {
         return this.map(f).reduce((x,y) => x.concat(y), [])
     }
@@ -368,7 +369,7 @@ function Plastique(options){
         if(templatesFunctions.length > 0){
             let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
             if (!fs.existsSync(OUTPUT_DIR)) {
-                fs.mkdirSync(OUTPUT_DIR, {recursive: true});
+                mkdirp.sync(OUTPUT_DIR);
             }
             fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
         }

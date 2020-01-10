@@ -356,8 +356,8 @@ abstract class App{
                     return arr;
                 },
                 $convComp: function(component: any) {
-                    if(component.app$.parent != this.app$.clazz)
-                        component.app$.parent = this.app$.clazz;
+                    if(component.app$.parent != this._data.app$.clazz)
+                        component.app$.parent = this._data.app$.clazz;
                     if(component.app$.pc)
                         delete component.app$.pc;
                     return component;
