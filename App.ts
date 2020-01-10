@@ -107,7 +107,8 @@ function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Arr
                 return parent.__vue__._data
         }else if(parent.hasAttribute('data-vcn')){
             if(types == null || types.indexOf(parseInt(parent.getAttribute('data-vcn'))) >= 0){
-                return parent.parentElement.closest('[data-cn]');
+                let elem = parent.parentElement.closest('[data-cn]');
+                return elem.__vue__? elem.__vue__._data: null;
             }
         }
         parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
