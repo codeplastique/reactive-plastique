@@ -179,7 +179,7 @@ abstract class App{
         let config = JSON.parse(configuration);
         // let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
-            return function(){ return this.app$.clazz[methodName].apply(this, arguments)}
+            return function(){ return this._data.app$.clazz[methodName].apply(this._data, arguments)}
         };
         if(obj.app$){
             //from super
