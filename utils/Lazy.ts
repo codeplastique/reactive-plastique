@@ -1,8 +1,8 @@
 /**
- * Ограничивает частоту вызовов метода до delay.
+ * Откладывает вызов метода на delay. Последующие вызовы метода будут сбрасывать счетчик и запускать заново
  * Метод возвращает всегда undefined
  */
-function Debounce(delayInMilliseconds: number) {
+function Lazy(delayInMilliseconds: number) {
     return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
         let originalMethod = descriptor.value;
         let lastTimeoutId = null;
@@ -21,4 +21,4 @@ function Debounce(delayInMilliseconds: number) {
     }
 }
 
-export default Debounce;
+export default Lazy;

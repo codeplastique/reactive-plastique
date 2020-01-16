@@ -1,24 +1,26 @@
 const VUE_TEMPLATE_FUNC_NAME = '$vue_templ';
 let componentPathToTemplate = {};
+let workFilesPaths = [];
 let Interfaces = new function(){
     var counter = 1;
     let interfaceNameToId = {};
+    this.add = function(name){
+        if(interfaceNameToId[name] == null)
+            return interfaceNameToId[name] = counter++;
+    }
     this.getId = function(name){
-        name = name.trim().toLowerCase();
         if(interfaceNameToId[name])
             return interfaceNameToId[name];
-        let index = counter;
-        interfaceNameToId[name] = index;
-        counter = counter << 1;
-        return index;
+        return interfaceNameToId[name] = counter++;
     }
     this.getNameById = function(id){
         return Object.keys(interfaceNameToId).find(key => interfaceNameToId[key] === id);
     }
     this.getMask = function(interfaces){
-        let mask = 0;
+        let mask = [];
         for(let interface of interfaces)
-            mask = mask | (interfaceNameToId[interface] || 0)
+            if(interfaceNameToId[interface])
+                mask.push(interfaceNameToId[interface])
         return mask;
     }
 }
@@ -36,10 +38,10 @@ function Plastique(options){
 
     // const APP_CLASS_NAME = 'App';
     const ANNOTATION_REACTIVE_CLASS = 'Reactive';
-    const ANNOTATION_TEMPLATE = 'Template';
+    // const ANNOTATION_TEMPLATE = 'Template';
     const ANNOTATION_ENTRY_POINT_CLASS = 'EntryPoint';
     // const ANNOTATION_REACTIVE_FIELD = 'Reactive';
-    const ANNOTATION_CACHED_METHOD = 'Cached';
+    // const ANNOTATION_CACHED_METHOD = 'Cached';
     const ANNOTATION_AUTOWIRED = 'Autowired';
     const ANNOTATION_ONCHANGE = 'OnChange';
     const ANNOTATION_BEAN = 'Bean';
@@ -49,11 +51,16 @@ function Plastique(options){
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
     const ANNOTATION_ELEMENT = 'Inject';
     const ANNOTATION_INIT_EVENT = 'InitEvent';
+    const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitVirtualComponent';
     const ANNOTATION_TO_JSON = 'ToJson';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
+    const EVENTMANAGER_CLASS_NAME = 'Eventer';
     const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
+    const TYPE_CLASS_NAME = 'Type';
+    const TYPE_CLASS_PATH = '/plastique/base/Type.ts';
+    const COMPONENT_INTERFACE_PATH = '/plastique/component/Component.ts';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -69,27 +76,35 @@ function Plastique(options){
         return this.map(f).reduce((x,y) => x.concat(y), [])
     }
 
-    function isClassImplementsInterface(context, nodeClass, interfaceName, deep){
-        if(nodeClass == null)
+    function isImplementsInterface(context, node, interfaceName, deep){
+        if(node == null)
             return;
         interfaceName = interfaceName.toLowerCase();
-        let interfaces = (ts.getClassImplementsHeritageClauseElements(nodeClass) || []).map(t => t.expression.escapedText.toLowerCase());
+        let typeInterfaces;
+        if(node.kind == ts.SyntaxKind.ClassDeclaration)
+            typeInterfaces = ts.getClassImplementsHeritageClauseElements(node);
+        else{ //node is interface
+            if(node.heritageClauses && node.heritageClauses[0] && node.heritageClauses[0].types)
+                typeInterfaces = node.heritageClauses[0].types
+        }
+
+        let interfaces = (typeInterfaces || []).map(t => t.expression.escapedText.toLowerCase());
         let isImplements = interfaces.includes(interfaceName);
         if(isImplements)
             return isImplements;
         if(deep){
             for(let interface of interfaces){
-                if(isClassImplementsInterface(
+                if(isImplementsInterface(
                     context,
-                    getClass(nodeClass, interface, context),
+                    getClass(node, interface, context),
                     interfaceName,
                     true
                 ))
                     return true;
             }
-            if(isClassImplementsInterface(
+            if(isImplementsInterface(
                 context,
-                getParentClass(nodeClass, context),
+                getParentClass(node, context),
                 interfaceName,
                 true
             ))
@@ -97,8 +112,12 @@ function Plastique(options){
         }
     }
 
-    function getInterfaces(classNode) {
-        return (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => t.expression.escapedText.toLowerCase())
+    function getParents(classNode) {
+        let parents = (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => getNodePath(classNode, t.expression.escapedText))
+        let parentClass = ts.getClassExtendsHeritageElement(node);
+        if(parentClass)
+            parents.push(getNodePath(classNode, parentClass.expression.escapedText))
+        return parents;
     }
 
     function isNodeHasDecorator(nodeClass, decoratorName){
@@ -170,8 +189,8 @@ function Plastique(options){
         return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
     }
 
-    function getVueTemplateRender(vueTemplate, componentName){
-        let virtualComponents = [];
+    function getVueTemplateRender(vueTemplate, componentName, virtualComponentToId){
+        virtualComponentToId = virtualComponentToId || {};
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
@@ -195,7 +214,6 @@ function Plastique(options){
                 staticRenders.push(`function(){${staticRender}}`);
             }
             return {
-                virtualComponents: virtualComponents,
                 template: `{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`
             };
         }else
@@ -308,11 +326,9 @@ function Plastique(options){
                             break;
                         case 'component':
                             var componentVar = extractExpression(attr.value);
-                            let virtualComponent = componentVar.replace(/\s/g, '').match(/Type<.+>\((\d+)\)/)
-                            if(virtualComponent){
-                                let virtualComponentId = virtualComponent[1];
+                            if(virtualComponentToId[componentVar]){
+                                let virtualComponentId = virtualComponentToId[componentVar];
                                 elem.setAttribute('data-vcn', virtualComponentId);
-                                virtualComponents.push(parseInt(virtualComponentId));
                             }else{
                                 let componentCast = modifiers[0];
                                 let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
@@ -356,24 +372,24 @@ function Plastique(options){
         }
     }
 
-    function buildTemplates(){
-        const templatesFunctions = [];
-        glob(VUE_TEMPLATES_DIR +'/**/*.@(pug|html)', {sync: true}).forEach(function(element) {
-            let componentName = getFileNameWithoutExt(element);
-            var vueTemplate = element.endsWith('.pug')? pug.compileFile(element)(): fs.readFileSync(element, 'utf8');
-            let render = getVueTemplateRender(vueTemplate, componentName);
-            if(render){
-                templatesFunctions.push(`"${componentName.toUpperCase()}":${render.template}`);
-            }
-        });
-        if(templatesFunctions.length > 0){
-            let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
-            if (!fs.existsSync(OUTPUT_DIR)) {
-                mkdirp.sync(OUTPUT_DIR);
-            }
-            fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
-        }
-    }
+    // function buildTemplates(){
+    //     const templatesFunctions = [];
+    //     glob(VUE_TEMPLATES_DIR +'/**/*.@(pug|html)', {sync: true}).forEach(function(element) {
+    //         let componentName = getFileNameWithoutExt(element);
+    //         var vueTemplate = element.endsWith('.pug')? pug.compileFile(element)(): fs.readFileSync(element, 'utf8');
+    //         let render = getVueTemplateRender(vueTemplate, componentName);
+    //         if(render){
+    //             templatesFunctions.push(`"${componentName.toUpperCase()}":${render.template}`);
+    //         }
+    //     });
+    //     if(templatesFunctions.length > 0){
+    //         let vueTempaltesObject = 'var _VueTemplates={' + (templatesFunctions.join(',')) + '};';
+    //         if (!fs.existsSync(OUTPUT_DIR)) {
+    //             mkdirp.sync(OUTPUT_DIR);
+    //         }
+    //         fs.writeFileSync(OUTPUT_DIR +'/'+ VUE_TEMPLATES_JS_FILE_NAME + '.js', vueTempaltesObject);
+    //     }
+    // }
 
     function buildLocales(){
         let langToPropertiesReader = {};
@@ -400,7 +416,7 @@ function Plastique(options){
 
     let beanToId = {};
     let beanCounter = 0;
-    beanToId['EventManager'] = beanCounter++; //add EventManager as bean
+    beanToId[EVENTMANAGER_CLASS_NAME] = beanCounter++; 
     let entryPointsNames = [];
     let componentsNames = [];
     let eventToIdentifier = [];
@@ -518,16 +534,81 @@ function Plastique(options){
             && (s.expression.expression.kind == ts.SyntaxKind.SuperKeyword))[0]
     }
 
+    function getComponentTemplate(componentNode) {
+        let reactiveArgs = getDecoratorArguments(componentNode, ANNOTATION_REACTIVE_CLASS);
+        let templateArg = reactiveArgs? reactiveArgs[0]: null;
+        if(templateArg){
+            if(templateArg.kind == ts.SyntaxKind.ArrowFunction || templateArg.kind == ts.SyntaxKind.FunctionExpression){
+                for(let s of templateArg.body.statements){
+                    if(
+                        (s.kind == ts.SyntaxKind.ExpressionStatement || s.kind == ts.SyntaxKind.ReturnStatement ) 
+                        && s.expression.kind == ts.SyntaxKind.TemplateExpression
+                    ){
+                        templateArg = s.expression
+                    }
+                }
+                if(templateArg == null)
+                    throw new Error('Template is not found! Component: '+ componentNode.name.escapedText)
+            }else if(templateArg.kind != ts.SyntaxKind.TemplateExpression){
+                throw new Error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
+            }
+            return templateArg.getFullText().slice(1, -1);// remove quote(`) chars
+        }
+    }
+
+
+    const VirtualComponentIdProducer = new class{
+        constructor(){
+            this.counter = 0;
+        }
+        getNext(){
+            return 'vc' + (this.counter++);
+        }
+    }
+    class MemberInitializator{
+        constructor(className, member, requiredType, idProducer){
+            this.memberPathToId = {}
+            this.initialize(className, member, requiredType, idProducer);
+        }
+        getInitializer(memberPathName, member, requiredType, idProducer){
+            let isCompositeMember = member.type.kind == ts.SyntaxKind.ObjectLiteralExpression;
+            if(!isCompositeMember){
+                if(member.type.typeName && member.type.typeName.escapedText == requiredType){
+                    let id = idProducer.getNext();
+                    this.memberPathToId[memberPathName] = id;
+                    return ts.createStringLiteral(String(id));
+                }else
+                    throw new Error(`Member "${memberPathName} must have the ${requiredType} type`);
+            }else{
+                let properies = [];
+                let memberParts = member.type.members;
+                for(let memberPart of memberParts){
+                    let fullMemberPartName = memberPathName + '.'+ memberPart.name.escapedText;
+                    properies.push(ts.createPropertyAssignment(
+                        memberPart.name.escapedText, 
+                        this.getInitializer(fullMemberPartName, memberPart, requiredType, idProducer)
+                    ));
+                }
+                return ts.createObjectLiteral(properies);
+            }
+        }
+        initialize(className, member, requiredType, idProducer) {
+            let memberName = className +'.'+ member.name.escapedText;
+            member.initializer = this.getInitializer(memberName, member, requiredType, idProducer);
+        }
+        getMemberPathToId(){
+            return this.memberPathToId;
+        }
+    }
+
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
-        let template = getDecoratorArgumentMethodName(componentNode, ANNOTATION_TEMPLATE);
-        
+        let template = getComponentTemplate(componentNode);
+        let virtualComponentToId = null;
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
         // if(parent)
         // configureComponent(parent);
-
-
 
         let onchangeMethods = {};
         let elementProps = [];
@@ -554,6 +635,17 @@ function Plastique(options){
             for(let member of componentNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                     let memberName = member.name.escapedText;
+
+                    if(isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT)){
+                        let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
+                        let memberName = member.name.escapedText;
+                        if(neededModifiers.length == 2){
+                            virtualComponentToId = 
+                                new MemberInitializator(componentName, member, ANNOTATION_INIT_VIRTUAL_COMPONENT, VirtualComponentIdProducer)
+                                .getMemberPathToId()
+                        }else
+                            throw new Error(`Event "${className}.${memberName}" should be be a static & readonly`)
+                    }
 
                     let isElementProp = isNodeHasDecorator(member, ANNOTATION_ELEMENT);
                     if(isElementProp){
@@ -615,14 +707,14 @@ function Plastique(options){
             // let render = getVueTemplateRender(template, componentName);
             // renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
-            let templateRender = getVueTemplateRender(template, componentName);
-            for(let interfaceId of templateRender.virtualComponents){
-                let interfaceName = Interfaces.getNameById(interfaceId);
-                if(!isClassImplementsInterface(context, componentNode, interfaceName, true))
-                    throw new Error('Invalid template virtual component "Type<'+ interfaceName +'>". Component "'+ componentName + '" does not implement interface: '+ interfaceName);
-            }
+            let templateRender = getVueTemplateRender(template, componentName, virtualComponentToId);
+            // for(let interfaceId of templateRender.virtualComponents){
+            //     let interfaceName = Interfaces.getNameById(interfaceId);
+            //     if(!isImplementsInterface(context, componentNode, interfaceName, true))
+            //         throw new Error('Invalid template virtual component "Type<'+ interfaceName +'>". Component "'+ componentName + '" does not implement interface: '+ interfaceName);
+            // }
             componentPathToTemplate[componentNode.parent.path] = templateRender.template;
-            removeDecorator(componentNode, ANNOTATION_TEMPLATE)
+            // removeDecorator(componentNode, ANNOTATION_TEMPLATE)
         }
 
         let callExpr = (isStatic) => ts.createCall(
@@ -767,7 +859,7 @@ function Plastique(options){
                                 ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
                             ]
                         );
-                        if(member.type.typeName.escapedText == 'EventManager') {
+                        if(member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
                             member.initializer.arguments.push(ts.createThis());
                         }
                         removeDecorator(member, ANNOTATION_AUTOWIRED)
@@ -823,8 +915,8 @@ function Plastique(options){
 
 
     function initInterfacesDef(classNode) {
-        let interfaceMask = Interfaces.getMask(getInterfaces(classNode));
-        if(interfaceMask > 0){
+        let interfaceMask = Interfaces.getMask(getParents(classNode));
+        if(interfaceMask.length > 0){
             // getOrCreateConstructor(classNode).body.statements.unshift(callExpr(true));
             // let initInterfacesCall = ts.createCall(
             //     ts.createPropertyAccess(
@@ -844,7 +936,9 @@ function Plastique(options){
                     ts.createIdentifier('$intf'),
                     undefined,
                     undefined,
-                    ts.createNumericLiteral(String(interfaceMask))
+                    ts.createArrayLiteral(
+                        interfaceMask.map(id => ts.createNumericLiteral(String(id)))
+                    )
                 )
             );
 
@@ -942,7 +1036,22 @@ function Plastique(options){
             );
         }
     }
+
+    function getRealIdentifier(sourceFile, classPath) {
+        if(!sourceFile.resolvedModules.has(classPath))
+            return null;
+        for(let statement of sourceFile.statements){
+            if(statement.kind == ts.SyntaxKind.ImportDeclaration){
+                if(statement.moduleSpecifier.text == classPath){
+                    return statement.importClause.name.escapedText;
+                }
+            }
+        }
+    }
+
+
     let files = [];
+    let isInitialized;
 
     var transformer = function (context) {
         var visitor = function (node) {
@@ -975,12 +1084,22 @@ function Plastique(options){
 
                 initInterfacesDef(node);
 
-
                 // tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
                 // beans.push(className);
-            }
-            if(node.kind == ts.SyntaxKind.SourceFile){
+            }else if(node.kind === ts.SyntaxKind.InterfaceDeclaration && isImplementsInterface(context, node, 'Component')){
+                
+            }else if(node.kind == ts.SyntaxKind.CallExpression
+                 && node.expression.escapedText == TYPE_CLASS_NAME 
+                 && (node.arguments == null || arguments.length == 0)){
+                     
+                let typeName = node.typeArguments[0].typeName.escapedText;
+                node.arguments = [getNodePath(node, typeName)?
+                    ts.createNumericLiteral(String(Interfaces.getId(typeName)))
+                    :
+                    ts.createIdentifier(typeName)
+                ];
+            }else if(node.kind == ts.SyntaxKind.SourceFile){
                 var result = ts.visitEachChild(node, visitor, context);
                 injectAutowiredEverywhere(node, context);
                 return result;
@@ -998,7 +1117,8 @@ function Plastique(options){
                         name == ANNOTATION_AFTERATTACH ||
                         name == ANNOTATION_ELEMENT ||
                         name == ANNOTATION_INIT_EVENT ||
-                        name == ANNOTATION_TEMPLATE ||
+                        name == ANNOTATION_INIT_VIRTUAL_COMPONENT ||
+                        // name == ANNOTATION_TEMPLATE ||
                         name == ANNOTATION_TO_JSON ||
                         name == ANNOTATION_REACTIVE_CLASS){
                         node.kind = -1;
@@ -1010,6 +1130,70 @@ function Plastique(options){
         };
 
         return function (node) {
+            if(!isInitialized){
+                isInitialized = true;
+                let host = context.getEmitHost();
+                let basePath = host.getCommonSourceDirectory();
+                let libPath = basePath + 'node_modules/';
+                let workNodes = host.getSourceFiles().filter(f => 
+                    !f.hasNoDefaultLib
+                    &&
+                    !host.isSourceFileFromExternalLibrary(f)
+                    &&
+                    !f.path.startsWith(libPath)
+                );
+                let vis = function (node) {
+                    componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
+                        let interfaceDeclaration = 
+                            node.statements.find(s => s.kind === ts.SyntaxKind.InterfaceDeclaration && isImplementsInterface(context, s, 'Component'));
+                        if(interfaceDeclaration == null)
+                            break componentExpr;
+                        let className = interfaceDeclaration.name.escapedText;
+                        let classIndex = node.statements.findIndex(s => s.kind === ts.SyntaxKind.ClassDeclaration && s.name.escapedText == className);
+                        if(classIndex < 0){
+                            throw new Error('Component mixin should be with component class')
+                        }
+                        node.statements.splice(classIndex + 1, 0, ts.createCall(
+                            ts.createPropertyAccess(
+                                ts.createIdentifier('_app'),
+                                ts.createIdentifier('mixin')
+                            ),
+                            undefined, // type arguments, e.g. Foo<T>()
+                            [
+                                ts.createLiteral(className),
+                            ]
+                        ));
+                    }
+                    typeExpr: if(node.kind == ts.SyntaxKind.CallExpression && node.expression.escapedText == TYPE_CLASS_NAME){
+                        if(node.arguments != null && node.arguments.length == 1){
+                            if(node.typeArguments != null && node.typeArguments.length > 0)
+                                throw new Error('Type should be with generic type or argument type but not both!')
+                            break typeExpr;
+                        }
+                        if(node.typeArguments == null || node.typeArguments.length == 0)
+                            throw new Error('Genertic type of Type is not set!')
+                        if(node.typeArguments[0].typeName == null)
+                            throw new Error('Genertic type of Type is not valid: '+ node.typeArguments[0].typeName)
+
+                        let typeName = node.typeArguments[0].typeName.escapedText;
+                        let typePath = getNodePath(node, typeName);
+                        if(typePath)
+                            Interfaces.add(typePath)
+                    }
+                    return ts.visitEachChild(node, vis, context);
+                }
+                workFilesPaths = workNodes.map(n => n.path);
+                for(let node of workNodes){
+                    if(node.resolvedModules){
+                        let importModules = Array.from(node.resolvedModules.values());
+                        let hasTypeUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(TYPE_CLASS_PATH));
+                        let hasComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(COMPONENT_INTERFACE_PATH));
+                        if(hasTypeUsage || hasComponentUsage){
+                            ts.visitNode(node, vis);
+                        }
+                    }
+                }
+            }
             if(!files.includes(node.fileName)) {
                 let result = ts.visitNode(node, visitor);
                 files.push(node.fileName)
@@ -1027,33 +1211,60 @@ function Plastique(options){
 
 class CompilePlugin{
     apply(compiler){
-        compiler.hooks.afterCompile.tap('plastique', function (compilation) {
-            compilation.compiler.parentCompilation = true; // to ignore ts-loader afterCompile hook, because its diagnostic fails
-        });
-        compiler.hooks.emit.tap('plastique compile plugin', function(compilation){
-            const ast = require('abstract-syntax-tree');
-            const uglifyJS = require("uglify-js");
+        const isDevelopmentMode = compiler.options.mode && compiler.options.mode == 'development';
+        const ast = require('abstract-syntax-tree');
+        function replaceDefaultInstanceof(element) {
+            ast.replace(element, {
+                enter (node) {
+                    if (node.operator && node.operator == 'instanceof') {
+                        let newNode = ast.parse('_app.instanceOf(1, 2)').body[0].expression;
+                        newNode.arguments[0] = node.left;
+                        newNode.arguments[1] = node.right;
+                        return newNode;
+                    }
+                    return node
+                }
+            })
+        }
 
+        if(isDevelopmentMode) {
+            compiler.hooks.compilation.tap('plastique modules compiling', function (compilation) {
+                compilation.hooks.succeedModule.tap('plastique module compiling', function (module) {
+                    if (!workFilesPaths.includes(module.resource))
+                        return;
+                    let tree = ast.parse(module._source._value);
+                    replaceDefaultInstanceof(tree)
+                    module._source._value = ast.generate(tree)
+                });
+            });
+        }
+        // compiler.hooks.afterCompile.tap('plastique after compiling operations', function (compilation) {
+        //     compilation.compiler.parentCompilation = true; // to ignore ts-loader afterCompile hook, because its diagnostic fails
+        // });
+        compiler.hooks.emit.tap('plastique final compilation of modules', function(compilation){
+            const uglifyJS = require("uglify-js");
             for(let asset in compilation.assets){
                 let source = compilation.assets[asset].source();
                 let tree = ast.parse(source);
 
                 let modulesWrapper = tree.body[0].expression.arguments[0];
-                let isDevelopmentMode = modulesWrapper.properties != null;
                 let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
 
                 modules.forEach((element, index) => {
                     let modulePath = compilation.modules[index].resource;
-                    let template = componentPathToTemplate[modulePath];
-                    if(template == null)
-                        return;
+                    if(workFilesPaths.includes(modulePath)) {
+                        replaceDefaultInstanceof(element)
+                        let template = componentPathToTemplate[modulePath];
+                        if (template == null)
+                            return;
 
-                    element = isDevelopmentMode? element.value: element;
-                    let origBody = element.body;
-                    let fakeWrap = ast.parse('(function(){1}());');
-                    fakeWrap.body[0].expression.callee.body = origBody;
-                    fakeWrap.body.unshift(ast.parse(`$["__vueTemplateGenerator${modulePath}__"]`).body[0]);
-                    element.body = {body: fakeWrap.body, type: "BlockStatement"}
+                        element = isDevelopmentMode ? element.value : element;
+                        let origBody = element.body;
+                        let fakeWrap = ast.parse('(function(){1}());');
+                        fakeWrap.body[0].expression.callee.body = origBody;
+                        fakeWrap.body.unshift(ast.parse(`$["__vueTemplateGenerator${modulePath}__"]`).body[0]);
+                        element.body = {body: fakeWrap.body, type: "BlockStatement"}
+                    }
                 });
                 let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
                 for(let componentPath in componentPathToTemplate){
@@ -1070,11 +1281,11 @@ class CompilePlugin{
     }
 }
 function Loader(content) {
-    if(this.resourcePath.endsWith('node_modules/plastique/Type.ts'))
-        return content;
-    content = content.replace(/Type\s*<\s*(\w+)>\s*\(\s*\)/g, function(typeDef, interfaceName){
-        return typeDef.replace(/\(\s*\)/, '('+ Interfaces.getId(interfaceName) +')')
-    })
+    // if(this.resourcePath.endsWith('node_modules/plastique/Type.ts'))
+    //     return content;
+    // content = content.replace(/Type\s*<\s*(\w+)>\s*\(\s*\)/g, function(typeDef, interfaceName){
+    //     return typeDef.replace(/\(\s*\)/, '('+ Interfaces.getId(interfaceName) +')')
+    // })
     return content;
 }
 Loader.Plastique = Plastique,

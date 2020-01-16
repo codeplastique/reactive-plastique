@@ -1,5 +1,5 @@
 import HttpRequestContent from "./HttpRequestContent";
-import SimpleMap from "../SimpleMap";
+import SimpleMap from "../../collection/SimpleMap";
 
 class UrlEncodedRequestContent implements HttpRequestContent{
     public contentType = 'application/x-www-form-urlencoded'

@@ -1,4 +1,4 @@
-import AppEvent from "../AppEvent";
+import AppEvent from "./AppEvent";
 
 /**
  * Слушает событие / события; 

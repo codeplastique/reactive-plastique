@@ -1,5 +1,5 @@
 import HttpRequestContent from "./HttpRequestContent";
-import Jsonable from "../annotation/Jsonable";
+import Jsonable from "../../hash/Jsonable";
 
 class JsonRequestContent implements HttpRequestContent{
     public contentType = 'application/json'

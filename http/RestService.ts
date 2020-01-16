@@ -1,9 +1,10 @@
 import HttpRequest from "./HttpRequest";
 import HttpResponse from "./HttpResponse";
-import JsonRequestContent from "./JsonRequestContent";
-import UrlEncodedRequestContent from "./UrlEncodedRequestContent";
-import SimpleMap from "../SimpleMap";
-import Serializator from "./Serializator";
+import JsonRequestContent from "./content/JsonRequestContent";
+import UrlEncodedRequestContent from "./content/UrlEncodedRequestContent";
+import Serializator from "../hash/Serializator";
+import SimpleMap from "../collection/SimpleMap";
+
 declare let axios;
 
 class RestService{

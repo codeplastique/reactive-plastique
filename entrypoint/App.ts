@@ -1,170 +1,111 @@
-import Component from "./Component";
-import EventManager from "./EventManager";
-import I18n from "./I18n";
-import HashSet from "./HashSet";
-import SimpleMap from "./SimpleMap";
-import Jsonable from "./annotation/Jsonable";
-import { TypeDef } from "./Type";
+import I18n from "../utils/I18n";
+import HashSet from "../collection/HashSet";
+import SimpleMap from "../collection/SimpleMap";
+import Jsonable from "../hash/Jsonable";
+import Component from "../component/Component";
+import CapturedComponent from "../component/CapturedComponent";
+import Eventer from "../event/Eventer";
+import { TypeDef } from "../base/Type";
+import AppEvent from "../event/AppEvent";
 declare const Vue: any;
-// declare const _VueTemplates: any;
+declare const _app: any;
 
+class EventerImpl implements Eventer{
+    static listeners: {[eventName: string]: Array<(event?: any, caller?: any) => Promise<any>>} = {} 
+    constructor(private $caller){}
 
-declare global {
-    interface Clazz extends Function{}
-    interface Object{
-        equals(obj: Object): boolean;
-        instanceOf(type: any | Function | TypeDef<any>): boolean
+    public static addListener(eventName: string, func: Function): void{
+        if(EventerImpl.listeners[eventName] == null)
+            EventerImpl.listeners[eventName] = [];
+        ///@ts-ignore
+        EventerImpl.listeners[eventName].push(func);
     }
-    interface Array<T> extends Jsonable{
-        remove(index: number): Array<T>;
-        removeValue(value: T): boolean;
-        removeValues(value: T[]): void;
-        set(index: number, value: T): Array<T>;
-        includes(searchElement: T, fromIndex?: number): boolean;
-    }
-
-    interface Event{
-        getClosestComponent: (types?: Component[]) => Component
-    }
-
-    interface Element{
-        getClosestComponent: (types?: Component[]) => Component
-    }
-}
-Object.defineProperty(Object.prototype, 'equals', {
-    value: function(obj: Object) {
-        return this === obj;
-    }, 
-    writable: true,
-    configurable: true
-});
-Object.defineProperty(Object.prototype, 'instanceOf', {
-    value: function(type: any) {
-        if(typeof type == 'number'){
-            let proto = Object.getPrototypeOf(this);
-            while(proto != null){
-                let isImplements = ((proto.constructor['$intf'] || 0) & type) == type;
-                if(isImplements)
-                    return true;
-                proto = Object.getPrototypeOf(proto)
-            }
-            return false;
+    public fireEvent<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T[]>{
+        eventName = eventName.toLowerCase();
+        if(EventerImpl.listeners[eventName as string] == null){
+            console.log('No listeners for event: '+ eventName);
+            ///@ts-ignore
+            return Promise.resolve();
         }
-        return this instanceof type;
-    }, 
-    writable: true,
-    configurable: true
-});
-Array.prototype.remove = function (index: number) {
-    if("__ob__" in this)
-        Vue.delete(this, index);
-    else
-        this.splice(index, 1);
-    return this;
+        return Promise.all(EventerImpl.listeners[eventName as string].map(func => func(eventObject, this.$caller? this.$caller: this)));
+    }
 }
-Array.prototype.removeValue = function (value: any) {
-    for(let i = 0; i < this.length; i++){
-        let val = this[i];
-        if(val == value || (val.app$ && value.app$ && val.app$.id == value.app$.id)){
-            this.remove(i);
-            return true;
+class ComponentImpl extends EventerImpl implements Component{
+    public isComponentAttached(): boolean{
+        //@ts-ignore
+        return this.app$.v$ != null
+    }
+    public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent {
+        //@ts-ignore
+        if(this.app$.v$ == null)
+            throw new Error('Component is not attached!')
+        //@ts-ignore
+        return _app.getClosestComponent(this.app$.v$.$el, null, types);
+    }
+    public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
+        eventName = eventName.toLowerCase();
+        ///@ts-ignore
+        let parent = this.app$.parent;
+        while(parent){
+            if(parent.app$.events[eventName as string])
+                return Promise.resolve(parent.app$.events[eventName as string][0](eventObject, this));
+            parent = parent.app$.parent;
         }
+        console.log('No parent listeners for event: '+ eventName);
+        ///@ts-ignore
+        return Promise.resolve();
     }
-}
-Array.prototype.removeValues = function (values: any[]) {
-    for(let val of values){
-        this.removeValue(val);
-    }
-}
-Array.prototype.set = function (index: number, value: any) {
-    if(this.length >= index)
-        this.push(value);
-    if("__ob__" in this)
-        Vue.set( this, index, value);
-    else
-        this[index] = value;
-    return this;
-}
-// Array.prototype.toJSON = function () {
-//     let result = [];
-//     for(let elem of this)
-//         result.push(elem.toJSON? elem.toJSON(): elem);
-//     return result;
-// }
+    // attach
+    // detach
 
-function getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any>>) {
-    while(true){
-        if(parent.hasAttribute('data-cn')){
-            if(parent.__vue__ == null) //if server template
-                return;
-            if(types){
-                for(let type of types){
-                    ///@ts-ignore
-                    if(parent.__vue__._data.instanceOf(type))
-                        return parent.__vue__._data;
-                }
-            }else
-                return parent.__vue__._data
-        }else if(parent.hasAttribute('data-vcn')){
-            if(types == null || types.indexOf(parseInt(parent.getAttribute('data-vcn'))) >= 0){
-                let elem = parent.parentElement.closest('[data-cn]');
-                return elem.__vue__? elem.__vue__._data: null;
-            }
-        }
-        parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
-        if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
-            return;
-    }
+    //when attached
+    //when dettached
 }
-
-Element.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
-    return getClosestComponent(this, null, types);
-}
-Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
-    return getClosestComponent(this.target, this.currentTarget, types);
-}
-
-//ES 6 support
-declare global {
-    interface Object {
-        values(obj: Object): Array<any>;
-        entries(obj: Object): [string, any];
-    }
-}
-if (!Object.values || !Object.entries) {
-    const reduce = Function.bind.call(Function.call, Array.prototype.reduce);
-    const isEnumerable = Function.bind.call(Function.call, Object.prototype.propertyIsEnumerable);
-    const concat = Function.bind.call(Function.call, Array.prototype.concat);
-    const keys = Reflect.ownKeys;
-	Object.values = function values(O) {
-		return reduce(keys(O), (v, k) => concat(v, typeof k === 'string' && isEnumerable(O, k) ? [O[k]] : []), []);
-    };
-    Object.entries = function entries(O) {
-		return reduce(keys(O), (e, k) => concat(e, typeof k === 'string' && isEnumerable(O, k) ? [[k, O[k]]] : []), []);
-	};
-}
-if(!Array.prototype.includes){
-    Array.prototype.includes = function(searchElement: any, fromIndex?: number){
-        for(let i = fromIndex || 0; i < this.length; i++)
-            if(searchElement === this[i] || (isNaN(searchElement) && isNaN(this[i])))
-                return true;
-        return false;
-    }
-}
-
 abstract class App{
     private static beanNameToDef: {[beanName: string]: Function | Object} = {};
     private static beanIdToName: {[beanId: number]: string} = {};
     private static componentId = 0;
     private static epName: string; //entry point name
     private static ep: Object; //entry point
+
+    private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any>>) {
+        parent = parent.parentElement; // don't return the same component
+        while(true){
+            let virtualComponent: any
+            if(parent.hasAttribute('data-vcn')){
+                parent = parent.parentElement.closest('[data-cn]');
+                virtualComponent = parent.getAttribute('data-vcn');
+            }
+            if(virtualComponent || parent.hasAttribute('data-cn')){
+                if(parent.__vue__ == null) //if server template
+                    return;
+                if(types){
+                    for(let type of types){
+                        ///@ts-ignore
+                        if(_app.instanceOf(parent.__vue__._data, type))
+                            ///@ts-ignore
+                            return new CapturedComponent(parent.__vue__._data, virtualComponent);
+                    }
+                }else
+                    ///@ts-ignore
+                    return new CapturedComponent(parent.__vue__._data, virtualComponent);
+            }
+            parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
+            if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
+                ///@ts-ignore
+                return new CapturedComponent();
+        }
+    }
+
     public static getBean<T>(id: String | Number, componentObj?: object): T{
         if(id == -1 || id == App.epName)
             return App.ep as T;
         let beanName: any = typeof id == 'number'? App.beanIdToName[id as number]: id;
-        if(beanName == 'EventManager' && componentObj){
-            ///@ts-ignore
-            return new EventManager(componentObj);
+        if(beanName == 'Eventer'){
+            if(componentObj)
+                ///@ts-ignore
+                return new EventerImpl(componentObj);
+            throw new Error('You can get Eventer through Autowired only!')
         }
         let bean: any = App.beanNameToDef[beanName];
         if(bean instanceof Function)
@@ -267,23 +208,15 @@ abstract class App{
                 let events = obj.app$.events[event] = obj.app$.events[event] || [];
                 events.push(method);
             }
-            ///@ts-ignore
-            EventManager.addListener(event, method);
+            EventerImpl.addListener(event, method);
         }
     }
-    // private static initInterfaces(interfaceMask: number, obj: any){
-    //     Object.defineProperty(obj, '_intf', {
-    //         value: (obj._intf || 0) | interfaceMask
-    //     });
-    // }
 
     constructor(element?: HTMLElement){
         let $ = this.constructor['$'];
         if($){
             let configurator = JSON.parse($);
-            App.beanIdToName['0'] = 'EventManager';
-            ///@ts-ignore 
-            App.beanNameToDef['EventManager'] = new EventManager();
+            App.beanIdToName['0'] = 'Eventer';
 
             let beansClasses = this.constructor['$beans'] || [];
             beansClasses.push(this);
@@ -310,6 +243,30 @@ abstract class App{
             initComp: App.initComponent,
             i18n: I18n.text,
             listeners: App.addListeners,
+            getClosestComponent: App.getClosestComponent,
+            instanceOf: function (obj, type) {
+                if(typeof type == 'number'){
+                    let proto = Object.getPrototypeOf(obj);
+                    while(proto != null){
+                        let isImplements = (proto.constructor['$intf'] || []).indexOf(type) >= 0;
+                        if(isImplements)
+                            return true;
+                        proto = Object.getPrototypeOf(proto)
+                    }
+                    return false;
+                }
+                let typeOfType = typeof obj;
+                if(typeOfType === 'string')obj = String
+                else if(typeOfType === 'number')obj = Number
+                else if(typeOfType === 'boolean')obj = Boolean
+
+                return obj instanceof type;
+            },
+            mixin: function (clazz) {
+                Object.getOwnPropertyNames(ComponentImpl.prototype).forEach(name => {
+                    Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
+                });
+            },
         };
         window['getComponentPath'] =  function(elem){
             let components = [];
@@ -423,12 +380,111 @@ abstract class App{
     // }
     
 
-    public setLocale(locale: string){
+    // public setLocale(locale: string){
         ///@ts-ignore
         // if(I18n.locale != locale){
         //     this.locale = locale;
         // }
+    // }
+}
+
+
+declare global {
+    interface Clazz extends Function{}
+    interface Object{
+        equals(obj: Object): boolean;
+    }
+    interface Array<T> extends Jsonable{
+        remove(index: number): Array<T>;
+        removeValue(value: T): boolean;
+        removeValues(value: T[]): void;
+        set(index: number, value: T): Array<T>;
+        includes(searchElement: T, fromIndex?: number): boolean;
+    }
+
+    interface Event{
+        getClosestComponent: (types?: Component[]) => CapturedComponent
+    }
+
+    interface Element{
+        getClosestComponent: (types?: Component[]) => CapturedComponent
     }
 }
+Object.defineProperty(Object.prototype, 'equals', {
+    value: function(obj: Object) {
+        return this === obj;
+    }, 
+    writable: true,
+    configurable: true
+});
+Array.prototype.remove = function (index: number) {
+    if("__ob__" in this)
+        Vue.delete(this, index);
+    else
+        this.splice(index, 1);
+    return this;
+}
+Array.prototype.removeValue = function (value: any) {
+    for(let i = 0; i < this.length; i++){
+        let val = this[i];
+        if(val == value || (val.app$ && value.app$ && val.app$.id == value.app$.id)){
+            this.remove(i);
+            return true;
+        }
+    }
+}
+Array.prototype.removeValues = function (values: any[]) {
+    for(let val of values){
+        this.removeValue(val);
+    }
+}
+Array.prototype.set = function (index: number, value: any) {
+    if(this.length >= index)
+        this.push(value);
+    if("__ob__" in this)
+        Vue.set( this, index, value);
+    else
+        this[index] = value;
+    return this;
+}
+Element.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
+    return _app.getClosestComponent(this, null, types);
+}
+Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
+    return _app.getClosestComponent(this.target, this.currentTarget, types);
+}
+
+//ES 6 support
+declare global {
+    interface Object {
+        values(obj: Object): Array<any>;
+        entries(obj: Object): [string, any];
+    }
+}
+if (!Object.values || !Object.entries) {
+    const reduce = Function.bind.call(Function.call, Array.prototype.reduce);
+    const isEnumerable = Function.bind.call(Function.call, Object.prototype.propertyIsEnumerable);
+    const concat = Function.bind.call(Function.call, Array.prototype.concat);
+    const keys = Reflect.ownKeys;
+	Object.values = function values(O) {
+		return reduce(keys(O), (v, k) => concat(v, typeof k === 'string' && isEnumerable(O, k) ? [O[k]] : []), []);
+    };
+    Object.entries = function entries(O) {
+		return reduce(keys(O), (e, k) => concat(e, typeof k === 'string' && isEnumerable(O, k) ? [[k, O[k]]] : []), []);
+	};
+}
+if(!Array.prototype.includes){
+    Array.prototype.includes = function(searchElement: any, fromIndex?: number){
+        for(let i = fromIndex || 0; i < this.length; i++)
+            if(searchElement === this[i] || (isNaN(searchElement) && isNaN(this[i])))
+                return true;
+        return false;
+    }
+}
+
+
+
+
+
 
 export default App;

@@ -1,4 +1,4 @@
-import HttpRequestContent from "./HttpRequestContent";
+import HttpRequestContent from "./content/HttpRequestContent";
 
 class HttpRequest{
     constructor(

@@ -1,6 +1,6 @@
-import Hashable from "./Hashable";
+import Hashable from "../hash/Hashable";
 import SimpleMap from "./SimpleMap";
-import Jsonable from "./annotation/Jsonable";
+import Jsonable from "../hash/Jsonable";
 
 ///@ts-ignore
 class HashSet<T extends Hashable> implements Set<T>, Jsonable{

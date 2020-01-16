@@ -1,4 +1,4 @@
-import Jsonable from "./annotation/Jsonable";
+import Jsonable from "../hash/Jsonable";
 
 declare let Vue: any;
 
