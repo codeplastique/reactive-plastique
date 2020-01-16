@@ -1,2 +1,2 @@
-declare const InitiVirtualComponent: Function;
-export default InitiVirtualComponent;
+declare const InitVirtualComponent: Function;
+export default InitVirtualComponent;
