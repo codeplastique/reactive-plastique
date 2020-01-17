@@ -24,6 +24,7 @@ let Interfaces = new function(){
         return mask;
     }
 }
+let entryPointClassPath;
 function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
     const VUE_TEMPLATES_DIR = options.vueTemplatesDir || 'templates';
@@ -639,6 +640,7 @@ function Plastique(options){
                     let memberName = member.name.escapedText;
 
                     if(isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT)){
+                        removeDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT);
                         let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                         let memberName = member.name.escapedText;
                         if(neededModifiers.length == 2){
@@ -772,6 +774,9 @@ function Plastique(options){
     }
 
     function configureEntryPointClass(entryPointNode, context){
+        if(entryPointClassPath)
+            console.error('EntryPoint is already defined: '+ entryPointClassPath)
+        entryPointClassPath = entryPointNode.getSourceFile().path;
         let entryPointClassName = entryPointNode.name.escapedText;
         let beansClassesBeans = [];
         let beansOfEntryPoint = [];
@@ -834,42 +839,68 @@ function Plastique(options){
         return entryPointsNames.includes(className) || isNodeHasDecorator(classNode, ANNOTATION_ENTRY_POINT_CLASS);
     }
 
-    function injectAutowiredEverywhere(rootNode, context){
-        function getBeanId(beanName){
-            if(entryPointsNames.includes(beanName))
-                return -1;
-            let beanId = beanToId[beanName];
-            if(beanId === undefined)
-                console.error('Bean '+ beanName +' is not initialized!')
-            return beanId;
-        }
-        ts.visitEachChild(rootNode, (node) => {
-            if (node.kind === ts.SyntaxKind.ClassDeclaration && node.members) {
-                tryBindListeners(node);
-
-                for(let member of node.members){
-                    if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
-                        if(member.type.typeName == null)
-                            console.error('Field '+ member.name.escapedText +' is not typed!')
-                        member.initializer =  ts.createCall(
-                            ts.createPropertyAccess(
-                                ts.createIdentifier('_app'),
-                                ts.createIdentifier('bean')
-                            ),
-                            undefined, // type arguments, e.g. Foo<T>()
-                            [
-                                ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
-                            ]
-                        );
-                        if(member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
-                            member.initializer.arguments.push(ts.createThis());
-                        }
-                        removeDecorator(member, ANNOTATION_AUTOWIRED)
-                    }
-                }
-            }
-        }, context)
+    function getBeanId(beanName){
+        if(entryPointsNames.includes(beanName))
+            return -1;
+        let beanId = beanToId[beanName];
+        if(beanId === undefined)
+            console.error('Bean '+ beanName +' is not initialized!')
+        return beanId;
     }
+
+    function injectAutowired(classNode){
+        // tryBindListeners(classNode);
+
+        for(let member of classNode.members){
+            if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
+                if(member.type.typeName == null)
+                    console.error('Field '+ member.name.escapedText +' is not typed!')
+                member.initializer =  ts.createCall(
+                    ts.createPropertyAccess(
+                        ts.createIdentifier('_app'),
+                        ts.createIdentifier('bean')
+                    ),
+                    undefined, // type arguments, e.g. Foo<T>()
+                    [
+                        ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
+                    ]
+                );
+                if(member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
+                    member.initializer.arguments.push(ts.createThis());
+                }
+                removeDecorator(member, ANNOTATION_AUTOWIRED)
+            }
+        }
+    }
+
+    // function injectAutowiredEverywhere(rootNode, context){
+    //     ts.visitEachChild(rootNode, (node) => {
+    //         if (node.kind === ts.SyntaxKind.ClassDeclaration && node.members) {
+    //             tryBindListeners(node);
+
+    //             for(let member of node.members){
+    //                 if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
+    //                     if(member.type.typeName == null)
+    //                         console.error('Field '+ member.name.escapedText +' is not typed!')
+    //                     member.initializer =  ts.createCall(
+    //                         ts.createPropertyAccess(
+    //                             ts.createIdentifier('_app'),
+    //                             ts.createIdentifier('bean')
+    //                         ),
+    //                         undefined, // type arguments, e.g. Foo<T>()
+    //                         [
+    //                             ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
+    //                         ]
+    //                     );
+    //                     if(member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
+    //                         member.initializer.arguments.push(ts.createThis());
+    //                     }
+    //                     removeDecorator(member, ANNOTATION_AUTOWIRED)
+    //                 }
+    //             }
+    //         }
+    //     }, context)
+    // }
 
 
     function tryBindListeners(classNode){
@@ -1086,11 +1117,15 @@ function Plastique(options){
 
                 initInterfacesDef(node);
 
+                tryBindListeners(node);
+
+                injectAutowired(node);
+
+
+
                 // tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
                 // beans.push(className);
-            }else if(node.kind === ts.SyntaxKind.InterfaceDeclaration && isImplementsInterface(context, node, 'Component')){
-                
             }else if(node.kind == ts.SyntaxKind.CallExpression
                  && node.expression.escapedText == TYPE_CLASS_NAME 
                  && (node.arguments == null || arguments.length == 0)){
@@ -1101,10 +1136,11 @@ function Plastique(options){
                     :
                     ts.createIdentifier(typeName)
                 ];
-            }else if(node.kind == ts.SyntaxKind.SourceFile){
-                var result = ts.visitEachChild(node, visitor, context);
-                injectAutowiredEverywhere(node, context);
-                return result;
+            // }
+            // else if(node.kind == ts.SyntaxKind.SourceFile){
+            //     var result = ts.visitEachChild(node, visitor, context);
+            //     injectAutowiredEverywhere(node, context);
+            //     return result;
             }else {
                 if(node.kind == ts.SyntaxKind.ImportDeclaration && node.importClause.name){
                     let name = node.importClause.name.escapedText;
@@ -1127,8 +1163,8 @@ function Plastique(options){
                         return;
                     }
                 }
-                return ts.visitEachChild(node, visitor, context);
             }
+            return ts.visitEachChild(node, visitor, context);
         };
 
         return function (node) {
@@ -1164,7 +1200,7 @@ function Plastique(options){
                             ),
                             undefined, // type arguments, e.g. Foo<T>()
                             [
-                                ts.createLiteral(className),
+                                ts.createIdentifier(className),
                             ]
                         ));
                     }
@@ -1216,6 +1252,8 @@ function Plastique(options){
 class CompilePlugin{
     apply(compiler){
         const isDevelopmentMode = compiler.options.mode && compiler.options.mode == 'development';
+        if(isDevelopmentMode)
+            compiler.options.devtool = "inline-source-map"
         const ast = require('abstract-syntax-tree');
         function replaceDefaultInstanceof(element) {
             ast.replace(element, {
@@ -1230,39 +1268,57 @@ class CompilePlugin{
                 }
             })
         }
-
-        if(isDevelopmentMode) {
-            compiler.hooks.compilation.tap('plastique modules compiling', function (compilation) {
-                compilation.hooks.succeedModule.tap('plastique module compiling', function (module) {
-                    if (!workFilesPaths.includes(module.resource))
-                        return;
-                    let tree = ast.parse(module._source._value);
-                    replaceDefaultInstanceof(tree)
-                    module._source._value = ast.generate(tree)
-                });
-            });
+        function moveAppImportDefToTop(element, appModuleIndex){
+            let statements = element.body.body[1].expression.callee.object.body.body;
+            let appImportDefIndex = statements.findIndex(statement => 
+                statement.type == 'VariableDeclaration' 
+                && statement.declarations 
+                && statement.declarations[0].init.callee.name == "__webpack_require__"
+                && statement.declarations[0].init.arguments[0].value == appModuleIndex
+            )
+            if(appImportDefIndex < 0)
+                console.error('AppImport definition is not found!');
+            statements.splice(1, 0, statements.splice(appImportDefIndex, 1)[0]); // move to 1 position
         }
+
+        // if(isDevelopmentMode) {
+        //     compiler.hooks.compilation.tap('plastique modules compiling', function (compilation) {
+        //         compilation.hooks.succeedModule.tap('plastique module compiling', function (module) {
+        //             if (!workFilesPaths.includes(module.resource))
+        //                 return;
+        //             let tree = ast.parse(module._source._value);
+        //             replaceDefaultInstanceof(tree)
+        //             module._source._value = ast.generate(tree)
+        //         });
+        //     });
+        // }
         // compiler.hooks.afterCompile.tap('plastique after compiling operations', function (compilation) {
         //     compilation.compiler.parentCompilation = true; // to ignore ts-loader afterCompile hook, because its diagnostic fails
         // });
         compiler.hooks.emit.tap('plastique final compilation of modules', function(compilation){
             const uglifyJS = require("uglify-js");
+            const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/plastique/base/App.ts'));
+            if(AppModuleIndex < 0)
+                console.error('App.ts is not found!');
             for(let asset in compilation.assets){
                 let source = compilation.assets[asset].source();
                 let tree = ast.parse(source);
 
                 let modulesWrapper = tree.body[0].expression.arguments[0];
                 let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
-
+                    
                 modules.forEach((element, index) => {
                     let modulePath = compilation.modules[index].resource;
                     if(workFilesPaths.includes(modulePath)) {
+                        element = isDevelopmentMode ? element.value : element;
                         replaceDefaultInstanceof(element)
+                        if(entryPointClassPath == modulePath)
+                            moveAppImportDefToTop(element, AppModuleIndex)
+
                         let template = componentPathToTemplate[modulePath];
                         if (template == null)
                             return;
 
-                        element = isDevelopmentMode ? element.value : element;
                         let origBody = element.body;
                         let fakeWrap = ast.parse('(function(){1}());');
                         fakeWrap.body[0].expression.callee.body = origBody;

@@ -238,36 +238,12 @@ abstract class App{
             ///@ts-ignore
             I18n.keyToValue = _AppLocale.values;
         }
-        window['_app'] = {
-            bean: App.getBean,
-            initComp: App.initComponent,
-            i18n: I18n.text,
-            listeners: App.addListeners,
-            getClosestComponent: App.getClosestComponent,
-            instanceOf: function (obj, type) {
-                if(typeof type == 'number'){
-                    let proto = Object.getPrototypeOf(obj);
-                    while(proto != null){
-                        let isImplements = (proto.constructor['$intf'] || []).indexOf(type) >= 0;
-                        if(isImplements)
-                            return true;
-                        proto = Object.getPrototypeOf(proto)
-                    }
-                    return false;
-                }
-                let typeOfType = typeof obj;
-                if(typeOfType === 'string')obj = String
-                else if(typeOfType === 'number')obj = Number
-                else if(typeOfType === 'boolean')obj = Boolean
+        _app.bean = App.getBean;
+        _app.initComp = App.initComponent;
+        _app.i18n = I18n.text;
+        _app.listeners = App.addListeners;
+        _app.getClosestComponent = App.getClosestComponent;
 
-                return obj instanceof type;
-            },
-            mixin: function (clazz) {
-                Object.getOwnPropertyNames(ComponentImpl.prototype).forEach(name => {
-                    Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
-                });
-            },
-        };
         window['getComponentPath'] =  function(elem){
             let components = [];
             while(elem && (elem = elem.closest('[data-cn]'))){
@@ -481,10 +457,30 @@ if(!Array.prototype.includes){
         return false;
     }
 }
+window['_app'] = {
+    instanceOf: function (obj, type) {
+        if(typeof type == 'number'){
+            let proto = Object.getPrototypeOf(obj);
+            while(proto != null){
+                let isImplements = (proto.constructor['$intf'] || []).indexOf(type) >= 0;
+                if(isImplements)
+                    return true;
+                proto = Object.getPrototypeOf(proto)
+            }
+            return false;
+        }
+        let typeOfType = typeof obj;
+        if(typeOfType === 'string')obj = String
+        else if(typeOfType === 'number')obj = Number
+        else if(typeOfType === 'boolean')obj = Boolean
 
-
-
-
-
+        return obj instanceof type;
+    },
+    mixin: function (clazz) {
+        Object.getOwnPropertyNames(ComponentImpl.prototype).forEach(name => {
+            Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
+        });
+    },
+}
 
 export default App;
