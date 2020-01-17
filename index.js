@@ -114,7 +114,7 @@ function Plastique(options){
 
     function getParents(classNode) {
         let parents = (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => getNodePath(classNode, t.expression.escapedText))
-        let parentClass = ts.getClassExtendsHeritageElement(node);
+        let parentClass = ts.getClassExtendsHeritageElement(classNode);
         if(parentClass)
             parents.push(getNodePath(classNode, parentClass.expression.escapedText))
         return parents;
@@ -156,7 +156,7 @@ function Plastique(options){
                         return decorator.expression.arguments;
                     }
                     if(isArgRequired)
-                        throw new Error('Decorator "'+ decoratorName +'" has no arguments!');
+                        console.error('Decorator "'+ decoratorName +'" has no arguments!');
                 }
             }
         }
@@ -195,7 +195,7 @@ function Plastique(options){
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
         if(rootTag.children.length > 1)
-            throw new Error('Component '+ componentName +' has multiple root tags!')
+            console.error('Component '+ componentName +' has multiple root tags!')
         if(handle(rootTag.children[0], elems, componentName)){
             let blockTags = Array.from(elems).filter(e => e.tagName == 'V:BLOCK');
             for(let blockTag of blockTags){
@@ -208,7 +208,7 @@ function Plastique(options){
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
-                throw new Error('Vue compile error!' + vueCompilerResult.errors);
+                console.error('Vue compile error!' + vueCompilerResult.errors);
             let staticRenders = [];
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
@@ -411,7 +411,7 @@ function Plastique(options){
         }
     }
 
-    buildTemplates();
+    // buildTemplates();
     buildLocales();
 
     let beanToId = {};
@@ -481,6 +481,7 @@ function Plastique(options){
     }
 
     function getAllRootComponentsData(componentNode, context){
+        let className = componentNode.name.escapedText;
         let maxParents = 0;
         let members = [];
         let attachHook = null;
@@ -504,7 +505,7 @@ function Plastique(options){
                 }
             }
             if(++maxParents > 100)
-                throw new Error('More than 100 parents!!');
+                console.error('More than 100 parents on '+ className);
         }
         return {
             members: members,
@@ -548,9 +549,9 @@ function Plastique(options){
                     }
                 }
                 if(templateArg == null)
-                    throw new Error('Template is not found! Component: '+ componentNode.name.escapedText)
+                    console.error('Template is not found! Component: '+ componentNode.name.escapedText)
             }else if(templateArg.kind != ts.SyntaxKind.TemplateExpression){
-                throw new Error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
+                console.error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
             }
             return templateArg.getFullText().slice(1, -1);// remove quote(`) chars
         }
@@ -578,7 +579,7 @@ function Plastique(options){
                     this.memberPathToId[memberPathName] = id;
                     return ts.createStringLiteral(String(id));
                 }else
-                    throw new Error(`Member "${memberPathName} must have the ${requiredType} type`);
+                    console.error(`Member "${memberPathName} must have the ${requiredType} type`);
             }else{
                 let properies = [];
                 let memberParts = member.type.members;
@@ -644,7 +645,7 @@ function Plastique(options){
                                 new MemberInitializator(componentName, member, ANNOTATION_INIT_VIRTUAL_COMPONENT, VirtualComponentIdProducer)
                                 .getMemberPathToId()
                         }else
-                            throw new Error(`Event "${className}.${memberName}" should be be a static & readonly`)
+                            console.error(`Event "${className}.${memberName}" should be be a static & readonly`)
                     }
 
                     let isElementProp = isNodeHasDecorator(member, ANNOTATION_ELEMENT);
@@ -744,9 +745,9 @@ function Plastique(options){
         for(let member of beanClass.members){
             if(member.kind == ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
                 if(member.type.typeName == null)
-                    throw new Error('Method '+ member.name.escapedText +' is not typed!')
+                    console.error('Method '+ member.name.escapedText +' is not typed!')
                 if(member.parameters && member.parameters.length != 0)
-                    throw new Error('Method '+ member.name.escapedText +' should not have parameters')
+                    console.error('Method '+ member.name.escapedText +' should not have parameters')
                 // beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
 
                 let typeName = member.type.typeName.escapedText
@@ -759,7 +760,7 @@ function Plastique(options){
                     if(beansOfEntryPoint)
                         beansOfEntryPoint.push(typeName);
                 }else if(beansOfEntryPoint && beansOfEntryPoint.includes(typeName)){
-                    throw new Error(`Bean with type ${typeName} is initialized twice!`)
+                    console.error(`Bean with type ${typeName} is initialized twice!`)
                 }
                 beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
                 removeDecorator(member, ANNOTATION_BEAN);
@@ -838,7 +839,7 @@ function Plastique(options){
                 return -1;
             let beanId = beanToId[beanName];
             if(beanId === undefined)
-                throw new Error('Bean '+ beanName +' is not initialized!')
+                console.error('Bean '+ beanName +' is not initialized!')
             return beanId;
         }
         ts.visitEachChild(rootNode, (node) => {
@@ -848,7 +849,7 @@ function Plastique(options){
                 for(let member of node.members){
                     if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
                         if(member.type.typeName == null)
-                            throw new Error('Field '+ member.name.escapedText +' is not typed!')
+                            console.error('Field '+ member.name.escapedText +' is not typed!')
                         member.initializer =  ts.createCall(
                             ts.createPropertyAccess(
                                 ts.createIdentifier('_app'),
@@ -1009,13 +1010,13 @@ function Plastique(options){
                                 else
                                     member.initializer = ts.createStringLiteral(String(eventId));
                             }else
-                                throw new Error(`Event "${className}.${eventName}" must have ${APP_EVENT_TYPE} type`)
+                                console.error(`Event "${className}.${eventName}" must have ${APP_EVENT_TYPE} type`)
                         }
 
                         if(isCompositeEvent)
                             member.initializer = ts.createObjectLiteral(properies);
                     }else
-                        throw new Error(`Event "${className}.${memberName}" must be a static & readonly`)
+                        console.error(`Event "${className}.${memberName}" must be a static & readonly`)
                     removeDecorator(member, ANNOTATION_INIT_EVENT);
                 }
             }
@@ -1065,7 +1066,7 @@ function Plastique(options){
                     let superNode = getSuperNode(constructorNode);
                     if(superNode != null){
                         if(superNode.expression.arguments && superNode.expression.arguments.length > 0){
-                            throw new Error('Super node should be without arguments when you extending array');
+                            console.error('Super node should be without arguments when you extending array');
                         }
                         let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
                         constructorNode.body.statements.splice(superNodeIndex, 1);
@@ -1151,7 +1152,9 @@ function Plastique(options){
                         let className = interfaceDeclaration.name.escapedText;
                         let classIndex = node.statements.findIndex(s => s.kind === ts.SyntaxKind.ClassDeclaration && s.name.escapedText == className);
                         if(classIndex < 0){
-                            throw new Error('Component mixin should be with component class')
+                            //its just interface, not component
+                            break componentExpr;
+                            
                         }
                         node.statements.splice(classIndex + 1, 0, ts.createCall(
                             ts.createPropertyAccess(
@@ -1167,13 +1170,13 @@ function Plastique(options){
                     typeExpr: if(node.kind == ts.SyntaxKind.CallExpression && node.expression.escapedText == TYPE_CLASS_NAME){
                         if(node.arguments != null && node.arguments.length == 1){
                             if(node.typeArguments != null && node.typeArguments.length > 0)
-                                throw new Error('Type should be with generic type or argument type but not both!')
+                                console.error('Type should be with generic type or argument type but not both!')
                             break typeExpr;
                         }
                         if(node.typeArguments == null || node.typeArguments.length == 0)
-                            throw new Error('Genertic type of Type is not set!')
+                            console.error('Genertic type of Type is not set!')
                         if(node.typeArguments[0].typeName == null)
-                            throw new Error('Genertic type of Type is not valid: '+ node.typeArguments[0].typeName)
+                            console.error('Genertic type of Type is not valid: '+ node.typeArguments[0].typeName)
 
                         let typeName = node.typeArguments[0].typeName.escapedText;
                         let typePath = getNodePath(node, typeName);
