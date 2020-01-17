@@ -56,6 +56,7 @@ function Plastique(options){
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const EVENTMANAGER_CLASS_NAME = 'Eventer';
+    const VIRTUAL_COMPONENT_CLASS_NAME = 'VirtualComponent';
     const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
     const TYPE_CLASS_NAME = 'Type';
@@ -550,7 +551,7 @@ function Plastique(options){
                 }
                 if(templateArg == null)
                     console.error('Template is not found! Component: '+ componentNode.name.escapedText)
-            }else if(templateArg.kind != ts.SyntaxKind.TemplateExpression){
+            }else if(templateArg.kind != ts.SyntaxKind.TemplateExpression && templateArg.kind != ts.SyntaxKind.FirstTemplateToken){
                 console.error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
             }
             return templateArg.getFullText().slice(1, -1);// remove quote(`) chars
@@ -642,7 +643,7 @@ function Plastique(options){
                         let memberName = member.name.escapedText;
                         if(neededModifiers.length == 2){
                             virtualComponentToId = 
-                                new MemberInitializator(componentName, member, ANNOTATION_INIT_VIRTUAL_COMPONENT, VirtualComponentIdProducer)
+                                new MemberInitializator(componentName, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponentIdProducer)
                                 .getMemberPathToId()
                         }else
                             console.error(`Event "${className}.${memberName}" should be be a static & readonly`)
