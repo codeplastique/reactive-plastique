@@ -403,11 +403,11 @@ declare global {
     }
 
     interface Event{
-        getClosestComponent: (types?: Component[]) => CapturedComponent
+        getClosestComponent: (types?: Array<Component | TypeDef<any>>) => CapturedComponent
     }
 
     interface Element{
-        getClosestComponent: (types?: Component[]) => CapturedComponent
+        getClosestComponent: (types?: Array<Component | TypeDef<any>>) => CapturedComponent
     }
 }
 Object.defineProperty(Object.prototype, 'equals', {

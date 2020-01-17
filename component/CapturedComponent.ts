@@ -18,7 +18,7 @@ export default class CapturedComponent{
         }
     }
 
-    public get<T extends Component>(): T{
+    public get<T>(): T{
         return this.component
     }
     public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent{
