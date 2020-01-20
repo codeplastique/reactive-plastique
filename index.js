@@ -63,6 +63,8 @@ function Plastique(options){
     const TYPE_CLASS_NAME = 'Type';
     const TYPE_CLASS_PATH = '/plastique/base/Type.ts';
     const COMPONENT_INTERFACE_PATH = '/plastique/component/Component.ts';
+    const ENTRYPOINT_ANNOTATION_PATH = '/plastique/base/EntryPoint.ts';
+    const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/plastique/component/VirtualComponent.ts';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -191,8 +193,8 @@ function Plastique(options){
         return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
     }
 
-    function getVueTemplateRender(vueTemplate, componentName, virtualComponentToId){
-        virtualComponentToId = virtualComponentToId || {};
+    function getVueTemplateRender(vueTemplate, componentNode){
+        let componentName = componentNode.name.escapedText;
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
@@ -328,9 +330,8 @@ function Plastique(options){
                             break;
                         case 'component':
                             var componentVar = extractExpression(attr.value);
-                            if(virtualComponentToId[componentVar]){
-                                let virtualComponentId = virtualComponentToId[componentVar];
-                                elem.setAttribute('data-vcn', virtualComponentId);
+                            if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
+                                elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
                             }else{
                                 let componentCast = modifiers[0];
                                 let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
@@ -441,6 +442,9 @@ function Plastique(options){
     }
 
     function getNodePath(node, className){
+        if(node.kind == ts.SyntaxKind.ClassDeclaration && node.name.escapedText == className)
+            return node.getSourceFile().path;
+
         let d = node.getSourceFile()
             .locals
             .get(className? className: node.expression.escapedText);
@@ -559,25 +563,40 @@ function Plastique(options){
         }
     }
 
-
-    const VirtualComponentIdProducer = new class{
-        constructor(){
-            this.counter = 0;
+    let VirtualComponents = new function() {
+        let virtualComponentToId = {};
+        let counter = 0;
+        this.isVirtualComponentName = function(virtualComponentName, currentNode){
+            if(virtualComponentName.startsWith('this.'))
+                return false;
+            let parts = virtualComponentName.split('.');
+            if(parts < 2)
+                return false;
+            let neededClassName = parts[0];
+            let neededClassPath = getNodePath(currentNode, neededClassName);
+            return virtualComponentToId[neededClassPath + '.'+ virtualComponentName] != null
         }
-        getNext(){
-            return 'vc' + (this.counter++);
-        }
+        this.getId = function(virtualComponentName, currentNode){
+            let neededClassName = virtualComponentName.split('.')[0];
+            let neededClassPath = getNodePath(currentNode, neededClassName);
+            let virtualComponentPath = neededClassPath + '.'+ virtualComponentName;
+            if(virtualComponentToId[virtualComponentPath] == null)
+                return virtualComponentToId[virtualComponentPath] = 'vc' + (counter++);
+            else 
+                return virtualComponentToId[virtualComponentPath];
+        }    
     }
     class MemberInitializator{
-        constructor(className, member, requiredType, idProducer){
+        constructor(classNode, member, requiredType, idProducer){
             this.memberPathToId = {}
-            this.initialize(className, member, requiredType, idProducer);
+            this.currentNode = classNode;
+            this.initialize(classNode.name.escapedText, member, requiredType, idProducer);
         }
         getInitializer(memberPathName, member, requiredType, idProducer){
             let isCompositeMember = member.type.kind == ts.SyntaxKind.ObjectLiteralExpression;
             if(!isCompositeMember){
                 if(member.type.typeName && member.type.typeName.escapedText == requiredType){
-                    let id = idProducer.getNext();
+                    let id = idProducer.getId(memberPathName, this.currentNode);
                     this.memberPathToId[memberPathName] = id;
                     return ts.createStringLiteral(String(id));
                 }else
@@ -607,7 +626,6 @@ function Plastique(options){
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
         let template = getComponentTemplate(componentNode);
-        let virtualComponentToId = null;
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
         // if(parent)
@@ -639,17 +657,9 @@ function Plastique(options){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                     let memberName = member.name.escapedText;
 
-                    if(isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT)){
+                    let isVirtualComponent = isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT);
+                    if(isVirtualComponent)
                         removeDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT);
-                        let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
-                        let memberName = member.name.escapedText;
-                        if(neededModifiers.length == 2){
-                            virtualComponentToId = 
-                                new MemberInitializator(componentName, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponentIdProducer)
-                                .getMemberPathToId()
-                        }else
-                            console.error(`Event "${className}.${memberName}" should be be a static & readonly`)
-                    }
 
                     let isElementProp = isNodeHasDecorator(member, ANNOTATION_ELEMENT);
                     if(isElementProp){
@@ -711,7 +721,7 @@ function Plastique(options){
             // let render = getVueTemplateRender(template, componentName);
             // renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
-            let templateRender = getVueTemplateRender(template, componentName, virtualComponentToId);
+            let templateRender = getVueTemplateRender(template, componentNode);
             // for(let interfaceId of templateRender.virtualComponents){
             //     let interfaceName = Interfaces.getNameById(interfaceId);
             //     if(!isImplementsInterface(context, componentNode, interfaceName, true))
@@ -774,9 +784,6 @@ function Plastique(options){
     }
 
     function configureEntryPointClass(entryPointNode, context){
-        if(entryPointClassPath)
-            console.error('EntryPoint is already defined: '+ entryPointClassPath)
-        entryPointClassPath = entryPointNode.getSourceFile().path;
         let entryPointClassName = entryPointNode.name.escapedText;
         let beansClassesBeans = [];
         let beansOfEntryPoint = [];
@@ -1104,10 +1111,10 @@ function Plastique(options){
                         constructorNode.body.statements.splice(superNodeIndex, 1);
                     }
                 }
-                if(isEntryPointNode(node)){
-                    // entryPointClassNodes.push(node);
-                    configureEntryPointClass(node, context)
-                }
+                // if(isEntryPointNode(node)){
+                //     // entryPointClassNodes.push(node);
+                //     configureEntryPointClass(node, context)
+                // }
                 if(isComponentNode(node)){
                     // components[className] = node;
                     configureComponent(node, context);
@@ -1168,82 +1175,117 @@ function Plastique(options){
         };
 
         return function (node) {
-            if(!isInitialized){
-                isInitialized = true;
-                let host = context.getEmitHost();
-                let basePath = host.getCommonSourceDirectory();
-                let libPath = basePath + 'node_modules/';
-                let workNodes = host.getSourceFiles().filter(f => 
-                    !f.hasNoDefaultLib
-                    &&
-                    !host.isSourceFileFromExternalLibrary(f)
-                    &&
-                    !f.path.startsWith(libPath)
-                );
-                let vis = function (node) {
-                    componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
-                        let interfaceDeclaration = 
-                            node.statements.find(s => s.kind === ts.SyntaxKind.InterfaceDeclaration && isImplementsInterface(context, s, 'Component'));
-                        if(interfaceDeclaration == null)
-                            break componentExpr;
-                        let className = interfaceDeclaration.name.escapedText;
-                        let classIndex = node.statements.findIndex(s => s.kind === ts.SyntaxKind.ClassDeclaration && s.name.escapedText == className);
-                        if(classIndex < 0){
-                            //its just interface, not component
-                            break componentExpr;
-                            
+            try{
+                if(!isInitialized){
+                    isInitialized = true;
+                    let host = context.getEmitHost();
+                    let basePath = host.getCommonSourceDirectory();
+                    let libPath = basePath + 'node_modules/';
+                    let workNodes = host.getSourceFiles().filter(f => 
+                        !f.hasNoDefaultLib
+                        &&
+                        !host.isSourceFileFromExternalLibrary(f)
+                        &&
+                        !f.path.startsWith(libPath)
+                    );
+                    let vis = function (node) {
+                        componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
+                            let interfaceDeclaration = 
+                                node.statements.find(s => s.kind === ts.SyntaxKind.InterfaceDeclaration && isImplementsInterface(context, s, 'Component'));
+                            if(interfaceDeclaration == null)
+                                break componentExpr;
+                            let className = interfaceDeclaration.name.escapedText;
+                            let classIndex = node.statements.findIndex(s => s.kind === ts.SyntaxKind.ClassDeclaration && s.name.escapedText == className);
+                            if(classIndex < 0){
+                                //its just interface, not component
+                                break componentExpr;
+                                
+                            }
+                            //append after class declaration
+                            node.statements.splice(classIndex + 1, 0, ts.createCall(
+                                ts.createPropertyAccess(
+                                    ts.createIdentifier('_app'),
+                                    ts.createIdentifier('mixin')
+                                ),
+                                undefined, // type arguments, e.g. Foo<T>()
+                                [
+                                    ts.createIdentifier(className),
+                                ]
+                            ));
                         }
-                        node.statements.splice(classIndex + 1, 0, ts.createCall(
-                            ts.createPropertyAccess(
-                                ts.createIdentifier('_app'),
-                                ts.createIdentifier('mixin')
-                            ),
-                            undefined, // type arguments, e.g. Foo<T>()
-                            [
-                                ts.createIdentifier(className),
-                            ]
-                        ));
-                    }
-                    typeExpr: if(node.kind == ts.SyntaxKind.CallExpression && node.expression.escapedText == TYPE_CLASS_NAME){
-                        if(node.arguments != null && node.arguments.length == 1){
-                            if(node.typeArguments != null && node.typeArguments.length > 0)
-                                console.error('Type should be with generic type or argument type but not both!')
-                            break typeExpr;
+                        if(node.kind == ts.SyntaxKind.ClassDeclaration){
+                            if(isComponentNode(node)){
+                                let className = node.name.escapedText;
+                                for(let member of node.members){
+                                    if(member.kind == ts.SyntaxKind.PropertyDeclaration){
+                                        if(isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT)){
+                                            removeDecorator(node, ANNOTATION_INIT_VIRTUAL_COMPONENT);
+                                            let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
+                                            let memberName = member.name.escapedText;
+                                            if(neededModifiers.length == 2){
+                                                new MemberInitializator(node, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponents)
+                                            }else
+                                                throw new Error(`Event "${className}.${memberName}" should be be a static & readonly`)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        if(node.typeArguments == null || node.typeArguments.length == 0)
-                            console.error('Genertic type of Type is not set!')
-                        if(node.typeArguments[0].typeName == null)
-                            console.error('Genertic type of Type is not valid: '+ node.typeArguments[0].typeName)
+                        typeExpr: if(node.kind == ts.SyntaxKind.CallExpression && node.expression.escapedText == TYPE_CLASS_NAME){
+                            if(node.arguments != null && node.arguments.length == 1){
+                                if(node.typeArguments != null && node.typeArguments.length > 0)
+                                    console.error('Type should be with generic type or argument type but not both!')
+                                break typeExpr;
+                            }
+                            if(node.typeArguments == null || node.typeArguments.length == 0)
+                                console.error('Genertic type of Type is not set!')
+                            if(node.typeArguments[0].typeName == null)
+                                console.error('Genertic type of Type is not valid: '+ node.typeArguments[0].typeName)
 
-                        let typeName = node.typeArguments[0].typeName.escapedText;
-                        let typePath = getNodePath(node, typeName);
-                        if(typePath)
-                            Interfaces.add(typePath)
+                            let typeName = node.typeArguments[0].typeName.escapedText;
+                            let typePath = getNodePath(node, typeName);
+                            if(typePath)
+                                Interfaces.add(typePath)
+                        }
+                        return ts.visitEachChild(node, vis, context);
                     }
-                    return ts.visitEachChild(node, vis, context);
-                }
-                workFilesPaths = workNodes.map(n => n.path);
-                for(let node of workNodes){
-                    if(node.resolvedModules){
-                        let importModules = Array.from(node.resolvedModules.values());
-                        let hasTypeUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(TYPE_CLASS_PATH));
-                        let hasComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(COMPONENT_INTERFACE_PATH));
-                        if(hasTypeUsage || hasComponentUsage){
-                            ts.visitNode(node, vis);
+                    workFilesPaths = workNodes.map(n => n.path);
+                    for(let node of workNodes){
+                        if(node.resolvedModules){
+                            let importModules = Array.from(node.resolvedModules.values());
+                            let hasTypeUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(TYPE_CLASS_PATH));
+                            let hasComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(COMPONENT_INTERFACE_PATH));
+                            let hasVirtualComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(VIRTUAL_COMPONENT_ANNOTATION_PATH));
+                            let hasEntryPoint = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(ENTRYPOINT_ANNOTATION_PATH));
+                            if(hasEntryPoint){
+                                let entryPoint = node.statements.find(s => s.kind == ts.SyntaxKind.ClassDeclaration && isEntryPointNode(s));
+                                if(entryPoint){
+                                    if(entryPointClassPath)
+                                        console.error('EntryPoint is already defined: '+ entryPointClassPath)
+                                    entryPointClassPath = node.path;
+                                    configureEntryPointClass(entryPoint, context)
+                                }
+                            }
+
+                            if(hasTypeUsage || hasComponentUsage || hasVirtualComponentUsage){
+                                ts.visitNode(node, vis);
+                            }
                         }
                     }
                 }
-            }
-            if(!files.includes(node.fileName)) {
-                let result = ts.visitNode(node, visitor);
-                files.push(node.fileName)
-                return result
-            }
-            // let notInitEvent = eventToIdentifier.find(e => e.init == false);
-            // if(notInitEvent)
-            //     throw new Error('Event "'+ (notInitEvent.className +"."+ notInitEvent.memberName) +" is not found!")
+                if(!files.includes(node.fileName)) {
+                    let result = ts.visitNode(node, visitor);
+                    files.push(node.fileName)
+                    return result
+                }
+                // let notInitEvent = eventToIdentifier.find(e => e.init == false);
+                // if(notInitEvent)
+                //     throw new Error('Event "'+ (notInitEvent.className +"."+ notInitEvent.memberName) +" is not found!")
 
-            return node;
+                return node;
+            }catch(e){
+                console.error(e)
+            }
         };
     };
     return transformer;
@@ -1254,6 +1296,7 @@ class CompilePlugin{
         const isDevelopmentMode = compiler.options.mode && compiler.options.mode == 'development';
         if(isDevelopmentMode)
             compiler.options.devtool = "inline-source-map"
+            compiler.options.devtool = false
         const ast = require('abstract-syntax-tree');
         function replaceDefaultInstanceof(element) {
             ast.replace(element, {
@@ -1270,12 +1313,17 @@ class CompilePlugin{
         }
         function moveAppImportDefToTop(element, appModuleIndex){
             let statements = element.body.body[1].expression.callee.object.body.body;
-            let appImportDefIndex = statements.findIndex(statement => 
-                statement.type == 'VariableDeclaration' 
-                && statement.declarations 
-                && statement.declarations[0].init.callee.name == "__webpack_require__"
-                && statement.declarations[0].init.arguments[0].value == appModuleIndex
-            )
+            let appImportDefIndex = statements.findIndex(statement => {
+                if(
+                    statement.type == 'VariableDeclaration' 
+                    && statement.declarations 
+                    && statement.declarations[0].init.callee.name == "__webpack_require__"
+                ){
+                    let val = statement.declarations[0].init.arguments[0].value;
+                    return val == appModuleIndex || (typeof val == 'string' && val.endsWith('/plastique/base/App.ts'))
+                }
+                return false;
+            })
             if(appImportDefIndex < 0)
                 console.error('AppImport definition is not found!');
             statements.splice(1, 0, statements.splice(appImportDefIndex, 1)[0]); // move to 1 position
@@ -1295,6 +1343,61 @@ class CompilePlugin{
         // compiler.hooks.afterCompile.tap('plastique after compiling operations', function (compilation) {
         //     compilation.compiler.parentCompilation = true; // to ignore ts-loader afterCompile hook, because its diagnostic fails
         // });
+
+        // debugger;
+        // compiler.hooks.compilation.tap('plastique final compilation of modules', function(compilation){
+        //     compilation.hooks.optimizeChunkAssets.tap('plastique final compilation of modules', function(chunks){
+        //         const uglifyJS = require("uglify-js");
+        //         const { ConcatSource, RawSource } = require("webpack-sources");
+        //         const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/plastique/base/App.ts'));
+        //         if(AppModuleIndex < 0)
+        //             console.error('App.ts is not found!');
+
+        //         chunks.forEach(chunk => {
+        //             chunk.files.forEach(asset => {
+        //                 let source = compilation.assets[asset].source();
+        //                 let tree = ast.parse(source);
+
+        //                 let modulesWrapper = tree.body[0].expression.arguments[0];
+        //                 let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
+                            
+        //                 modules.forEach((element, index) => {
+        //                     let modulePath = compilation.modules[index].resource;
+        //                     if(workFilesPaths.includes(modulePath)) {
+        //                         element = isDevelopmentMode ? element.value : element;
+        //                         replaceDefaultInstanceof(element)
+        //                         if(entryPointClassPath == modulePath)
+        //                             moveAppImportDefToTop(element, AppModuleIndex)
+        
+        //                         let template = componentPathToTemplate[modulePath];
+        //                         if (template == null)
+        //                             return;
+        
+        //                         let origBody = element.body;
+        //                         let fakeWrap = ast.parse('(function(){1}());');
+        //                         fakeWrap.body[0].expression.callee.body = origBody;
+        //                         fakeWrap.body.unshift(ast.parse(`$["__vueTemplateGenerator${modulePath}__"]`).body[0]);
+        //                         element.body = {body: fakeWrap.body, type: "BlockStatement"}
+        //                     }
+        //                 });
+        //                 let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
+        //                 for(let componentPath in componentPathToTemplate){
+        //                     let vueTemplateGeneratorFunc = `function ${VUE_TEMPLATE_FUNC_NAME}(){return ${componentPathToTemplate[componentPath]}}`;
+        //                     if(isDevelopmentMode)
+        //                         newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"]`, vueTemplateGeneratorFunc);
+        //                     else
+        //                         newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"],`, vueTemplateGeneratorFunc +'!');
+        
+        //                 }
+        //                 compilation.assets[asset] = new ConcatSource(
+        //                     new RawSource(newCode),
+        //                     compilation.assets[asset]
+        //                 );
+        //             });
+        //         });
+        //     })
+        // });
+        
         compiler.hooks.emit.tap('plastique final compilation of modules', function(compilation){
             const uglifyJS = require("uglify-js");
             const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/plastique/base/App.ts'));
@@ -1326,7 +1429,7 @@ class CompilePlugin{
                         element.body = {body: fakeWrap.body, type: "BlockStatement"}
                     }
                 });
-                let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree)).code;
+                let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree, {comments: true})).code;
                 for(let componentPath in componentPathToTemplate){
                     let vueTemplateGeneratorFunc = `function ${VUE_TEMPLATE_FUNC_NAME}(){return ${componentPathToTemplate[componentPath]}}`;
                     if(isDevelopmentMode)
@@ -1335,7 +1438,10 @@ class CompilePlugin{
                         newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"],`, vueTemplateGeneratorFunc +'!');
 
                 }
-                compilation.assets[asset]._cachedSource = newCode;
+                // if(isDevelopmentMode)
+                //     compilation.assets[asset].children[0]._value = newCode
+                // else
+                    compilation.assets[asset]._cachedSource = newCode;
             }
         });
     }

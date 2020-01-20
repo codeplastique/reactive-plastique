@@ -477,9 +477,24 @@ window['_app'] = {
         return obj instanceof type;
     },
     mixin: function (clazz) {
+        // public isComponentAttached(): boolean{
+        //     //@ts-ignore
+        //     return this.app$.v$ != null
+        // }
+        // public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent {
+        //     //@ts-ignore
+        //     if(this.app$.v$ == null)
+        //         throw new Error('Component is not attached!')
+        //     //@ts-ignore
+        //     return _app.getClosestComponent(this.app$.v$.$el, null, types);
+        // }
+        // public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
+
         Object.getOwnPropertyNames(ComponentImpl.prototype).forEach(name => {
-            Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
+            if(name != 'constructor')
+                Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
         });
+        Object.defineProperty(clazz.prototype, 'fireEvent', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEvent'));
     },
 }
 
