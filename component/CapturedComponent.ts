@@ -25,6 +25,6 @@ export default class CapturedComponent{
         if(this.component == null)
             return this;
         ///@ts-ignore
-        return _app.getClosestComponent(this.component.app$.v$.$el, null, types);
+        return _app.getClosestComponent(this.component.app$.v$.$el.parentElement, null, types);
     }
 }

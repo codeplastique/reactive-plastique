@@ -586,18 +586,14 @@ function Plastique(options){
                 return virtualComponentToId[virtualComponentPath];
         }    
     }
-    class MemberInitializator{
-        constructor(classNode, member, requiredType, idProducer){
-            this.memberPathToId = {}
-            this.currentNode = classNode;
-            this.initialize(classNode.name.escapedText, member, requiredType, idProducer);
-        }
-        getInitializer(memberPathName, member, requiredType, idProducer){
-            let isCompositeMember = member.type.kind == ts.SyntaxKind.ObjectLiteralExpression;
+
+    const MemberInitializator = new function(){
+        let memberToInitializer = new Map;
+        function getInitializer(memberPathName, member, requiredType, idProducer, classNode){
+            let isCompositeMember = member.type.kind == ts.SyntaxKind.TypeLiteral;
             if(!isCompositeMember){
                 if(member.type.typeName && member.type.typeName.escapedText == requiredType){
-                    let id = idProducer.getId(memberPathName, this.currentNode);
-                    this.memberPathToId[memberPathName] = id;
+                    let id = idProducer.getId(memberPathName, classNode);
                     return ts.createStringLiteral(String(id));
                 }else
                     console.error(`Member "${memberPathName} must have the ${requiredType} type`);
@@ -608,18 +604,19 @@ function Plastique(options){
                     let fullMemberPartName = memberPathName + '.'+ memberPart.name.escapedText;
                     properies.push(ts.createPropertyAssignment(
                         memberPart.name.escapedText, 
-                        this.getInitializer(fullMemberPartName, memberPart, requiredType, idProducer)
+                        getInitializer(fullMemberPartName, memberPart, requiredType, idProducer, classNode)
                     ));
                 }
                 return ts.createObjectLiteral(properies);
             }
         }
-        initialize(className, member, requiredType, idProducer) {
+        this.initialize = function(classNode, member, requiredType, idProducer) {
+            let className = classNode.name.escapedText;
             let memberName = className +'.'+ member.name.escapedText;
-            member.initializer = this.getInitializer(memberName, member, requiredType, idProducer);
+            memberToInitializer.set(member, getInitializer(memberName, member, requiredType, idProducer, classNode));
         }
-        getMemberPathToId(){
-            return this.memberPathToId;
+        this.getInitializer = function(member){
+            return memberToInitializer.get(member)
         }
     }
 
@@ -658,8 +655,10 @@ function Plastique(options){
                     let memberName = member.name.escapedText;
 
                     let isVirtualComponent = isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT);
-                    if(isVirtualComponent)
+                    if(isVirtualComponent){
                         removeDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT);
+                        member.initializer = MemberInitializator.getInitializer(member)
+                    }
 
                     let isElementProp = isNodeHasDecorator(member, ANNOTATION_ELEMENT);
                     if(isElementProp){
@@ -1135,11 +1134,12 @@ function Plastique(options){
                 // beans.push(className);
             }else if(node.kind == ts.SyntaxKind.CallExpression
                  && node.expression.escapedText == TYPE_CLASS_NAME 
-                 && (node.arguments == null || arguments.length == 0)){
+                 && (node.arguments == null || node.arguments.length == 0)){
                      
                 let typeName = node.typeArguments[0].typeName.escapedText;
-                node.arguments = [getNodePath(node, typeName)?
-                    ts.createNumericLiteral(String(Interfaces.getId(typeName)))
+                let nodePath = getNodePath(node, typeName);
+                node.arguments = [nodePath?
+                    ts.createNumericLiteral(String(Interfaces.getId(nodePath)))
                     :
                     ts.createIdentifier(typeName)
                 ];
@@ -1223,7 +1223,7 @@ function Plastique(options){
                                             let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                                             let memberName = member.name.escapedText;
                                             if(neededModifiers.length == 2){
-                                                new MemberInitializator(node, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponents)
+                                                MemberInitializator.initialize(node, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponents)
                                             }else
                                                 throw new Error(`Event "${className}.${memberName}" should be be a static & readonly`)
                                         }
@@ -1252,7 +1252,8 @@ function Plastique(options){
                     workFilesPaths = workNodes.map(n => n.path);
                     for(let node of workNodes){
                         if(node.resolvedModules){
-                            let importModules = Array.from(node.resolvedModules.values());
+                            let importModules = Array.from(node.resolvedModules.values())
+                                .filter(m => m != void 0); //remove remove modules
                             let hasTypeUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(TYPE_CLASS_PATH));
                             let hasComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(COMPONENT_INTERFACE_PATH));
                             let hasVirtualComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(VIRTUAL_COMPONENT_ANNOTATION_PATH));

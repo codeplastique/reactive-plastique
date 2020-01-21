@@ -40,7 +40,7 @@ class ComponentImpl extends EventerImpl implements Component{
         if(this.app$.v$ == null)
             throw new Error('Component is not attached!')
         //@ts-ignore
-        return _app.getClosestComponent(this.app$.v$.$el, null, types);
+        return _app.getClosestComponent(this.app$.v$.$el.parentElement, null, types);
     }
     public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
         eventName = eventName.toLowerCase();
@@ -69,32 +69,33 @@ abstract class App{
     private static ep: Object; //entry point
 
     private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any>>) {
-        parent = parent.parentElement; // don't return the same component
-        while(true){
-            let virtualComponent: any
-            if(parent.hasAttribute('data-vcn')){
-                parent = parent.parentElement.closest('[data-cn]');
-                virtualComponent = parent.getAttribute('data-vcn');
-            }
-            if(virtualComponent || parent.hasAttribute('data-cn')){
-                if(parent.__vue__ == null) //if server template
-                    return;
-                if(types){
-                    for(let type of types){
-                        ///@ts-ignore
-                        if(_app.instanceOf(parent.__vue__._data, type))
+        if(parent)
+            while(true){
+                let virtualComponent: any
+                if(parent.hasAttribute('data-vcn')){
+                    virtualComponent = parent.getAttribute('data-vcn');
+                    parent = parent.parentElement.closest('[data-cn]');
+                }
+                if(virtualComponent || parent.hasAttribute('data-cn')){
+                    if(parent.__vue__ == null) //if server template
+                        break
+                    if(types){
+                        for(let type of types){
                             ///@ts-ignore
-                            return new CapturedComponent(parent.__vue__._data, virtualComponent);
-                    }
-                }else
-                    ///@ts-ignore
-                    return new CapturedComponent(parent.__vue__._data, virtualComponent);
+                            if(_app.instanceOf(parent.__vue__._data, type))
+                                ///@ts-ignore
+                                return new CapturedComponent(parent.__vue__._data, virtualComponent);
+                        }
+                    }else
+                        ///@ts-ignore
+                        return new CapturedComponent(parent.__vue__._data, virtualComponent);
+                }
+                parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
+                if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
+                    break
             }
-            parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
-            if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))
-                ///@ts-ignore
-                return new CapturedComponent();
-        }
+        ///@ts-ignore
+        return new CapturedComponent();
     }
 
     public static getBean<T>(id: String | Number, componentObj?: object): T{
