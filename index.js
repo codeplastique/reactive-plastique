@@ -116,12 +116,34 @@ function Plastique(options){
         }
     }
 
-    function getParents(classNode) {
+    function getInterfacesDeep(node, context){
+        let typeInterfaces = [];
+        if(node.kind == ts.SyntaxKind.ClassDeclaration)
+            typeInterfaces = ts.getClassImplementsHeritageClauseElements(node);
+        else{ //node is interface
+            if(node.heritageClauses && node.heritageClauses[0] && node.heritageClauses[0].types)
+                typeInterfaces = node.heritageClauses[0].types
+        }
+        let paths = [];
+        for(let interface of (typeInterfaces || [])){
+            let interfaceName = interface.expression.escapedText;
+            let path = getNodePath(node, interfaceName);
+            let interfaceNode = getClassByPath(path, interfaceName, context);
+            if(interfaceNode && interfaceNode.kind == ts.SyntaxKind.InterfaceDeclaration){
+                paths.push(path);
+                paths.push.apply(paths, getInterfacesDeep(interfaceNode, context));
+            }
+        }
+        return paths;
+    }
+
+    function getParents(classNode, context) {
         let parents = (ts.getClassImplementsHeritageClauseElements(classNode) || []).map(t => getNodePath(classNode, t.expression.escapedText))
-        let parentClass = ts.getClassExtendsHeritageElement(classNode);
-        if(parentClass)
-            parents.push(getNodePath(classNode, parentClass.expression.escapedText))
-        return parents;
+        parents.push.apply(parents, getInterfacesDeep(classNode, context))
+        // let parentClass = ts.getClassExtendsHeritageElement(classNode);
+        // if(parentClass)
+            // parents.push(getNodePath(classNode, parentClass.expression.escapedText))
+        return Array.from(new Set(parents).values());
     }
 
     function isNodeHasDecorator(nodeClass, decoratorName){
@@ -463,9 +485,12 @@ function Plastique(options){
     }
 
     function getClass(currentNode, className, context){
-        let fullModulePath = getNodePath(currentNode, className);
-        if(fullModulePath != null){
-            let module = context.getEmitHost().getSourceFileByPath(fullModulePath);
+        return getClassByPath(getNodePath(currentNode, className), className, context);
+    }
+
+    function getClassByPath(classPath, className, context){
+        if(classPath != null){
+            let module = context.getEmitHost().getSourceFileByPath(classPath);
             for(let node of module.statements)
                 if((node.kind === ts.SyntaxKind.ClassDeclaration || node.kind == ts.SyntaxKind.InterfaceDeclaration) && node.name.escapedText == className)
                     return node;
@@ -953,8 +978,8 @@ function Plastique(options){
     }
 
 
-    function initInterfacesDef(classNode) {
-        let interfaceMask = Interfaces.getMask(getParents(classNode));
+    function initInterfacesDef(classNode, context) {
+        let interfaceMask = Interfaces.getMask(getParents(classNode, context));
         if(interfaceMask.length > 0){
             // getOrCreateConstructor(classNode).body.statements.unshift(callExpr(true));
             // let initInterfacesCall = ts.createCall(
@@ -1121,7 +1146,7 @@ function Plastique(options){
 
                 initAppEvents(node);
 
-                initInterfacesDef(node);
+                initInterfacesDef(node, context);
 
                 tryBindListeners(node);
 
@@ -1234,18 +1259,28 @@ function Plastique(options){
                         typeExpr: if(node.kind == ts.SyntaxKind.CallExpression && node.expression.escapedText == TYPE_CLASS_NAME){
                             if(node.arguments != null && node.arguments.length == 1){
                                 if(node.typeArguments != null && node.typeArguments.length > 0)
-                                    console.error('Type should be with generic type or argument type but not both!')
+                                    throw new Error('Type should be with generic type or argument type but not both!')
                                 break typeExpr;
                             }
                             if(node.typeArguments == null || node.typeArguments.length == 0)
-                                console.error('Genertic type of Type is not set!')
+                                throw new Error('Genertic type of Type is not set!')
                             if(node.typeArguments[0].typeName == null)
-                                console.error('Genertic type of Type is not valid: '+ node.typeArguments[0].typeName)
+                                throw new Error('Genertic type of Type is not valid: '+ node.typeArguments)
 
                             let typeName = node.typeArguments[0].typeName.escapedText;
                             let typePath = getNodePath(node, typeName);
-                            if(typePath)
-                                Interfaces.add(typePath)
+                            if(typePath){
+                                let classOrInterface = getClassByPath(typePath, typeName, context);
+                                if(classOrInterface){
+                                    if(classOrInterface.kind == ts.SyntaxKind.ClassDeclaration) {
+                                        throw new Error(`Generic type ${typeName} is not interface!`);
+                                    }else{
+                                        Interfaces.add(typePath);
+                                        // getInterfacesDeep(classOrInterface, context).concat(typePath).forEach(path => Interfaces.add(path))
+                                    }
+                                }else
+                                    throw new Error(`Type ${typeName} is not recognized!`);
+                            }
                         }
                         return ts.visitEachChild(node, vis, context);
                     }
@@ -1295,9 +1330,10 @@ function Plastique(options){
 class CompilePlugin{
     apply(compiler){
         const isDevelopmentMode = compiler.options.mode && compiler.options.mode == 'development';
-        if(isDevelopmentMode)
-            compiler.options.devtool = "inline-source-map"
-            compiler.options.devtool = false
+        // if(isDevelopmentMode)
+            // compiler.options.devtool = "inline-source-map"
+        compiler.options.devtool = false
+
         const ast = require('abstract-syntax-tree');
         function replaceDefaultInstanceof(element) {
             ast.replace(element, {
@@ -1406,7 +1442,7 @@ class CompilePlugin{
                 console.error('App.ts is not found!');
             for(let asset in compilation.assets){
                 let source = compilation.assets[asset].source();
-                let tree = ast.parse(source);
+                let tree = new ast(source);
 
                 let modulesWrapper = tree.body[0].expression.arguments[0];
                 let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
@@ -1418,7 +1454,11 @@ class CompilePlugin{
                         replaceDefaultInstanceof(element)
                         if(entryPointClassPath == modulePath)
                             moveAppImportDefToTop(element, AppModuleIndex)
-
+                            if(isDevelopmentMode){
+                                let evalExpr = ast.parse('eval("")').body[0];
+                                evalExpr.expression.arguments[0].value = ast.generate(element.body.body[1]) + `\n//# sourceURL=webpack:///${modulePath}?`; //.replace(/\\/g, '\\\\');
+                                element.body.body[1] = evalExpr;
+                            }
                         let template = componentPathToTemplate[modulePath];
                         if (template == null)
                             return;
