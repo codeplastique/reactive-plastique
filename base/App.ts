@@ -55,6 +55,14 @@ class ComponentImpl extends EventerImpl implements Component{
         ///@ts-ignore
         return Promise.resolve();
     }
+
+    public getElement(): Element{
+        //@ts-ignore
+        if(this.app$.v$ == null)
+            throw new Error('Component is not attached!')
+        //@ts-ignore
+        return this.app$.v$.$el;
+    }
     // attach
     // detach
 

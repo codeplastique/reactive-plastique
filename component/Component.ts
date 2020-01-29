@@ -9,5 +9,7 @@ interface Component extends Eventer{
     getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent
 
     fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>
+
+    getElement(): Element
 }
 export default Component;
