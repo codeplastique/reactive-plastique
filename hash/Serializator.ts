@@ -1,16 +1,16 @@
 class Serializator{
-    public static toJson(obj: Object | Object[]): string{
+    public static toJson(obj: Object | Object[], filter?: (object: Object, propertyName: string, value: any) => boolean): string{
         obj = obj['_data']? obj['_data']: obj;
-        return JSON.stringify(new Serializator().serialize(obj));
+        return JSON.stringify(new Serializator().serialize(obj, filter));
     }
-    private serialize(obj: any): Object | Object[]{
+    private serialize(obj: any, filter?: (object: Object, propertyName: string, value: any) => boolean): Object | Object[]{
         if(obj != null && obj.toJSON){
             return obj.toJSON();
         }else{
             if(Array.isArray(obj)){
                 let result = [];
                 for(let i = 0; i < obj.length; i++){
-                    result.push(this.serialize(obj[i]));
+                    result.push(this.serialize(obj[i], filter));
                 }
                 return result;
             }else if(obj != null && typeof obj === 'object'){
@@ -19,10 +19,12 @@ class Serializator{
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                         continue;
-                    else if(aliasToField[fieldName] != null)
-                        result[aliasToField[fieldName]] = this.serialize(obj[fieldName]);
-                    else if(fields == null || fields.indexOf(fieldName) >= 0){
-                        result[fieldName] = this.serialize(obj[fieldName]);
+                    if(filter == null || filter(obj, fieldName, obj[fieldName])){
+                        if(aliasToField[fieldName] != null)
+                            result[aliasToField[fieldName]] = this.serialize(obj[fieldName], filter);
+                        else if(fields == null || fields.indexOf(fieldName) >= 0){
+                            result[fieldName] = this.serialize(obj[fieldName], filter);
+                        }
                     }
                 }
                 return result;
