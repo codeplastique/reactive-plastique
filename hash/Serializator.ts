@@ -14,18 +14,26 @@ class Serializator{
                 }
                 return result;
             }else if(obj != null && typeof obj === 'object'){
-                let [fields, aliasToField] = this.getJsonFields(obj);
+                let [fieldNames, fieldNameToAlias, aliasToMethodName] = this.getJsonFields(obj);
                 let result = {};
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                         continue;
                     if(filter == null || filter(obj, fieldName, obj[fieldName])){
-                        if(aliasToField[fieldName] != null)
-                            result[aliasToField[fieldName]] = this.serialize(obj[fieldName], filter);
-                        else if(fields == null || fields.indexOf(fieldName) >= 0){
-                            result[fieldName] = this.serialize(obj[fieldName], filter);
-                        }
+                        let aliasName = fieldNameToAlias[fieldName] != null?
+                            fieldNameToAlias[fieldName]
+                            :
+                            (fieldNames.indexOf(fieldName) >= 0? 
+                                fieldName
+                                :
+                                null
+                            )
+                        if(aliasName)
+                            result[aliasName] = this.serialize(obj[fieldName], filter)
                     }
+                }
+                for(let aliasName in aliasToMethodName){
+                    result[aliasName] = this.serialize(obj[aliasToMethodName[aliasName]](), filter);
                 }
                 return result;
             }else
@@ -33,18 +41,32 @@ class Serializator{
         }
     }
 
-    private getJsonFields(obj: Object): [string[], object]{
-        let fields = [], aliasToField = {};
+    private isUpperCase(char: string){
+        return char && char == char.toUpperCase();
+    }
+
+    private getJsonFields(obj: Object): [string[], object, object]{
+        let fields = [], fieldNameToAlias = {}, aliasNameToMethodName = {};
         let proto = Object.getPrototypeOf(obj);
         while(proto != null){
             let jsonConfiguration = proto.constructor['$json'];
             if(jsonConfiguration){
                 fields = fields.concat(jsonConfiguration.f);
-                Object.assign(aliasToField, jsonConfiguration.a);
+                Object.assign(fieldNameToAlias, jsonConfiguration.fa);
+                Object.assign(aliasNameToMethodName, jsonConfiguration.am);
+                
+                for(let methodName of jsonConfiguration.m as string[]){
+                    let alias = methodName;
+                    let charNumber = methodName.startsWith('get')? 3: (methodName.startsWith('is')? 2: null);
+                    if(charNumber && this.isUpperCase(methodName[charNumber]))
+                        alias = methodName[charNumber].toLowerCase() + methodName.substr(charNumber + 1);
+
+                    aliasNameToMethodName[alias] = methodName;
+                }
             }
-            proto = Object.getPrototypeOf(proto)
+            proto = Object.getPrototypeOf(proto);
         }
-        return [fields, aliasToField];
+        return [fields, fieldNameToAlias, aliasNameToMethodName];
     }
 }
 

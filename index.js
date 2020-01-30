@@ -234,7 +234,7 @@ function Plastique(options){
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
-                console.error('Vue compile error!' + vueCompilerResult.errors);
+                console.error(`Vue compile error! Template ${componentName}. ` + vueCompilerResult.errors);
             let staticRenders = [];
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
@@ -1018,7 +1018,9 @@ function Plastique(options){
 
     function initAppEvents(classNode){
         let jsonFields = [];
-        let jsonNameToAlias = [];
+        let jsonMethods = [];
+        let jsonFieldNameToAlias = [];
+        let jsonAliasToMethodName = [];
         let noStaticFieldsCount = 0;
         if(classNode.members){
             let className = classNode.name.escapedText;
@@ -1030,11 +1032,27 @@ function Plastique(options){
                             let memberName = member.name.escapedText;
                             let aliasName = getDecoratorArgumentMethodName(member, ANNOTATION_TO_JSON);
                             if(aliasName){
-                                jsonNameToAlias.push(
+                                jsonFieldNameToAlias.push(
                                     ts.createPropertyAssignment(memberName, ts.createStringLiteral(aliasName))
                                 );
                             }else{
                                 jsonFields.push(ts.createStringLiteral(memberName));
+                            }
+                        }
+                    }
+                    removeDecorator(member, ANNOTATION_TO_JSON);
+                }
+                if(member.kind == ts.SyntaxKind.MethodDeclaration){
+                    if(member.modifiers && member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
+                        if(isNodeHasDecorator(member, ANNOTATION_TO_JSON)){
+                            let methodName = member.name.escapedText;
+                            let aliasName = getDecoratorArgumentMethodName(member, ANNOTATION_TO_JSON);
+                            if(aliasName){
+                                jsonAliasToMethodName.push(
+                                    ts.createPropertyAssignment(aliasName, ts.createStringLiteral(methodName))
+                                );
+                            }else{
+                                jsonMethods.push(ts.createStringLiteral(methodName));
                             }
                         }
                     }
@@ -1084,7 +1102,7 @@ function Plastique(options){
                 }
             }
         }
-        if(jsonNameToAlias.length > 0 || jsonFields.length > 0){
+        if(jsonFieldNameToAlias.length > 0 || jsonFields.length > 0 || jsonAliasToMethodName.length > 0 || jsonMethods.length > 0){
             classNode.members.push(
                 ts.createProperty(
                     undefined,
@@ -1093,8 +1111,10 @@ function Plastique(options){
                     undefined,
                     undefined,
                     ts.createObjectLiteral([
-                        ts.createPropertyAssignment('f', ts.createArrayLiteral(jsonFields)),
-                        ts.createPropertyAssignment('a', ts.createObjectLiteral(jsonNameToAlias))
+                        ts.createPropertyAssignment('f', ts.createArrayLiteral(jsonFields)), //fields
+                        ts.createPropertyAssignment('fa', ts.createObjectLiteral(jsonFieldNameToAlias)), //aliasName to fieldName
+                        ts.createPropertyAssignment('m', ts.createArrayLiteral(jsonMethods)), //methodNames
+                        ts.createPropertyAssignment('am', ts.createObjectLiteral(jsonAliasToMethodName)), //aliasName to fieldName
                     ])
                 )
             );
