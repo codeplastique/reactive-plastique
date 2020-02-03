@@ -291,6 +291,16 @@ abstract class App{
                 if(this._data.app$)
                     this._data.app$.v$ = this;
             },
+            mounted: function(){
+                //attach callbacks
+                (this.app$.ac || []).forEach((f: Function) => f());
+                this.app$.ac = null;
+            },
+            beforeDestroy: function(){
+                //detach callbacks
+                (this.app$.dc || []).forEach((f: Function) => f());
+                this.app$.dc = null;
+            },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
                     let arr = [], size: number, getValue: (i: number) => object;
@@ -325,17 +335,8 @@ abstract class App{
                     if(component.app$.pc)
                         delete component.app$.pc;
                     return component;
-                },
-                mounted: function(){
-                    //attach callbacks
-                    (this.app$.ac || []).forEach((f: Function) => f());
-                    this.app$.ac = null;
-                },
-                beforeDestroy: function(){
-                    //detach callbacks
-                    (this.app$.dc || []).forEach((f: Function) => f());
-                    this.app$.dc = null;
                 }
+               
                 // $convDblClick: function(event, clickAction: any, dblClickAction: Function) {
                 //     let target = event.currentTarget;
                 //     if(target.cc == null)
