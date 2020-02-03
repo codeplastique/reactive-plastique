@@ -31,18 +31,25 @@ class EventerImpl implements Eventer{
     }
 }
 class ComponentImpl extends EventerImpl implements Component{
+    private checkInit(checkForAttaching?: boolean): void{
+        //@ts-ignore
+        if(this.app$ == null)
+            throw new Error('Component is not initialized!')
+        //@ts-ignore
+        if(checkForAttaching && this.app$.v$ == null)
+            throw new Error('Component is not attached!')
+    }
     public isComponentAttached(): boolean{
         //@ts-ignore
         return this.app$.v$ != null
     }
     public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent {
-        //@ts-ignore
-        if(this.app$.v$ == null)
-            throw new Error('Component is not attached!')
+        this.checkInit(true);
         //@ts-ignore
         return _app.getClosestComponent(this.app$.v$.$el.parentElement, null, types);
     }
     public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
+        this.checkInit(true);
         eventName = eventName.toLowerCase();
         ///@ts-ignore
         let parent = this.app$.parent;
@@ -57,17 +64,31 @@ class ComponentImpl extends EventerImpl implements Component{
     }
 
     public getElement(): Element{
-        //@ts-ignore
-        if(this.app$.v$ == null)
-            throw new Error('Component is not attached!')
+        this.checkInit(true);
         //@ts-ignore
         return this.app$.v$.$el;
     }
-    // attach
-    // detach
+    public hashCode(): string{
+        this.checkInit();
+        ///@ts-ignore
+        return String(this.app$.id)
+    }
 
-    //when attached
-    //when dettached
+    public whenAttached(callback: Function): void{
+        this.checkInit();
+        ///@ts-ignore
+        this.app$.ac = this.app$.ac || [];
+        ///@ts-ignore
+        this.app$.ac.push(callback);
+    }
+    
+    public whenDetached(callback: Function): void{
+        this.checkInit();
+        ///@ts-ignore
+        this.app$.dc = this.app$.dc || [];
+        ///@ts-ignore
+        this.app$.dc.push(callback);
+    }
 }
 abstract class App{
     private static beanNameToDef: {[beanName: string]: Function | Object} = {};
@@ -304,13 +325,17 @@ abstract class App{
                     if(component.app$.pc)
                         delete component.app$.pc;
                     return component;
+                },
+                mounted: function(){
+                    //attach callbacks
+                    (this.app$.ac || []).forEach((f: Function) => f());
+                    this.app$.ac = null;
+                },
+                beforeDestroy: function(){
+                    //detach callbacks
+                    (this.app$.dc || []).forEach((f: Function) => f());
+                    this.app$.dc = null;
                 }
-                // mounted: function(){
-                //     if(this.attachedComponents[this]){
-                //         let func = (res, rej) => {res(this);}
-                //         this.attachedComponents[this].promise = new Promise(func);
-                //     }
-                // }
                 // $convDblClick: function(event, clickAction: any, dblClickAction: Function) {
                 //     let target = event.currentTarget;
                 //     if(target.cc == null)

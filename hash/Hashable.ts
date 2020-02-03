@@ -1,5 +1,3 @@
-interface Hashable{
+export default interface Hashable{
     hashCode(): string;
 }
-
-export default Hashable;
