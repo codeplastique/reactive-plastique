@@ -77,17 +77,25 @@ class ComponentImpl extends EventerImpl implements Component{
     public whenAttached(callback: Function): void{
         this.checkInit();
         ///@ts-ignore
-        this.app$.ac = this.app$.ac || [];
-        ///@ts-ignore
-        this.app$.ac.push(callback);
+        if(this.app$.v$ == null) {
+            ///@ts-ignore
+            this.app$.ac = this.app$.ac || [];
+            ///@ts-ignore
+            this.app$.ac.push(callback);
+        }else
+            callback();
     }
-    
+
     public whenDetached(callback: Function): void{
         this.checkInit();
         ///@ts-ignore
-        this.app$.dc = this.app$.dc || [];
-        ///@ts-ignore
-        this.app$.dc.push(callback);
+        if(this.app$.v$ == null) {
+            ///@ts-ignore
+            this.app$.dc = this.app$.dc || [];
+            ///@ts-ignore
+            this.app$.dc.push(callback);
+        }else
+            callback();
     }
 }
 abstract class App{
@@ -293,13 +301,23 @@ abstract class App{
             },
             mounted: function(){
                 //attach callbacks
-                (this.app$.ac || []).forEach((f: Function) => f());
-                this.app$.ac = null;
+                let callbacks = this._data.app$.ac;
+                if(callbacks) {
+                    this.$nextTick(() => {
+                        callbacks.forEach((f: Function) => f());
+                        this._data.app$.ac = null;
+                    });
+                }
             },
             beforeDestroy: function(){
                 //detach callbacks
-                (this.app$.dc || []).forEach((f: Function) => f());
-                this.app$.dc = null;
+                let callbacks = this._data.app$.dc;
+                if(callbacks) {
+                    this.$nextTick(() => {
+                        callbacks.forEach((f: Function) => f());
+                        this._data.app$.dc = null;
+                    });
+                }
             },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
