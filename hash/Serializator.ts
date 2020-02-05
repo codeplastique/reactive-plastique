@@ -1,16 +1,32 @@
 class Serializator{
-    public static toJson(obj: Object | Object[], filter?: (object: Object, propertyName: string, value: any) => boolean): string{
+    public static toJson(
+        obj: Object | Object[], 
+        valueFilter?: (object: Object, propertyNameOrIndex: string | number, value: any) => boolean,
+        valueTransformator?: (object: Object, propertyNameOrIndex: string | number, value: any) => any,
+    ): string{
         obj = obj['_data']? obj['_data']: obj;
-        return JSON.stringify(new Serializator().serialize(obj, filter));
+        return JSON.stringify(new Serializator(valueFilter, valueTransformator).serialize(obj));
     }
-    private serialize(obj: any, filter?: (object: Object, propertyName: string, value: any) => boolean): Object | Object[]{
+
+    public constructor(
+        private readonly filter?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => boolean,
+        private readonly transformator?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => any
+    ){}
+
+    public serialize(obj: any): Object | Object[]{
         if(obj != null && obj.toJSON){
             return obj.toJSON();
         }else{
+            let valueTransformator = this.transformator;
             if(Array.isArray(obj)){
                 let result = [];
                 for(let i = 0; i < obj.length; i++){
-                    result.push(this.serialize(obj[i], filter));
+                    if(this.filter == null || this.filter(obj, i, obj[i]))
+                        result.push(valueTransformator?
+                            valueTransformator(obj, i, obj[i])
+                            :
+                            this.serialize(obj[i])
+                        );
                 }
                 return result;
             }else if(obj != null && typeof obj === 'object'){
@@ -19,7 +35,7 @@ class Serializator{
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                         continue;
-                    if(filter == null || filter(obj, fieldName, obj[fieldName])){
+                    if(this.filter == null || this.filter(obj, fieldName, obj[fieldName])){
                         let aliasName = fieldNameToAlias[fieldName] != null?
                             fieldNameToAlias[fieldName]
                             :
@@ -29,11 +45,22 @@ class Serializator{
                                 null
                             )
                         if(aliasName)
-                            result[aliasName] = this.serialize(obj[fieldName], filter)
+                            result[aliasName] = this.serialize(valueTransformator?
+                                valueTransformator(obj, fieldName, obj[fieldName])
+                                :
+                                obj[fieldName]
+                            )
                     }
                 }
                 for(let aliasName in aliasToMethodName){
-                    result[aliasName] = this.serialize(obj[aliasToMethodName[aliasName]](), filter);
+                    let methodName = aliasToMethodName[aliasName];
+                    let methodResult = obj[methodName]();
+                    if(this.filter == null || this.filter(obj, methodName, methodResult))
+                        result[aliasName] = this.serialize(valueTransformator?
+                            valueTransformator(obj, methodName, methodResult)
+                            :
+                            methodResult
+                        );
                 }
                 return result;
             }else
