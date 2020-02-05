@@ -301,7 +301,7 @@ abstract class App{
             },
             mounted: function(){
                 //attach callbacks
-                let callbacks = this._data.app$.ac;
+                let callbacks = this._data.app$? this._data.app$.ac: null;
                 if(callbacks) {
                     this.$nextTick(() => {
                         callbacks.forEach((f: Function) => f());
@@ -311,7 +311,7 @@ abstract class App{
             },
             beforeDestroy: function(){
                 //detach callbacks
-                let callbacks = this._data.app$.dc;
+                let callbacks = this._data.app$? this._data.app$.dc: null;
                 if(callbacks) {
                     this.$nextTick(() => {
                         callbacks.forEach((f: Function) => f());
