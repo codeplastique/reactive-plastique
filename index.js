@@ -224,8 +224,10 @@ function Plastique(options){
             console.error('Component '+ componentName +' has multiple root tags!')
         let rootComponent = rootTag.children[0];
     
-        let prefixAttrName = rootComponent.attributes
-                .find(a => a.name.startsWith('xmlns:') && a.value == VUE_SCRIPT_DIALECT_URL).map(a => a.name);
+        let prefixAttr = Array.from(rootComponent.attributes)
+                .find(a => a.name.startsWith('xmlns:') && a.value == VUE_SCRIPT_DIALECT_URL);
+        let prefixAttrName = prefixAttr? prefixAttr.name: null;
+
         let prefix;
         if(prefixAttrName){
             rootComponent.removeAttribute(prefixAttrName);
@@ -249,7 +251,7 @@ function Plastique(options){
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
-                console.error(`Vue compile error! Template ${componentName}. ` + vueCompilerResult.errors);
+                throw new Error(`Vue compile error! Template ${componentName}. ` + vueCompilerResult.errors);
             let staticRenders = [];
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
@@ -543,7 +545,7 @@ function Plastique(options){
                 }
             }
             if(++maxParents > 100)
-                console.error('More than 100 parents on '+ className);
+                throw new Error('More than 100 parents on '+ className);
         }
         return {
             members: members,
@@ -587,9 +589,9 @@ function Plastique(options){
                     }
                 }
                 if(templateArg == null)
-                    console.error('Template is not found! Component: '+ componentNode.name.escapedText)
+                    throw new Error('Template is not found! Component: '+ componentNode.name.escapedText)
             }else if(templateArg.kind != ts.SyntaxKind.TemplateExpression && templateArg.kind != ts.SyntaxKind.FirstTemplateToken){
-                console.error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
+                throw new Error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
             }
             return templateArg.getFullText().slice(1, -1);// remove quote(`) chars
         }
@@ -628,7 +630,7 @@ function Plastique(options){
                     let id = idProducer.getId(memberPathName, classNode);
                     return ts.createStringLiteral(String(id));
                 }else
-                    console.error(`Member "${memberPathName} must have the ${requiredType} type`);
+                    throw new Error(`Member "${memberPathName} must have the ${requiredType} type`);
             }else{
                 let properies = [];
                 let memberParts = member.type.members;
@@ -789,9 +791,9 @@ function Plastique(options){
         for(let member of beanClass.members){
             if(member.kind == ts.SyntaxKind.MethodDeclaration && isNodeHasDecorator(member, ANNOTATION_BEAN)){
                 if(member.type.typeName == null)
-                    console.error('Method '+ member.name.escapedText +' is not typed!')
+                    throw new Error('Method '+ member.name.escapedText +' is not typed!')
                 if(member.parameters && member.parameters.length != 0)
-                    console.error('Method '+ member.name.escapedText +' should not have parameters')
+                    throw new Error('Method '+ member.name.escapedText +' should not have parameters')
                 // beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
 
                 let typeName = member.type.typeName.escapedText
@@ -804,7 +806,7 @@ function Plastique(options){
                     if(beansOfEntryPoint)
                         beansOfEntryPoint.push(typeName);
                 }else if(beansOfEntryPoint && beansOfEntryPoint.includes(typeName)){
-                    console.error(`Bean with type ${typeName} is initialized twice!`)
+                    throw new Error(`Bean with type ${typeName} is initialized twice!`)
                 }
                 beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
                 removeDecorator(member, ANNOTATION_BEAN);
@@ -882,7 +884,7 @@ function Plastique(options){
             return -1;
         let beanId = beanToId[beanName];
         if(beanId === undefined)
-            console.error('Bean '+ beanName +' is not initialized!')
+            throw new Error('Bean '+ beanName +' is not initialized!')
         return beanId;
     }
 
@@ -892,7 +894,7 @@ function Plastique(options){
         for(let member of classNode.members){
             if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
                 if(member.type.typeName == null)
-                    console.error('Field '+ member.name.escapedText +' is not typed!')
+                    throw new Error('Field '+ member.name.escapedText +' is not typed!')
                 member.initializer =  ts.createCall(
                     ts.createPropertyAccess(
                         ts.createIdentifier('_app'),
@@ -1098,13 +1100,13 @@ function Plastique(options){
                                 else
                                     member.initializer = ts.createStringLiteral(String(eventId));
                             }else
-                                console.error(`Event "${className}.${eventName}" must have ${APP_EVENT_TYPE} type`)
+                                throw new Error(`Event "${className}.${eventName}" must have ${APP_EVENT_TYPE} type`)
                         }
 
                         if(isCompositeEvent)
                             member.initializer = ts.createObjectLiteral(properies);
                     }else
-                        console.error(`Event "${className}.${memberName}" must be a static & readonly`)
+                        throw new Error(`Event "${className}.${memberName}" must be a static & readonly`)
                     removeDecorator(member, ANNOTATION_INIT_EVENT);
                 }
             }
@@ -1156,7 +1158,7 @@ function Plastique(options){
                     let superNode = getSuperNode(constructorNode);
                     if(superNode != null){
                         if(superNode.expression.arguments && superNode.expression.arguments.length > 0){
-                            console.error('Super node should be without arguments when you extending array');
+                            throw new Error('Super node should be without arguments when you extending array');
                         }
                         let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
                         constructorNode.body.statements.splice(superNodeIndex, 1);
