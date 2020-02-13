@@ -17,7 +17,9 @@
     <attribute-processor name="component"  />
     <attribute-processor name="each"  />
     <attribute-processor name="ref"  />
+    <attribute-processor name="slot"  />
 	<element-processor name="block"/>
+	<element-processor name="slot"/>
 
 
     <!-- URL and form-specific attribute processors -->

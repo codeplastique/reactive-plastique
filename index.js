@@ -222,15 +222,36 @@ function Plastique(options){
         let elems = rootTag.querySelectorAll('*');
         if(rootTag.children.length > 1)
             console.error('Component '+ componentName +' has multiple root tags!')
-        if(handle(rootTag.children[0], elems, componentName)){
-            let blockTags = Array.from(elems).filter(e => e.tagName == 'V:BLOCK');
-            for(let blockTag of blockTags){
-                blockTag.insertAdjacentHTML('beforebegin',`<template>${blockTag.innerHTML}</template>`);
-                let templateTag = blockTag.previousSibling;
-                for(attr of blockTag.attributes)
-                    templateTag.setAttribute(attr.name, attr.value);
-                blockTag.remove();
+        let rootComponent = rootTag.children[0];
+        for(var attr of rootComponent.attributes){
+            if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
+                prefix = attr.name.substr(6);
+                rootComponent.removeAttribute(attr.name);
+                break;
             }
+        }
+        let prefixAttrName = rootComponent.attributes
+                .find(a => a.name.startsWith('xmlns:') && a.value == VUE_SCRIPT_DIALECT_URL).map(a => a.name);
+        let prefix;
+        if(prefixAttrName){
+            rootComponent.removeAttribute(prefixAttrName);
+            rootComponent.setAttribute('data-cn', componentName)
+            prefix = prefixAttrName.substr(6)
+        }
+                
+        if(handle(prefix, elems, componentName)){
+            function replaceSpecialTag(tagName, tags){
+                for(let tag of tags){
+                    tag.insertAdjacentHTML('beforebegin',`<${tagName}>${tag.innerHTML}</${tagName}>`);
+                    let specialTag = tag.previousSibling;
+                    for(attr of tag.attributes)
+                        specialTag.setAttribute(attr.name, attr.value);
+                    tag.remove();
+                }
+            }
+            replaceSpecialTag('template', Array.from(elems).filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK')));
+            replaceSpecialTag('slot', Array.from(elems).filter(e => e.tagName == (prefix.toUpperCase() +':SLOT')))
+            
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
@@ -245,154 +266,146 @@ function Plastique(options){
         }else
             return null;
 
-        function handle(rootComponent, elems, componentName){
-            let prefix;
-            rootComponent.setAttribute('data-cn', componentName);
-            if(elems.length > 0){
-                for(var attr of rootComponent.attributes){
-                    if(attr.name.startsWith('xmlns:') && attr.value == VUE_SCRIPT_DIALECT_URL){
-                        prefix = attr.name.substr(6);
-                        rootComponent.removeAttribute(attr.name);
+        function handle(prefix, elems){
+            for(let i = 0; i < elems.length; i++){
+                let elem = elems[i];
+                if(elem.hasAttributes()){
+                    let attributesForDelete = [];
+                    for(var attr of elem.attributes){
+                        if(handleAttr(elem, attr))
+                            attributesForDelete.push(attr.name);
+                    }
+                    for(var attr of attributesForDelete){
+                        elem.removeAttribute(attr);
+                    }
+                }
+            }
+            return true;
+
+
+            function extractExpression(val){
+                val = val.trim();
+                let exprMatch = val.match(/[$#]\{(.+?)\}/g);
+                if(exprMatch == null)
+                    return val;
+                let isWithBrackets = exprMatch.length > 1;
+                return val.replace(/(?<!\w)this\./g, '')
+                    .replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
+                    .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
+            }
+            function isExpression(val){
+                return val.trim().search(/\$\{(.+?)\}/i) == 0;
+            }
+
+            function getModifiers(attrName){
+                return attrName.split('.').slice(1);
+            }
+            function addModifiers(modifiers){
+                // let modifiers = attrName.split('.').slice(1).join('.');
+                return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
+            }
+
+            function copyIfUnlessEachAttributesToComponent(from, to) {
+                let ifAttr = from.getAttribute('v-if');
+                let forAttr = from.getAttribute('v-for');
+                if(ifAttr)
+                    to.setAttribute('v-if', ifAttr);
+                if(forAttr)
+                    to.setAttribute('v-for', forAttr);
+            }
+
+
+            function handleAttr(elem, attr){
+                if(!attr.name.startsWith(prefix +':'))
+                    return;
+                var attrName = attr.name.substr(prefix.length + 1);// +1 - ':'
+                let modifiers = getModifiers(attrName);
+                attrName = attrName.split('.')[0]
+                switch(attrName){
+                    case 'ref':
+                        elem.setAttribute('ref', extractExpression(attr.value));
                         break;
-                    }
-                }
-                if(prefix == null){
-                    return true;
-                }
-                for(let i = 0; i < elems.length; i++){
-                    let elem = elems[i];
-                    if(elem.hasAttributes()){
-                        let attributesForDelete = [];
-                        for(var attr of elem.attributes){
-                            if(handleAttr(elem, attr))
-                                attributesForDelete.push(attr.name);
+                    case 'slot':
+                        let slotAttrName = 'v-slot'+ (modifiers.length > 0? ':'+ modifiers[0]: '');
+                        elem.setAttribute(slotAttrName, extractExpression(attr.value));
+                        break;
+                    case 'model':
+                        elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
+                        break;
+                    case 'text':
+                        let expression = extractExpression(attr.value)
+                        elem.textContent = '{{'+ expression +'}}';
+                        break;
+                    case 'if':
+                        elem.setAttribute('v-if', extractExpression(attr.value));
+                        break;
+                    case 'unless':
+                        elem.setAttribute('v-if', '!('+ extractExpression(attr.value) +')');
+                        break;
+                    case 'attrappend':
+                    case 'eventappend':
+                        for(let dynamicAttr of attr.value.split(',')){
+                            if(dynamicAttr.trim().length == 0)
+                                continue;
+                            let [dynAttrName, dynAttrVal] = dynamicAttr.trim().split('=');
+                            dynAttrName = dynAttrName.trim();
+                            if(isExpression(dynAttrName)){
+                                var macrosType = attrName == 'attrappend'? '__:': '___:';
+                                elem.setAttribute(macrosType + extractExpression(dynAttrName) + macrosType, extractExpression(dynAttrVal));
+                            }else if(isExpression(dynAttrVal)){
+                                handleUnknownAttr(elem, dynAttrName, dynAttrVal);
+                            }else{
+                                elem.setAttribute(dynAttrName, dynAttrVal);
+                            }
                         }
-                        for(var attr of attributesForDelete){
-                            elem.removeAttribute(attr);
+                        break;
+                    case 'classappend':
+                        elem.setAttribute('v-bind:class', extractExpression(attr.value));
+                        break;
+                    case 'component':
+                        var componentVar = extractExpression(attr.value);
+                        if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
+                            elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
+                        }else{
+                            let componentCast = modifiers[0];
+                            let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                            elem.insertAdjacentHTML('beforebegin',
+                                `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
+                            );
+                            let clone = elem.previousSibling;
+                            copyIfUnlessEachAttributesToComponent(elem, clone);
+                            elem.setAttribute = function(){
+                                clone.setAttribute.apply(clone, arguments);
+                            }
+                            elem.remove();
                         }
-                    }
+                        break;
+                    case 'each':
+                        let iterateParts = attr.value.split(':');
+                        let leftExpr = iterateParts[0].trim();
+                        let rightExpr = iterateParts[1].trim();
+                        let isWithState = leftExpr.includes(',')? 1: 0;
+                        rightExpr = `$convState(${isWithState},${extractExpression(rightExpr)})`;
+                        if(isWithState){
+                            let leftPartVars = leftExpr.split(',');
+                            elem.insertAdjacentText('afterBegin',
+                                `{{void(${leftPartVars[1]}=${leftPartVars[0]}.s,${leftPartVars[0]}=${leftPartVars[0]}.v)}}`);
+                        }
+                        elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
+                        break;
+                    default:
+                        handleUnknownAttr(elem, attrName, modifiers, attr.value);
                 }
                 return true;
+            }
 
-
-                function extractExpression(val){
-                    val = val.trim();
-                    let exprMatch = val.match(/[$#]\{(.+?)\}/g);
-                    if(exprMatch == null)
-                        return val;
-                    let isWithBrackets = exprMatch.length > 1;
-                    return val.replace(/(?<!\w)this\./g, '')
-                        .replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
-                        .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
-                }
-                function isExpression(val){
-                    return val.trim().search(/\$\{(.+?)\}/i) == 0;
-                }
-
-                function getModifiers(attrName){
-                    return attrName.split('.').slice(1);
-                }
-                function addModifiers(modifiers){
-                    // let modifiers = attrName.split('.').slice(1).join('.');
-                    return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
-                }
-
-                function copyIfUnlessEachAttributesToComponent(from, to) {
-                    let ifAttr = from.getAttribute('v-if');
-                    let forAttr = from.getAttribute('v-for');
-                    if(ifAttr)
-                        to.setAttribute('v-if', ifAttr);
-                    if(forAttr)
-                        to.setAttribute('v-for', forAttr);
-                }
-
-
-                function handleAttr(elem, attr){
-                    if(!attr.name.startsWith(prefix +':'))
-                        return;
-                    var attrName = attr.name.substr(prefix.length + 1);// +1 - ':'
-                    let modifiers = getModifiers(attrName);
-                    attrName = attrName.split('.')[0]
-                    switch(attrName){
-                        case 'ref':
-                            elem.setAttribute('ref', extractExpression(attr.value));
-                            break;
-                        case 'model':
-                            elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
-                            break;
-                        case 'text':
-                            let expression = extractExpression(attr.value)
-                            elem.textContent = '{{'+ expression +'}}';
-                            break;
-                        case 'if':
-                            elem.setAttribute('v-if', extractExpression(attr.value));
-                            break;
-                        case 'unless':
-                            elem.setAttribute('v-if', '!('+ extractExpression(attr.value) +')');
-                            break;
-                        case 'attrappend':
-                        case 'eventappend':
-                            for(let dynamicAttr of attr.value.split(',')){
-                                if(dynamicAttr.trim().length == 0)
-                                    continue;
-                                let [dynAttrName, dynAttrVal] = dynamicAttr.trim().split('=');
-                                dynAttrName = dynAttrName.trim();
-                                if(isExpression(dynAttrName)){
-                                    var macrosType = attrName == 'attrappend'? '__:': '___:';
-                                    elem.setAttribute(macrosType + extractExpression(dynAttrName) + macrosType, extractExpression(dynAttrVal));
-                                }else if(isExpression(dynAttrVal)){
-                                    handleUnknownAttr(elem, dynAttrName, dynAttrVal);
-                                }else{
-                                    elem.setAttribute(dynAttrName, dynAttrVal);
-                                }
-                            }
-                            break;
-                        case 'classappend':
-                            elem.setAttribute('v-bind:class', extractExpression(attr.value));
-                            break;
-                        case 'component':
-                            var componentVar = extractExpression(attr.value);
-                            if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
-                                elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                            }else{
-                                let componentCast = modifiers[0];
-                                let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                                elem.insertAdjacentHTML('beforebegin',
-                                    `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})"></component>`
-                                );
-                                let clone = elem.previousSibling;
-                                copyIfUnlessEachAttributesToComponent(elem, clone);
-                                elem.setAttribute = function(){
-                                    clone.setAttribute.apply(clone, arguments);
-                                }
-                                elem.remove();
-                            }
-                            break;
-                        case 'each':
-                            let iterateParts = attr.value.split(':');
-                            let leftExpr = iterateParts[0].trim();
-                            let rightExpr = iterateParts[1].trim();
-                            let isWithState = leftExpr.includes(',')? 1: 0;
-                            rightExpr = `$convState(${isWithState},${extractExpression(rightExpr)})`;
-                            if(isWithState){
-                                let leftPartVars = leftExpr.split(',');
-                                elem.insertAdjacentText('afterBegin',
-                                    `{{void(${leftPartVars[1]}=${leftPartVars[0]}.s,${leftPartVars[0]}=${leftPartVars[0]}.v)}}`);
-                            }
-                            elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
-                            break;
-                        default:
-                            handleUnknownAttr(elem, attrName, modifiers, attr.value);
-                    }
-                    return true;
-                }
-
-                function handleUnknownAttr(elem, attrName, modifiers, attrVal){
-                    if(attrName.startsWith('on')){
-                        elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
-                    }else
-                        elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
-                }
+            function handleUnknownAttr(elem, attrName, modifiers, attrVal){
+                if(attrName == 'name' && elem.tagName == (prefix.toUpperCase() +':BLOCK')) {
+                    elem.setAttribute('name', attrVal);
+                }else if(attrName.startsWith('on')){
+                    elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
+                }else
+                    elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
             }
         }
     }
@@ -1340,7 +1353,8 @@ function Plastique(options){
 
                 return node;
             }catch(e){
-                console.error(e)
+                console.error(e);
+                process.exit(1)
             }
         };
     };

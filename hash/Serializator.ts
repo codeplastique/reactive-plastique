@@ -1,11 +1,11 @@
 class Serializator{
     public static toJson(
         obj: Object | Object[], 
-        valueFilter?: (object: Object, propertyNameOrIndex: string | number, value: any) => boolean,
+        filter?: (object: Object, propertyNameOrIndex: string | number, value: any) => boolean,
         valueTransformator?: (object: Object, propertyNameOrIndex: string | number, value: any) => any,
     ): string{
         obj = obj['_data']? obj['_data']: obj;
-        return JSON.stringify(new Serializator(valueFilter, valueTransformator).serialize(obj));
+        return JSON.stringify(new Serializator(filter, valueTransformator).serialize(obj));
     }
 
     public constructor(
