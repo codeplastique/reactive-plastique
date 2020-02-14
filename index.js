@@ -236,17 +236,42 @@ function Plastique(options){
         }
                 
         if(handle(prefix, elems, componentName)){
-            function replaceSpecialTag(tagName, tags){
-                for(let tag of tags){
-                    tag.insertAdjacentHTML('beforebegin',`<${tagName}>${tag.innerHTML}</${tagName}>`);
-                    let specialTag = tag.previousSibling;
-                    for(attr of tag.attributes)
-                        specialTag.setAttribute(attr.name, attr.value);
-                    tag.remove();
+            function replaceSpecialTag(tagName, tag){
+                tag.insertAdjacentHTML('beforebegin',`<${tagName}>${tag.innerHTML}</${tagName}>`);
+                let specialTag = tag.previousSibling;
+                for(attr of tag.attributes)
+                    specialTag.setAttribute(attr.name, attr.value);
+                tag.remove();
+                return specialTag;
+            }
+
+            function replaceComponentElems(elems){
+                for(let elem of elems){
+                    let componentAttr = Array.from(elem.attributes).find(a => a.name.startsWith(prefix+ ':component'));
+                    if(componentAttr){
+                        var componentVar = extractExpression(componentAttr.value);
+                        elem.removeAttribute(componentAttr.name)
+                        let cloneComponent = replaceSpecialTag('component', elem);
+                        if(cloneComponent.hasChildNodes()){
+                            replaceComponentElems(cloneComponent.querySelectorAll('*'))
+                        }
+
+                        let [componentCast] = getModifiers(componentAttr.name);
+                        let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                        cloneComponent.setAttribute(':is', componentName);
+                        cloneComponent.setAttribute(':key', componentVar +'.app$.id');
+                        cloneComponent.setAttribute('v-bind:m', `$convComp(${componentVar})`);
+                    }
                 }
             }
-            replaceSpecialTag('template', Array.from(elems).filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK')));
-            replaceSpecialTag('slot', Array.from(elems).filter(e => e.tagName == (prefix.toUpperCase() +':SLOT')))
+            let arrayElems = Array.from(elems);
+            arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
+                .forEach(t => replaceSpecialTag('template', t));
+
+            arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':SLOT'))
+                .forEach(t => replaceSpecialTag('slot', t));
+            replaceComponentElems(elems);
+
             
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
@@ -261,6 +286,29 @@ function Plastique(options){
             };
         }else
             return null;
+
+
+        function extractExpression(val){
+            val = val.trim();
+            let exprMatch = val.match(/[$#]\{(.+?)\}/g);
+            if(exprMatch == null)
+                return val;
+            let isWithBrackets = exprMatch.length > 1;
+            return val.replace(/(?<!\w)this\./g, '')
+                .replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
+                .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
+        }
+        function isExpression(val){
+            return val.trim().search(/\$\{(.+?)\}/i) == 0;
+        }
+
+        function getModifiers(attrName){
+            return attrName.split('.').slice(1);
+        }
+        function addModifiers(modifiers){
+            // let modifiers = attrName.split('.').slice(1).join('.');
+            return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
+        }
 
         function handle(prefix, elems){
             for(let i = 0; i < elems.length; i++){
@@ -277,39 +325,6 @@ function Plastique(options){
                 }
             }
             return true;
-
-
-            function extractExpression(val){
-                val = val.trim();
-                let exprMatch = val.match(/[$#]\{(.+?)\}/g);
-                if(exprMatch == null)
-                    return val;
-                let isWithBrackets = exprMatch.length > 1;
-                return val.replace(/(?<!\w)this\./g, '')
-                    .replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
-                    .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
-            }
-            function isExpression(val){
-                return val.trim().search(/\$\{(.+?)\}/i) == 0;
-            }
-
-            function getModifiers(attrName){
-                return attrName.split('.').slice(1);
-            }
-            function addModifiers(modifiers){
-                // let modifiers = attrName.split('.').slice(1).join('.');
-                return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
-            }
-
-            function copyIfUnlessEachAttributesToComponent(from, to) {
-                let ifAttr = from.getAttribute('v-if');
-                let forAttr = from.getAttribute('v-for');
-                if(ifAttr)
-                    to.setAttribute('v-if', ifAttr);
-                if(forAttr)
-                    to.setAttribute('v-for', forAttr);
-            }
-
 
             function handleAttr(elem, attr){
                 if(!attr.name.startsWith(prefix +':'))
@@ -363,17 +378,18 @@ function Plastique(options){
                         if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
                             elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
                         }else{
-                            let componentCast = modifiers[0];
-                            let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                            elem.insertAdjacentHTML('beforebegin',
-                                `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                            );
-                            let clone = elem.previousSibling;
-                            copyIfUnlessEachAttributesToComponent(elem, clone);
-                            elem.setAttribute = function(){
-                                clone.setAttribute.apply(clone, arguments);
-                            }
-                            elem.remove();
+                            return false;
+                            // let componentCast = modifiers[0];
+                            // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                            // elem.insertAdjacentHTML('beforebegin',
+                            //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
+                            // );
+                            // let clone = elem.previousSibling;
+                            // copyIfUnlessEachAttributesToComponent(elem, clone);
+                            // elem.setAttribute = function(){
+                            //     clone.setAttribute.apply(clone, arguments);
+                            // }
+                            // elem.remove();
                         }
                         break;
                     case 'each':
