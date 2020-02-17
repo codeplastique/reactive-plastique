@@ -211,7 +211,7 @@ abstract class App{
 
         let render = obj.app$.tg();
         Vue.component(componentName, {
-            props: ['m'],
+            props: ['m', 'c'], //m - main, c - cssClass
             data: function(elementProps: string[]){
                 return function () {
                     if(elementProps){ // element props
@@ -224,6 +224,7 @@ abstract class App{
                                     }
                                 })
                     }
+                    this.m['clazz$'] = this.c? (' '+ this.c): ''
                     return this.m
                 }
             }(configurator.ep),

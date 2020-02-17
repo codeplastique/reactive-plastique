@@ -65,17 +65,18 @@ function Plastique(options){
     const COMPONENT_INTERFACE_PATH = '/plastique/component/Component.ts';
     const ENTRYPOINT_ANNOTATION_PATH = '/plastique/base/EntryPoint.ts';
     const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/plastique/component/VirtualComponent.ts';
+    const CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY = 'clazz$';
 
     // --------------------------------------------------------------------------------------------------------------------
 
     var glob = require('glob');
     var fs = require('fs');
-    const pug = require('pug');
+    // const pug = require('pug'); "2.0.4"
     const vueCompiler = require('vue-template-compiler');
     const { JSDOM } = require('jsdom');
     const ts = require("typescript");
     const PropertiesReader = require('properties-reader');
-    const mkdirp = require('mkdirp');
+    // const mkdirp = require('mkdirp'); "0.5.1
     Array.prototype.flatMap = function(f) {
         return this.map(f).reduce((x,y) => x.concat(y), [])
     }
@@ -261,6 +262,12 @@ function Plastique(options){
                         cloneComponent.setAttribute(':is', componentName);
                         cloneComponent.setAttribute(':key', componentVar +'.app$.id');
                         cloneComponent.setAttribute('v-bind:m', `$convComp(${componentVar})`);
+
+                        let classAppendAttr = cloneComponent.getAttribute('v-bind:class');
+                        if(classAppendAttr){
+                            cloneComponent.setAttribute('v-bind:c', classAppendAttr);
+                            cloneComponent.removeAttribute('v-bind:class')
+                        }
                     }
                 }
             }
@@ -272,6 +279,8 @@ function Plastique(options){
                 .forEach(t => replaceSpecialTag('slot', t));
             replaceComponentElems(elems);
 
+            let classAppendAttr = rootComponent.getAttribute('v-bind:class');
+            rootComponent.setAttribute('v-bind:class', (classAppendAttr? (classAppendAttr + '+'): '') + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
             
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
