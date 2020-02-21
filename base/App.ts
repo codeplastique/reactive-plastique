@@ -21,12 +21,12 @@ class EventerImpl implements Eventer{
         EventerImpl.listeners[eventName].push(func);
     }
     public fireEvent<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T[]>{
-        eventName = eventName.toLowerCase();
+        eventName = (eventName as string).toLowerCase();
         if(EventerImpl.listeners[eventName as string] == null){
             console.log('No listeners for event: '+ eventName);
             ///@ts-ignore
             return Promise.resolve();
-        }
+        } 
         return Promise.all(EventerImpl.listeners[eventName as string].map(func => func(eventObject, this.$caller? this.$caller: this)));
     }
 }
@@ -50,7 +50,7 @@ class ComponentImpl extends EventerImpl implements Component{
     }
     public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
         this.checkInit(true);
-        eventName = eventName.toLowerCase();
+        eventName = (eventName as string).toLowerCase();
         ///@ts-ignore
         let parent = this.app$.parent;
         while(parent){
@@ -154,6 +154,18 @@ abstract class App{
         return App.getBean(beanFunction);
     }   
     
+    private static addListeners(configuration: string, obj: any){
+        let methodNameToEvent = JSON.parse(configuration);
+        for(let methodName in methodNameToEvent){
+            let event = methodNameToEvent[methodName];
+            let method = obj[methodName].bind(obj);
+            if(obj.app$){
+                let events = obj.app$.events[event] = obj.app$.events[event] || [];
+                events.push(method);
+            }
+            EventerImpl.addListener(event, method);
+        }
+    }
 
     private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator: Function){
         let config = JSON.parse(configuration);
@@ -219,7 +231,7 @@ abstract class App{
                             if(!(prop in this.m))
                                 Object.defineProperty(this.m, prop, {
                                     enumerable: true,
-                                    get:  function(){ 
+                                    get: function(){ 
                                         return this.app$.v$? this.app$.v$.$refs[prop]: null
                                     }
                                 })
@@ -238,18 +250,7 @@ abstract class App{
         });
     }
 
-    private static addListeners(configuration: string, obj: any){
-        let methodNameToEvent = JSON.parse(configuration);
-        for(let methodName in methodNameToEvent){
-            let event = methodNameToEvent[methodName];
-            let method = obj[methodName].bind(obj);
-            if(obj.app$){
-                let events = obj.app$.events[event] = obj.app$.events[event] || [];
-                events.push(method);
-            }
-            EventerImpl.addListener(event, method);
-        }
-    }
+    
 
     constructor(element?: HTMLElement){
         let $ = this.constructor['$'];
@@ -319,6 +320,7 @@ abstract class App{
                         this._data.app$.dc = null;
                     });
                 }
+                
             },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
@@ -513,6 +515,8 @@ if(!Array.prototype.includes){
 }
 window['_app'] = {
     instanceOf: function (obj, type) {
+        if(obj == null) return false;
+
         if(typeof type == 'number'){
             let proto = Object.getPrototypeOf(obj);
             while(proto != null){
