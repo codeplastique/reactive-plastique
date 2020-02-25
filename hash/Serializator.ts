@@ -17,13 +17,14 @@ class Serializator{
         if(obj != null && obj.toJSON){
             return obj.toJSON();
         }else{
-            let valueTransformator = this.transformator;
+            let filter = this.filter;
+            let transformator = this.transformator;
             if(Array.isArray(obj)){
                 let result = [];
                 for(let i = 0; i < obj.length; i++){
                     if(this.filter == null || this.filter(obj, i, obj[i]))
-                        result.push(valueTransformator?
-                            valueTransformator(obj, i, obj[i])
+                        result.push(transformator?
+                            transformator(obj, i, obj[i])
                             :
                             this.serialize(obj[i])
                         );
@@ -35,7 +36,7 @@ class Serializator{
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                         continue;
-                    if(this.filter == null || this.filter(obj, fieldName, obj[fieldName])){
+                    if(filter == null || filter(obj, fieldName, obj[fieldName])){
                         let aliasName = fieldNameToAlias[fieldName] != null?
                             fieldNameToAlias[fieldName]
                             :
@@ -45,8 +46,8 @@ class Serializator{
                                 null
                             )
                         if(aliasName)
-                            result[aliasName] = this.serialize(valueTransformator?
-                                valueTransformator(obj, fieldName, obj[fieldName])
+                            result[aliasName] = this.serialize(transformator?
+                                transformator(obj, fieldName, obj[fieldName])
                                 :
                                 obj[fieldName]
                             )
@@ -55,9 +56,9 @@ class Serializator{
                 for(let aliasName in aliasToMethodName){
                     let methodName = aliasToMethodName[aliasName];
                     let methodResult = obj[methodName]();
-                    if(this.filter == null || this.filter(obj, methodName, methodResult))
-                        result[aliasName] = this.serialize(valueTransformator?
-                            valueTransformator(obj, methodName, methodResult)
+                    if(filter == null || filter(obj, methodName, methodResult))
+                        result[aliasName] = this.serialize(transformator?
+                            transformator(obj, methodName, methodResult)
                             :
                             methodResult
                         );

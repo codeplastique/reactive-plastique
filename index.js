@@ -272,12 +272,14 @@ function Plastique(options){
                 }
             }
             let arrayElems = Array.from(elems);
-            arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
-                .forEach(t => replaceSpecialTag('template', t));
+            if(prefix){
+                arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
+                    .forEach(t => replaceSpecialTag('template', t));
 
-            arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':SLOT'))
-                .forEach(t => replaceSpecialTag('slot', t));
-            replaceComponentElems(elems);
+                arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':SLOT'))
+                    .forEach(t => replaceSpecialTag('slot', t));
+                replaceComponentElems(elems);
+            }
 
             let classAppendAttr = rootComponent.getAttribute('v-bind:class');
             rootComponent.setAttribute('v-bind:class', (classAppendAttr? (classAppendAttr + '+'): '') + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
@@ -1004,7 +1006,7 @@ function Plastique(options){
                     ]
                 );
                 if(isEntryPointNode(classNode))
-                    getOrCreateConstructor(classNode).body.statements.unshift(callExpr(true));
+                    getOrCreateConstructor(classNode).body.statements.splice(1, 0, callExpr(true)); // first is init component
                 else
                     getOrCreateConstructor(classNode).body.statements.push(callExpr(false));
             }
