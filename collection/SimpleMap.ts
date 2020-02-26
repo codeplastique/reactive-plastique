@@ -62,7 +62,7 @@ class SimpleMap<V> implements Map<string, V>, Jsonable{
      * @override
      */
     public toJSON(): Object | Object[]{
-        let obj: object;
+        let obj: object = {};
         for(let key in this.keyToVal){
             let val = this.keyToVal[key];
             obj[key] = val.toJSON? val.toJSON(): val
