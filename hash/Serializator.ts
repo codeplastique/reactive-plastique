@@ -10,24 +10,35 @@ class Serializator{
 
     public constructor(
         private readonly filter?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => boolean,
-        private readonly transformator?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => any
+        private readonly transformator?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => [string | number, any]
     ){}
+
+    private transform(object: Object | Array<any>, propertyNameOrIndex: string | number, value: any): [string | number, any] {
+        let transformator = this.transformator;
+        if(transformator){
+            let result = transformator(object, propertyNameOrIndex, value);
+            if(typeof propertyNameOrIndex === 'number' && propertyNameOrIndex !== result[0])
+                throw new Error('Array index is not changeable!')
+            propertyNameOrIndex = result[0];
+            value = result[1];    
+        }
+        return [propertyNameOrIndex, value];
+    }
 
     public serialize(obj: any): Object | Object[]{
         if(obj != null && obj.toJSON){
             return obj.toJSON();
         }else{
             let filter = this.filter;
-            let transformator = this.transformator;
             if(Array.isArray(obj)){
                 let result = [];
                 for(let i = 0; i < obj.length; i++){
                     if(this.filter == null || this.filter(obj, i, obj[i]))
-                        result.push(transformator?
-                            transformator(obj, i, obj[i])
-                            :
-                            this.serialize(obj[i])
-                        );
+                        result.push(
+                            this.serialize(
+                                this.transform(obj, i, obj[i])[1]
+                                )
+                            );
                 }
                 return result;
             }else if(obj != null && typeof obj === 'object'){
@@ -45,23 +56,19 @@ class Serializator{
                                 :
                                 null
                             )
-                        if(aliasName)
-                            result[aliasName] = this.serialize(transformator?
-                                transformator(obj, fieldName, obj[fieldName])
-                                :
-                                obj[fieldName]
-                            )
+                        if(aliasName){
+                            let transformResult = this.transform(obj, aliasName, obj[fieldName]);
+                            result[transformResult[0]] = this.serialize(transformResult[1]);
+                        }
                     }
                 }
                 for(let aliasName in aliasToMethodName){
                     let methodName = aliasToMethodName[aliasName];
                     let methodResult = obj[methodName]();
-                    if(filter == null || filter(obj, methodName, methodResult))
-                        result[aliasName] = this.serialize(transformator?
-                            transformator(obj, methodName, methodResult)
-                            :
-                            methodResult
-                        );
+                    if(filter == null || filter(obj, methodName, methodResult)){
+                        let transformResult = this.transform(obj, methodName, methodResult);
+                        result[transformResult[0]] = this.serialize(transformResult[1]);
+                    }
                 }
                 return result;
             }else
