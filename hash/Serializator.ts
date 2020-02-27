@@ -47,26 +47,25 @@ class Serializator{
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                         continue;
-                    if(filter == null || filter(obj, fieldName, obj[fieldName])){
-                        let aliasName = fieldNameToAlias[fieldName] != null?
-                            fieldNameToAlias[fieldName]
+
+                    let aliasName = fieldNameToAlias[fieldName] != null?
+                        fieldNameToAlias[fieldName]
+                        :
+                        (fieldNames.indexOf(fieldName) >= 0? 
+                            fieldName
                             :
-                            (fieldNames.indexOf(fieldName) >= 0? 
-                                fieldName
-                                :
-                                null
-                            )
-                        if(aliasName){
-                            let transformResult = this.transform(obj, aliasName, obj[fieldName]);
-                            result[transformResult[0]] = this.serialize(transformResult[1]);
-                        }
+                            null
+                        );
+                    if(aliasName && (filter == null || filter(obj, aliasName, obj[fieldName]))){
+                        let transformResult = this.transform(obj, aliasName, obj[fieldName]);
+                        result[transformResult[0]] = this.serialize(transformResult[1]);
                     }
                 }
                 for(let aliasName in aliasToMethodName){
                     let methodName = aliasToMethodName[aliasName];
                     let methodResult = obj[methodName]();
-                    if(filter == null || filter(obj, methodName, methodResult)){
-                        let transformResult = this.transform(obj, methodName, methodResult);
+                    if(filter == null || filter(obj, aliasName, methodResult)){
+                        let transformResult = this.transform(obj, aliasName, methodResult);
                         result[transformResult[0]] = this.serialize(transformResult[1]);
                     }
                 }
