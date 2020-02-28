@@ -42,21 +42,26 @@ class Serializator{
                 }
                 return result;
             }else if(obj != null && typeof obj === 'object'){
+                
                 let [fieldNames, fieldNameToAlias, aliasToMethodName] = this.getJsonFields(obj);
+                let isSimpleObject = fieldNames.length == 0 
+                    && Object.keys(fieldNameToAlias).length == 0 
+                    && Object.keys(aliasToMethodName).length == 0;
+
                 let result = {};
                 for(let fieldName in obj){
                     if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                         continue;
 
-                    let aliasName = fieldNameToAlias[fieldName] != null?
-                        fieldNameToAlias[fieldName]
-                        :
-                        (fieldNames.indexOf(fieldName) >= 0? 
-                            fieldName
+                    let aliasName = isSimpleObject? 
+                        fieldName
+                        : 
+                        fieldNameToAlias[fieldName] != null?
+                            fieldNameToAlias[fieldName]
                             :
-                            null
-                        );
-                    if(aliasName && (filter == null || filter(obj, aliasName, obj[fieldName]))){
+                            (fieldNames.indexOf(fieldName) >= 0? fieldName: null);
+
+                    if( aliasName && (filter == null || filter(obj, aliasName, obj[fieldName]))){
                         let transformResult = this.transform(obj, aliasName, obj[fieldName]);
                         result[transformResult[0]] = this.serialize(transformResult[1]);
                     }
