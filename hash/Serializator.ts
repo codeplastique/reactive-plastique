@@ -2,10 +2,15 @@ class Serializator{
     public static toJson(
         obj: Object | Object[], 
         filter?: (object: Object, propertyNameOrIndex: string | number, value: any) => boolean,
-        valueTransformator?: (object: Object, propertyNameOrIndex: string | number, value: any) => any,
+        transformator?: (object: Object, propertyNameOrIndex: string | number, value: any) => any,
     ): string{
         obj = obj['_data']? obj['_data']: obj;
-        return JSON.stringify(new Serializator(filter, valueTransformator).serialize(obj));
+        ///@ts-ignore
+        if(obj.toJSON){
+            ///@ts-ignore
+            obj = obj.toJSON();
+        }
+        return JSON.stringify(new Serializator(filter, transformator).serialize(obj));
     }
 
     public constructor(
@@ -14,6 +19,9 @@ class Serializator{
     ){}
 
     private transform(object: Object | Array<any>, propertyNameOrIndex: string | number, value: any): [string | number, any] {
+        if(value != null && value.toJSON)
+            value = value.toJSON();
+
         let transformator = this.transformator;
         if(transformator){
             let result = transformator(object, propertyNameOrIndex, value);
@@ -26,58 +34,53 @@ class Serializator{
     }
 
     public serialize(obj: any): Object | Object[]{
-        if(obj != null && obj.toJSON){
-            return obj.toJSON();
-        }else{
-            let filter = this.filter;
-            if(Array.isArray(obj)){
-                let result = [];
-                for(let i = 0; i < obj.length; i++){
-                    if(this.filter == null || this.filter(obj, i, obj[i]))
-                        result.push(
-                            this.serialize(
-                                this.transform(obj, i, obj[i])[1]
-                                )
-                            );
-                }
-                return result;
-            }else if(obj != null && typeof obj === 'object'){
-                
-                let [fieldNames, fieldNameToAlias, aliasToMethodName] = this.getJsonFields(obj);
-                let isSimpleObject = fieldNames.length == 0 
-                    && Object.keys(fieldNameToAlias).length == 0 
-                    && Object.keys(aliasToMethodName).length == 0;
+        let filter = this.filter;
+        if(Array.isArray(obj)){
+            let result = [];
+            for(let i = 0; i < obj.length; i++){
+                let transformResult = this.transform(obj, i, obj[i])[1];
+                if(this.filter == null || this.filter(obj, i, obj[i]))
+                    result.push(
+                        this.serialize(transformResult));
+            }
+            return result;
+        }else if(obj != null && typeof obj === 'object'){
+            
+            let [fieldNames, fieldNameToAlias, aliasToMethodName] = this.getJsonFields(obj);
+            let isSimpleObject = fieldNames.length == 0 
+                && Object.keys(fieldNameToAlias).length == 0 
+                && Object.keys(aliasToMethodName).length == 0;
 
-                let result = {};
-                for(let fieldName in obj){
-                    if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
-                        continue;
+            let result = {};
+            for(let fieldName in obj){
+                if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
+                    continue;
 
-                    let aliasName = isSimpleObject? 
-                        fieldName
-                        : 
-                        fieldNameToAlias[fieldName] != null?
-                            fieldNameToAlias[fieldName]
-                            :
-                            (fieldNames.indexOf(fieldName) >= 0? fieldName: null);
+                let aliasName = isSimpleObject? 
+                    fieldName
+                    : 
+                    fieldNameToAlias[fieldName] != null?
+                        fieldNameToAlias[fieldName]
+                        :
+                        (fieldNames.indexOf(fieldName) >= 0? fieldName: null);
 
-                    if( aliasName && (filter == null || filter(obj, aliasName, obj[fieldName]))){
-                        let transformResult = this.transform(obj, aliasName, obj[fieldName]);
+                if(aliasName){
+                    let transformResult = this.transform(obj, aliasName, obj[fieldName]);
+                    if(filter == null || filter(obj, aliasName, transformResult)){
                         result[transformResult[0]] = this.serialize(transformResult[1]);
                     }
                 }
-                for(let aliasName in aliasToMethodName){
-                    let methodName = aliasToMethodName[aliasName];
-                    let methodResult = obj[methodName]();
-                    if(filter == null || filter(obj, aliasName, methodResult)){
-                        let transformResult = this.transform(obj, aliasName, methodResult);
-                        result[transformResult[0]] = this.serialize(transformResult[1]);
-                    }
+            }
+            for(let aliasName in aliasToMethodName){
+                let methodName = aliasToMethodName[aliasName];
+                let transformResult = this.transform(obj, aliasName, obj[methodName]());
+                if(filter == null || filter(obj, aliasName, transformResult)){
+                    result[transformResult[0]] = this.serialize(transformResult[1]);
                 }
-                return result;
-            }else
-                return obj;
-        }
+            }
+            return result;
+        }else
+            return obj;
     }
 
     private isUpperCase(char: string){
