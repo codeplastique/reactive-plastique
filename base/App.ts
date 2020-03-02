@@ -27,6 +27,23 @@ class EventerImpl implements Eventer{
             ///@ts-ignore
             return Promise.resolve();
         } 
+        let caller = this.$caller? this.$caller: this;
+        let promise: any = Promise.resolve();
+        for(let listener of EventerImpl.listeners[eventName as string]){
+            promise = function(list){ 
+                return promise.then(() => Promise.all([list(eventObject, caller)]));
+            }(listener);
+        }
+        return promise;
+    }
+
+    public fireEventParallel<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T[]>{
+        eventName = (eventName as string).toLowerCase();
+        if(EventerImpl.listeners[eventName as string] == null){
+            console.log('No listeners for event: '+ eventName);
+            ///@ts-ignore
+            return Promise.resolve();
+        } 
         return Promise.all(EventerImpl.listeners[eventName as string].map(func => func(eventObject, this.$caller? this.$caller: this)));
     }
 }
@@ -553,6 +570,7 @@ window['_app'] = {
                 Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
         });
         Object.defineProperty(clazz.prototype, 'fireEvent', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEvent'));
+        Object.defineProperty(clazz.prototype, 'fireEventParallel', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEventParallel'));
     },
 }
 
