@@ -39,7 +39,7 @@ class Serializator{
             let result = [];
             for(let i = 0; i < obj.length; i++){
                 let transformResult = this.transform(obj, i, obj[i])[1];
-                if(this.filter == null || this.filter(obj, i, obj[i]))
+                if(this.filter == null || this.filter(obj, i, transformResult))
                     result.push(
                         this.serialize(transformResult));
             }
