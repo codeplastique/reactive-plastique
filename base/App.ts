@@ -228,16 +228,7 @@ abstract class App{
             memberNameToWatchMethod[member] = methodNameToMethod[methodName];
         }
 
-        // if(config.ep){ // element props
-        //     for(let prop of config.ep)
-        //         Object.defineProperty(obj, prop, {
-        //             enumerable: true,
-        //             get: function(prop){ return function(){ 
-        //                 return this.app$.v$? this.app$.v$.$refs[prop]: null}
-        //             }(prop)
-        //         })
-        // }
-
+    
         let render = obj.app$.tg();
         Vue.component(componentName, {
             props: ['m', 'c'], //m - main, c - cssClass
@@ -375,23 +366,6 @@ abstract class App{
                     return component;
                 }
                
-                // $convDblClick: function(event, clickAction: any, dblClickAction: Function) {
-                //     let target = event.currentTarget;
-                //     if(target.cc == null)
-                //         target.cc = 1; // click count
-                //     else 
-                //         target.cc++;
-                //     if(target.cc == 1) {
-                //         target.cct = setTimeout(() => {
-                //             target.cc = 0;
-                //             clickAction(event);
-                //         }, 700);
-                //     }else{
-                //         clearTimeout(target.cct);  
-                //         target.cc = 0;
-                //         dblClickAction(event);
-                //     }  
-                // }
             }
         });
     }
@@ -449,6 +423,7 @@ declare global {
         removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
         includes(searchElement: T, fromIndex?: number): boolean;
+        clear(): void
     }
 
     interface Event{
@@ -487,6 +462,9 @@ Array.prototype.removeValues = function (values: any[]) {
         this.removeValue(val);
     }
 }
+Array.prototype.clear = function () {
+    this.splice(0, this.length);
+}
 Array.prototype.set = function (index: number, value: any) {
     if(this.length >= index)
         this.push(value);
@@ -503,33 +481,6 @@ Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef
     return _app.getClosestComponent(this.target, this.currentTarget, types);
 }
 
-//ES 6 support
-declare global {
-    interface Object {
-        values(obj: Object): Array<any>;
-        entries(obj: Object): [string, any];
-    }
-}
-if (!Object.values || !Object.entries) {
-    const reduce = Function.bind.call(Function.call, Array.prototype.reduce);
-    const isEnumerable = Function.bind.call(Function.call, Object.prototype.propertyIsEnumerable);
-    const concat = Function.bind.call(Function.call, Array.prototype.concat);
-    const keys = Reflect.ownKeys;
-	Object.values = function values(O) {
-		return reduce(keys(O), (v, k) => concat(v, typeof k === 'string' && isEnumerable(O, k) ? [O[k]] : []), []);
-    };
-    Object.entries = function entries(O) {
-		return reduce(keys(O), (e, k) => concat(e, typeof k === 'string' && isEnumerable(O, k) ? [[k, O[k]]] : []), []);
-	};
-}
-if(!Array.prototype.includes){
-    Array.prototype.includes = function(searchElement: any, fromIndex?: number){
-        for(let i = fromIndex || 0; i < this.length; i++)
-            if(searchElement === this[i] || (isNaN(searchElement) && isNaN(this[i])))
-                return true;
-        return false;
-    }
-}
 window['_app'] = {
     instanceOf: function (obj, type) {
         if(obj == null) return false;
