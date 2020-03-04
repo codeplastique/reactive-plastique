@@ -39,9 +39,9 @@ class Serializator{
             let result = [];
             for(let i = 0; i < obj.length; i++){
                 let transformValResult = this.transform(obj, i, obj[i])[1]; //index is the same
-                if(filter == null || filter(obj, i, obj[i]))
-                    result.push(
-                        this.serialize(transformValResult));
+                if(filter == null || filter(obj, i, transformValResult)){
+                    result.push(this.serialize(transformValResult));
+                }
             }
             return result;
         }else if(obj != null && typeof obj === 'object'){
