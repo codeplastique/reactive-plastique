@@ -232,10 +232,9 @@ function Plastique(options){
         let prefix;
         if(prefixAttrName){
             rootComponent.removeAttribute(prefixAttrName);
-            rootComponent.setAttribute('data-cn', componentName)
             prefix = prefixAttrName.substr(6)
         }
-                
+        rootComponent.setAttribute('data-cn', componentName)
         if(handle(prefix, elems, componentName)){
             function replaceSpecialTag(tagName, tag){
                 tag.insertAdjacentHTML('beforebegin',`<${tagName}>${tag.innerHTML}</${tagName}>`);
@@ -271,8 +270,9 @@ function Plastique(options){
                     }
                 }
             }
-            let arrayElems = Array.from(elems);
+            
             if(prefix){
+                let arrayElems = Array.from(elems);
                 arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
                     .forEach(t => replaceSpecialTag('template', t));
 
@@ -322,6 +322,9 @@ function Plastique(options){
         }
 
         function handle(prefix, elems){
+            if(prefix == null)
+                return true;
+                
             for(let i = 0; i < elems.length; i++){
                 let elem = elems[i];
                 if(elem.hasAttributes()){
