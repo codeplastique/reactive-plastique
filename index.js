@@ -278,7 +278,7 @@ function Plastique(options){
 
                 arrayElems.filter(e => e.tagName.startsWith(prefix.toUpperCase() +':SLOT'))
                     .map(t => {
-                        let slotName = getModifiers(e.tagName)[0]
+                        let slotName = getModifiers(t.tagName)[0]
                         if(slotName)
                             t.setAttribute('name', slotName)
                         return t;
@@ -444,7 +444,7 @@ function Plastique(options){
                 if(attrName == 'name' && elem.tagName.startsWith(prefix.toUpperCase() +':SLOT')) {
                     if(elem.tagName.includes('.')) // tag has modifiers
                         throw new Error(`Component ${componentName}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
-                    elem.setAttribute('name', attrVal);
+                    elem.setAttribute('name', extractExpression(attrVal));
                 }else if(attrName.startsWith('on')){
                     elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
                 }else
