@@ -217,7 +217,7 @@ function Plastique(options){
     }
 
     function getVueTemplateRender(vueTemplate, componentNode){
-        let componentName = componentNode.name.escapedText;
+        const componentName = componentNode.name.escapedText;
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
@@ -276,8 +276,17 @@ function Plastique(options){
                 arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
                     .forEach(t => replaceSpecialTag('template', t));
 
-                arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':SLOT'))
+                arrayElems.filter(e => e.tagName.startsWith(prefix.toUpperCase() +':SLOT'))
+                    .map(t => {
+                        let slotName = getModifiers(e.tagName)[0]
+                        if(slotName)
+                            t.setAttribute('name', slotName)
+                        return t;
+                    })
                     .forEach(t => replaceSpecialTag('slot', t));
+
+                arrayElems.filter(e => e.hasAttribute('v-slot') && e.tagName != 'TEMPLATE')
+                    .forEach(t => replaceSpecialTag('template', t));
                 replaceComponentElems(elems);
             }
 
@@ -313,8 +322,8 @@ function Plastique(options){
             return val.trim().search(/\$\{(.+?)\}/i) == 0;
         }
 
-        function getModifiers(attrName){
-            return attrName.split('.').slice(1);
+        function getModifiers(attrNameOrTagName){
+            return attrNameOrTagName.split('.').slice(1);
         }
         function addModifiers(modifiers){
             // let modifiers = attrName.split('.').slice(1).join('.');
@@ -351,8 +360,13 @@ function Plastique(options){
                         elem.setAttribute('ref', extractExpression(attr.value));
                         break;
                     case 'slot':
-                        let slotAttrName = 'v-slot'+ (modifiers.length > 0? ':'+ modifiers[0]: '');
-                        elem.setAttribute(slotAttrName, extractExpression(attr.value));
+                        if(modifiers.length > 0 && attr.value.length > 0){
+                            throw new Error(`Component ${componentName}. Indefinable slot name: ${attr.name}="${attr.value}"`)
+                        }else if(modifiers.length == 0 && attr.value.length == 0){
+                            throw new Error(`Component ${componentName}. Slot without name!`)
+                        }
+                        let slotName = (modifiers.length > 0? modifiers[0]: extractExpression(attr.value));
+                        elem.setAttribute('v-slot', slotName);
                         break;
                     case 'model':
                         elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
@@ -420,13 +434,16 @@ function Plastique(options){
                         elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
                         break;
                     default:
-                        handleUnknownAttr(elem, attrName, modifiers, attr.value);
+                        handleUnknownAttr(elem, attrName, modifiers, attr);
                 }
                 return true;
             }
 
-            function handleUnknownAttr(elem, attrName, modifiers, attrVal){
-                if(attrName == 'name' && elem.tagName == (prefix.toUpperCase() +':BLOCK')) {
+            function handleUnknownAttr(elem, attrName, modifiers, attr){
+                let attrVal = attr.value;
+                if(attrName == 'name' && elem.tagName.startsWith(prefix.toUpperCase() +':SLOT')) {
+                    if(elem.tagName.includes('.')) // tag has modifiers
+                        throw new Error(`Component ${componentName}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
                     elem.setAttribute('name', attrVal);
                 }else if(attrName.startsWith('on')){
                     elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
