@@ -278,7 +278,7 @@ function Plastique(options){
                     slotElems.map(t => {
                             let slotName = getModifiers(t.tagName)[0]
                             if(slotName)
-                                t.setAttribute('name', slotName)
+                                t.setAttribute('v-bind:name', slotName)
                             return t;
                         })
                         .forEach(t => replaceSpecialTag('slot', t));
@@ -377,8 +377,8 @@ function Plastique(options){
                             throw new Error(`Component ${componentName}. Slot without name!`)
                         }
                         let slotAttrName = 'v-slot:'+ (modifiers.length > 0? modifiers[0]: '['+ extractExpression(attr.value) +']');
-                        elem.setAttribute(slotAttrName, null);
-                        elem.setAttribute('v-hasSlot', null);
+                        elem.setAttribute(slotAttrName, '');
+                        elem.setAttribute('v-hasSlot', '');
                         break;
                     case 'model':
                         elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
@@ -456,7 +456,7 @@ function Plastique(options){
                 if(attrName == 'name' && elem.tagName.startsWith(prefix.toUpperCase() +':SLOT')) {
                     if(elem.tagName.includes('.')) // tag has modifiers
                         throw new Error(`Component ${componentName}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
-                    elem.setAttribute('name', extractExpression(attrVal));
+                    elem.setAttribute('v-bind:name', extractExpression(attrVal));
                 }else if(attrName.startsWith('on')){
                     elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
                 }else
