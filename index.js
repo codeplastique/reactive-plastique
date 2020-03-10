@@ -273,21 +273,32 @@ function Plastique(options){
             
             if(prefix){
                 let arrayElems = Array.from(elems);
+                let slotElems = arrayElems.filter(t => t.tagName.startsWith(prefix.toUpperCase() +':SLOT'))
+                if(slotElems.length > 0){
+                    slotElems.map(t => {
+                            let slotName = getModifiers(t.tagName)[0]
+                            if(slotName)
+                                t.setAttribute('name', slotName)
+                            return t;
+                        })
+                        .forEach(t => replaceSpecialTag('slot', t));
+                    arrayElems = Array.from(rootTag.querySelectorAll('*'))
+                }
+
+                let templatesElems = arrayElems.filter(t => t.hasAttribute('v-hasSlot')).map(t => {
+                    t.removeAttribute('v-hasSlot');
+                    return t;
+                }).filter(t => t.tagName != (prefix.toUpperCase() +':BLOCK'));
+                if(templatesElems.length > 0){
+                    templatesElems.forEach(t => replaceSpecialTag(prefix.toUpperCase() +':block', t));
+                    arrayElems = Array.from(rootTag.querySelectorAll('*'))
+                }
+
+                replaceComponentElems(arrayElems);
+                arrayElems = Array.from(rootTag.querySelectorAll('*'))
+
                 arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
                     .forEach(t => replaceSpecialTag('template', t));
-
-                arrayElems.filter(e => e.tagName.startsWith(prefix.toUpperCase() +':SLOT'))
-                    .map(t => {
-                        let slotName = getModifiers(t.tagName)[0]
-                        if(slotName)
-                            t.setAttribute('name', slotName)
-                        return t;
-                    })
-                    .forEach(t => replaceSpecialTag('slot', t));
-
-                arrayElems.filter(e => e.hasAttribute('v-slot') && e.tagName != 'TEMPLATE')
-                    .forEach(t => replaceSpecialTag('template', t));
-                replaceComponentElems(elems);
             }
 
             let classAppendAttr = rootComponent.getAttribute('v-bind:class');
@@ -365,8 +376,9 @@ function Plastique(options){
                         }else if(modifiers.length == 0 && attr.value.length == 0){
                             throw new Error(`Component ${componentName}. Slot without name!`)
                         }
-                        let slotName = (modifiers.length > 0? modifiers[0]: extractExpression(attr.value));
-                        elem.setAttribute('v-slot', slotName);
+                        let slotAttrName = 'v-slot:'+ (modifiers.length > 0? modifiers[0]: '['+ extractExpression(attr.value) +']');
+                        elem.setAttribute(slotAttrName, null);
+                        elem.setAttribute('v-hasSlot', null);
                         break;
                     case 'model':
                         elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
