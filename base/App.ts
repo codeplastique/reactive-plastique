@@ -466,8 +466,6 @@ Array.prototype.clear = function () {
     this.splice(0, this.length);
 }
 Array.prototype.set = function (index: number, value: any) {
-    if(this.length >= index)
-        this.push(value);
     if("__ob__" in this)
         Vue.set( this, index, value);
     else

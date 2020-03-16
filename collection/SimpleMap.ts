@@ -1,80 +1,106 @@
-import Jsonable from "../hash/Jsonable";
+import ReactiveMap from "./ReactiveMap";
+import { MapEntry } from './ReactiveMap';
 
-declare let Vue: any;
-
-class SimpleMap<V> implements Map<string, V>, Jsonable{
-    public size: number;
-    private keyToVal: object;
-    constructor(obj?: object){
-        obj = obj || {};
-        let size = Object.keys(obj).length;
-        this.keyToVal = obj;
-        Object.defineProperty(this, 'size', {set: (n) => size = n, get: () => size});
+class SimpleMap<K, V> implements ReactiveMap<K, V>{
+    private k: K[];
+    private v: V[];
+    constructor(map?: ReactiveMap<K, V>){
+        if(map)
+            this.merge(map);
     }
-    clear(): void {
-        this.keyToVal = {};
-        this.size = 0;
+    public size(): number{
+        return this.k.length;
+    }
+    public clear(): void {
+        this.v = [];
+        this.k = [];
     }    
-    delete(key: String): boolean {
-        let has = this.has(key);
-        if(has){
-            this.size--;
-            if("__ob__" in this.keyToVal)
-                Vue.delete( this.keyToVal, key )
-            else
-                delete this.keyToVal[key as string];
+    public delete(key: K): boolean {
+        let keyIndex = this.getKeyIndex(key)
+        if(keyIndex >= 0){
+            this.k.remove(keyIndex);
+            this.v.remove(keyIndex);
             return true;
         }
     }
-    forEach(callbackfn: (value: V, key: string, map: Map<string, V>) => void, thisArg?: any): void {
-        for(let key in this.keyToVal)
-            callbackfn.call(thisArg, this.keyToVal[key], key, this);
+    public forEach(callback: (value: V, key: K, map: ReactiveMap<K, V>) => void, thisArg?: any): void {
+        let vals = this.v;
+        return this.k.forEach((key, i) => callback.call(thisArg, vals[i], key, this))
     }
-    get(key: String): V {
-        return this.keyToVal[key as string];
+    public get(key: K): V {
+        let keyIndex = this.getKeyIndex(key);
+        return this.v[keyIndex];
     }
-    has(key: String): boolean {
-        return key as string in this.keyToVal;
+    public has(key: K): boolean {
+        return this.getKeyIndex(key) >= 0;
     }
-    set(key: string, value: V): this {
-        this.size++;
-        if("__ob__" in this.keyToVal){
-            Vue.set( this.keyToVal, key, value );
+    private getKeyIndex(key: K): number{
+        return this.k.findIndex(k => k === key);
+    }
+
+    /**
+     * @param key is non null!
+     */
+    public set(key: K, value: V): this {
+        let index = this.getKeyIndex(key)
+        if(index < 0){
+            this.k.push(key);
+            this.v.push(value);
         }else
-            this.keyToVal[key] = value;
+            this.k.set(index, key);
+            this.v.set(index, value);
         return this;
     }
-    [Symbol.iterator](): IterableIterator<[string, V]> {
-        return this.entries();
+    public entries(): MapEntry<K, V>[] {
+        let vals = this.v;
+        return this.k.map((key, i) => {
+            return {
+                key: key,
+                value: vals[i]
+            }
+        })
     }
-    entries(): IterableIterator<[string, V]> {
-        return Object.entries(this.keyToVal)[Symbol.iterator]();
+    public keys(): K[] {
+        return this.k.slice();
     }
-    keys(): IterableIterator<string> {
-        return Object.keys(this.keyToVal)[Symbol.iterator]();
+    public values(): V[] {
+        return this.v.slice();
     }
-    values(): IterableIterator<V> {
-        return Object.values(this.keyToVal)[Symbol.iterator]();
-    }
-    [Symbol.toStringTag]: string;
 
     /**
      * @override
      */
     public toJSON(): Object | Object[]{
         let obj: object = {};
-        for(let key in this.keyToVal){
-            let val = this.keyToVal[key];
-            obj[key] = val.toJSON? val.toJSON(): val
-        }
+        this.forEach((v, k) => obj[k.toString()] = v);
         return obj;
     }
 
-    public merge(map: SimpleMap<V>){
-        for(let key in map.keyToVal)
-            this.set(key, map.keyToVal[key]);
+    public merge(map: ReactiveMap<K, V>){
+        map.forEach((v, k) => this.set(k, v))
     }
     
+    public static of<K, V>(k1: K, v1: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V, k5?: K, v5?: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V, k5?: K, v5?: V, k6?: K, v6?: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V, k5?: K, v5?: V, k6?: K, v6?: V, k7?: K, v7?: V): SimpleMap<K, V>
+    public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V, k5?: K, v5?: V, k6?: K, v6?: V, k7?: K, v7?: V, k8?: K, v8?: V): SimpleMap<K, V>{
+        let map: SimpleMap<K, V> = new SimpleMap();
+        let keys = map.k = [];
+        let vals = map.v = [];
+        for(let i = 0; i < arguments.length; i++){
+            let arg = arguments[i];
+            if(i % 2 == 0)
+                keys.push(arg)
+            else
+                vals.push(arg)
+                
+        }
+        return map;
+    }
 }
 
 export default SimpleMap;
