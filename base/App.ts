@@ -1,12 +1,14 @@
 import I18n from "../utils/I18n";
-import HashSet from "../collection/HashSet";
-import SimpleMap from "../collection/SimpleMap";
 import Jsonable from "../hash/Jsonable";
 import Component from "../component/Component";
 import CapturedComponent from "../component/CapturedComponent";
 import Eventer from "../event/Eventer";
 import { TypeDef } from "./Type";
 import AppEvent from "../event/AppEvent";
+import SimpleMap from "../collection/impl/SimpleMap";
+import HashMap from "../collection/impl/HashMap";
+import HashSet from "../collection/impl/HashSet";
+import SimpleSet from "../collection/impl/SimpleSet";
 declare const Vue: any;
 declare const _app: any;
 
@@ -113,6 +115,12 @@ class ComponentImpl extends EventerImpl implements Component{
             this.app$.dc.push(callback);
         }else
             callback();
+    }
+
+    public getSlots(): string[]{
+        this.checkInit(true);
+        //@ts-ignore
+        return Object.keys(this.app$.v$.$slots)
     }
 }
 abstract class App{
@@ -332,26 +340,27 @@ abstract class App{
             },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
-                    let arr = [], size: number, getValue: (i: number) => object;
-                    if(iterable instanceof SimpleMap){
-                        size = iterable.size;
-                        let entries = iterable.entries(); 
-                        getValue = (i) => {
-                            let val = entries.next().value;
-                            return {key: val[0], value: val[1]};
-                        }
-                    }else if(iterable instanceof HashSet){
-                        size = iterable.size;
-                        let values = iterable.values();
-                        getValue = (i) => values.next().value;
+                    let arr = [], 
+                        size: number, 
+                        values: object[];
+
+                    if(iterable instanceof SimpleMap || iterable instanceof HashMap){
+                        size = iterable.size();
+                        values = iterable.entries(); 
+
+                    }else if(iterable instanceof SimpleSet || iterable instanceof HashSet){
+                        size = iterable.size();
+                        values = iterable.values();
+
                     }else if(iterable instanceof Array){
                         size = iterable.length;
-                        getValue = i => iterable[i];
+                        values = iterable[i];
+
                     }else
                         throw new Error('You cant iterate simple object!')
 
                     for(var i = 0; i < size; i++){
-                        let value = getValue(i);
+                        let value = values[i];
                         if(isWithState)
                             value = {v: value, s:{index: i, size: size, last: i == (size-1), first: i == 0}}
                         arr.push(value);
@@ -371,17 +380,12 @@ abstract class App{
     }
 
     public attachComponent(element: HTMLElement, component: Component){
-        // if(!this.isComponentAttached(component)){
         new Vue({
             el: element,
             data: {c: component},
             template: 
             '<component :is="c.app$.cn" :key="c.app$.id" v-bind:m="c"></component>'
         });
-        // }else{
-        //     console.log(component);
-        //     throw new Error('Component is already attached!')
-        // }
     }
 
     public isComponentAttached(component: Component){
@@ -501,19 +505,6 @@ window['_app'] = {
         return obj instanceof type;
     },
     mixin: function (clazz) {
-        // public isComponentAttached(): boolean{
-        //     //@ts-ignore
-        //     return this.app$.v$ != null
-        // }
-        // public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent {
-        //     //@ts-ignore
-        //     if(this.app$.v$ == null)
-        //         throw new Error('Component is not attached!')
-        //     //@ts-ignore
-        //     return _app.getClosestComponent(this.app$.v$.$el, null, types);
-        // }
-        // public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
-
         Object.getOwnPropertyNames(ComponentImpl.prototype).forEach(name => {
             if(name != 'constructor')
                 Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));

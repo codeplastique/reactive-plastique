@@ -1,9 +1,8 @@
-import ReactiveMap from "./ReactiveMap";
-import { MapEntry } from './ReactiveMap';
+import ReactiveMap, { MapEntry } from "../ReactiveMap";
 
-class SimpleMap<K, V> implements ReactiveMap<K, V>{
-    private k: K[];
-    private v: V[];
+export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
+    protected k: K[];
+    protected v: V[];
     constructor(map?: ReactiveMap<K, V>){
         if(map)
             this.merge(map);
@@ -34,7 +33,7 @@ class SimpleMap<K, V> implements ReactiveMap<K, V>{
     public has(key: K): boolean {
         return this.getKeyIndex(key) >= 0;
     }
-    private getKeyIndex(key: K): number{
+    protected getKeyIndex(key: K): number{
         return this.k.findIndex(k => k === key);
     }
 
@@ -46,9 +45,9 @@ class SimpleMap<K, V> implements ReactiveMap<K, V>{
         if(index < 0){
             this.k.push(key);
             this.v.push(value);
-        }else
-            this.k.set(index, key);
+        }else{
             this.v.set(index, value);
+        }
         return this;
     }
     public entries(): MapEntry<K, V>[] {
@@ -89,18 +88,9 @@ class SimpleMap<K, V> implements ReactiveMap<K, V>{
     public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V, k5?: K, v5?: V, k6?: K, v6?: V, k7?: K, v7?: V): SimpleMap<K, V>
     public static of<K, V>(k1: K, v1: V, k2?: K, v2?: V, k3?: K, v3?: V, k4?: K, v4?: V, k5?: K, v5?: V, k6?: K, v6?: V, k7?: K, v7?: V, k8?: K, v8?: V): SimpleMap<K, V>{
         let map: SimpleMap<K, V> = new SimpleMap();
-        let keys = map.k = [];
-        let vals = map.v = [];
-        for(let i = 0; i < arguments.length; i++){
-            let arg = arguments[i];
-            if(i % 2 == 0)
-                keys.push(arg)
-            else
-                vals.push(arg)
-                
+        for(let i = 0; i < arguments.length; i += 2){
+            map.set(arguments[i], arguments[i + 1])
         }
         return map;
     }
 }
-
-export default SimpleMap;
