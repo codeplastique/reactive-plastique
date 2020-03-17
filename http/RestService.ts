@@ -29,7 +29,7 @@ class RestService{
         return axios(props);
     }
 
-    private encodeMap(attrToVal: SimpleMap<string, string | number | boolean>): string{
+    private encodeMap(attrToVal: SimpleMap<string, string>): string{
         let params = [];
         attrToVal.forEach((val, paramKey) => {
             if(val != null)
@@ -38,7 +38,7 @@ class RestService{
         return params.join('&');
     }
 
-    protected buildQuery(url: string, attrToVal: SimpleMap<string, string | number | boolean>): string{
+    protected buildQuery(url: string, attrToVal: SimpleMap<string, string>): string{
         return url +'?'+ this.encodeMap(attrToVal);
     }
 }
