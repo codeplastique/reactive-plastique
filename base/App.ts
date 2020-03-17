@@ -354,7 +354,7 @@ abstract class App{
 
                     }else if(iterable instanceof Array){
                         size = iterable.length;
-                        values = iterable[i];
+                        values = iterable;
 
                     }else
                         throw new Error('You cant iterate simple object!')
