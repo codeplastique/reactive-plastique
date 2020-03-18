@@ -21,7 +21,7 @@ export default class CapturedComponent{
     public get<T>(): T{
         return this.component
     }
-    public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent{
+    public getClosestComponent(types?: Array<Component | TypeDef<any> | Marker>): CapturedComponent{
         if(this.component == null)
             return this;
         ///@ts-ignore

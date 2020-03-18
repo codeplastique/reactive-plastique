@@ -9,6 +9,7 @@ import SimpleMap from "../collection/impl/SimpleMap";
 import HashMap from "../collection/impl/HashMap";
 import HashSet from "../collection/impl/HashSet";
 import SimpleSet from "../collection/impl/SimpleSet";
+import Marker from "../component/Marker";
 declare const Vue: any;
 declare const _app: any;
 
@@ -130,7 +131,7 @@ abstract class App{
     private static epName: string; //entry point name
     private static ep: Object; //entry point
 
-    private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any>>) {
+    private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any> | Marker>) {
         if(parent)
             while(true){
                 let marker: any
@@ -479,10 +480,10 @@ Array.prototype.set = function (index: number, value: any) {
         this[index] = value;
     return this;
 }
-Element.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
+Element.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any> | Marker>) {
     return _app.getClosestComponent(this, null, types);
 }
-Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any>>) {
+Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any> | Marker>) {
     return _app.getClosestComponent(this.target, this.currentTarget, types);
 }
 
