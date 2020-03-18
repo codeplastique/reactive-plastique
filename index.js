@@ -52,19 +52,19 @@ function Plastique(options){
     const ANNOTATION_BEFOREDETACH = 'BeforeDetach';
     const ANNOTATION_ELEMENT = 'Inject';
     const ANNOTATION_INIT_EVENT = 'InitEvent';
-    const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitVirtualComponent';
+    const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitMarker';
     const ANNOTATION_TO_JSON = 'ToJson';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const EVENTMANAGER_CLASS_NAME = 'Eventer';
-    const VIRTUAL_COMPONENT_CLASS_NAME = 'VirtualComponent';
+    const VIRTUAL_COMPONENT_CLASS_NAME = 'Marker';
     const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
     const TYPE_CLASS_NAME = 'Type';
     const TYPE_CLASS_PATH = '/plastique/base/Type.ts';
     const COMPONENT_INTERFACE_PATH = '/plastique/component/Component.ts';
     const ENTRYPOINT_ANNOTATION_PATH = '/plastique/base/EntryPoint.ts';
-    const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/plastique/component/VirtualComponent.ts';
+    const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/plastique/component/Marker.ts';
     const CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY = 'clazz$';
 
     // --------------------------------------------------------------------------------------------------------------------
@@ -414,11 +414,11 @@ function Plastique(options){
                         elem.setAttribute('v-bind:class', extractExpression(attr.value));
                         break;
                     case 'component':
-                        var componentVar = extractExpression(attr.value);
-                        if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
-                            elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                        }else{
-                            return false;
+                        // var componentVar = extractExpression(attr.value);
+                        // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
+                            // elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
+                        // }else{
+                        return false;
                             // let componentCast = modifiers[0];
                             // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
                             // elem.insertAdjacentHTML('beforebegin',
@@ -430,7 +430,26 @@ function Plastique(options){
                             //     clone.setAttribute.apply(clone, arguments);
                             // }
                             // elem.remove();
-                        }
+                        // }
+                        // break;
+                    case 'marker':
+                        var componentVar = extractExpression(attr.value);
+                        // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
+                        elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
+                        // }else{
+                            // return false;
+                            // let componentCast = modifiers[0];
+                            // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                            // elem.insertAdjacentHTML('beforebegin',
+                            //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
+                            // );
+                            // let clone = elem.previousSibling;
+                            // copyIfUnlessEachAttributesToComponent(elem, clone);
+                            // elem.setAttribute = function(){
+                            //     clone.setAttribute.apply(clone, arguments);
+                            // }
+                            // elem.remove();
+                        // }
                         break;
                     case 'each':
                         let iterateParts = attr.value.split(':');

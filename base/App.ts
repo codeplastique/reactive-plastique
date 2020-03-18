@@ -133,24 +133,27 @@ abstract class App{
     private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any>>) {
         if(parent)
             while(true){
-                let virtualComponent: any
+                let marker: any
                 if(parent.hasAttribute('data-vcn')){
-                    virtualComponent = parent.getAttribute('data-vcn');
+                    marker = parent.getAttribute('data-vcn');
                     parent = parent.parentElement.closest('[data-cn]');
+                    if(types && types.find(type => typeof type == 'string' && type == marker)){
+                        types = void 0;// clear types, because the marker is caught
+                    }
                 }
-                if(virtualComponent || parent.hasAttribute('data-cn')){
+                if(marker || parent.hasAttribute('data-cn')){
                     if(parent.__vue__ == null) //if server template
-                        break
+                        break;
                     if(types){
                         for(let type of types){
                             ///@ts-ignore
                             if(_app.instanceOf(parent.__vue__._data, type))
                                 ///@ts-ignore
-                                return new CapturedComponent(parent.__vue__._data, virtualComponent);
+                                return new CapturedComponent(parent.__vue__._data, marker);
                         }
                     }else
                         ///@ts-ignore
-                        return new CapturedComponent(parent.__vue__._data, virtualComponent);
+                        return new CapturedComponent(parent.__vue__._data, marker);
                 }
                 parent = parent.parentElement && parent.parentElement.closest('[data-cn],[data-vcn]');
                 if(parent == null || (topLimitElem && !topLimitElem.contains(parent)))

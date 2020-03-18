@@ -15,6 +15,7 @@
     <attribute-processor name="eventappend"  />
     <attribute-processor name="classappend"  />
     <attribute-processor name="component"  />
+    <attribute-processor name="marker"  />
     <attribute-processor name="each"  />
     <attribute-processor name="ref"  />
     <attribute-processor name="slot"  />
