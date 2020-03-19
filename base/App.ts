@@ -256,7 +256,12 @@ abstract class App{
                                     }
                                 })
                     }
-                    this.m['clazz$'] = this.c? (' '+ this.c): ''
+                    Object.defineProperty(this.m, 'clazz$', {
+                        enumerable: true,
+                        get: (function(p){return function(){ 
+                            return p.c
+                        }})(this)
+                    })
                     return this.m
                 }
             }(configurator.ep),

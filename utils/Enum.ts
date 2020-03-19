@@ -9,4 +9,9 @@ export default class Enum{
         }
         return keys
     }
+
+    ///@ts-ignore
+    static findByValue<E extends Object>(enumClass: E, value: any): InstanceType<E>{
+        return Enum.keys(enumClass).find(k => enumClass[k].equals(value));
+    }
 }
