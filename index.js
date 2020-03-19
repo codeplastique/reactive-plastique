@@ -552,7 +552,7 @@ function Plastique(options){
 
     function getNodePath(node, className){
         if(node.kind == ts.SyntaxKind.ClassDeclaration && node.name.escapedText == className)
-            return node.getSourceFile().path;
+            return node.getSourceFile().fileName;
 
         let d = node.getSourceFile()
             .locals
@@ -577,7 +577,7 @@ function Plastique(options){
 
     function getClassByPath(classPath, className, context){
         if(classPath != null){
-            let module = context.getEmitHost().getSourceFileByPath(classPath);
+            let module = context.getEmitHost().getSourceFile(classPath);
             for(let node of module.statements)
                 if((node.kind === ts.SyntaxKind.ClassDeclaration || node.kind == ts.SyntaxKind.InterfaceDeclaration) && node.name.escapedText == className)
                     return node;
@@ -838,7 +838,7 @@ function Plastique(options){
             //     if(!isImplementsInterface(context, componentNode, interfaceName, true))
             //         throw new Error('Invalid template virtual component "Type<'+ interfaceName +'>". Component "'+ componentName + '" does not implement interface: '+ interfaceName);
             // }
-            componentPathToTemplate[componentNode.parent.path] = templateRender.template;
+            componentPathToTemplate[componentNode.parent.fileName] = templateRender.template;
             // removeDecorator(componentNode, ANNOTATION_TEMPLATE)
         }
 
@@ -1146,7 +1146,7 @@ function Plastique(options){
                     removeDecorator(member, ANNOTATION_TO_JSON);
                 }
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
-                    let classFile = classNode.getSourceFile().path;
+                    let classFile = classNode.getSourceFile().fileName;
                     let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                     let memberName = member.name.escapedText;
                     if(neededModifiers.length == 2){
@@ -1167,7 +1167,7 @@ function Plastique(options){
                                 }
                                 if(eventId == null)
                                     eventId = eventToIdentifier.push({
-                                        classFile: classNode.getSourceFile().path,
+                                        classFile: classNode.getSourceFile().fileName,
                                         className: className,
                                         memberName: eventName,
                                         init: true
@@ -1318,7 +1318,7 @@ function Plastique(options){
                         &&
                         !host.isSourceFileFromExternalLibrary(f)
                         &&
-                        !f.path.startsWith(libPath)
+                        !f.fileName.startsWith(libPath)
                     );
                     let vis = function (node) {
                         componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
@@ -1391,7 +1391,7 @@ function Plastique(options){
                         }
                         return ts.visitEachChild(node, vis, context);
                     }
-                    workFilesPaths = workNodes.map(n => n.path);
+                    workFilesPaths = workNodes.map(n => n.fileName);
                     for(let node of workNodes){
                         if(node.resolvedModules){
                             let importModules = Array.from(node.resolvedModules.values())
@@ -1405,7 +1405,7 @@ function Plastique(options){
                                 if(entryPoint){
                                     if(entryPointClassPath)
                                         console.error('EntryPoint is already defined: '+ entryPointClassPath)
-                                    entryPointClassPath = node.path;
+                                    entryPointClassPath = node.fileName;
                                     configureEntryPointClass(entryPoint, context)
                                 }
                             }

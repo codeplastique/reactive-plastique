@@ -63,7 +63,7 @@ class ComponentImpl extends EventerImpl implements Component{
         //@ts-ignore
         return this.app$.v$ != null
     }
-    public getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent {
+    public getClosestComponent(types?: Array<Component | TypeDef<any> | Marker>): CapturedComponent {
         this.checkInit(true);
         //@ts-ignore
         return _app.getClosestComponent(this.app$.v$.$el.parentElement, null, types);
@@ -435,11 +435,11 @@ declare global {
     }
 
     interface Event{
-        getClosestComponent: (types?: Array<Component | TypeDef<any>>) => CapturedComponent
+        getClosestComponent: (types?: Array<Component | TypeDef<any> | Marker>) => CapturedComponent
     }
 
     interface Element{
-        getClosestComponent: (types?: Array<Component | TypeDef<any>>) => CapturedComponent
+        getClosestComponent: (types?: Array<Component | TypeDef<any> | Marker>) => CapturedComponent
     }
 }
 Object.defineProperty(Object.prototype, 'equals', {
