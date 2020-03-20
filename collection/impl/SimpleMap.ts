@@ -1,8 +1,8 @@
 import ReactiveMap, { MapEntry } from "../ReactiveMap";
 
 export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
-    protected k: K[];
-    protected v: V[];
+    protected k: K[] = [];
+    protected v: V[] = [];
     constructor(map?: ReactiveMap<K, V>){
         if(map)
             this.merge(map);

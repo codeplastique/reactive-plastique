@@ -261,7 +261,7 @@ abstract class App{
                             enumerable: true,
                             get: (function (p) {
                                 return function () {
-                                    return p.c
+                                    return p.c || ''
                                 }
                             })(this)
                         })
