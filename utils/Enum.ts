@@ -1,3 +1,6 @@
+import ReactiveMap from "../collection/ReactiveMap";
+import SimpleMap from "../collection/impl/SimpleMap";
+
 export default class Enum{
     ///@ts-ignore
     static keys<E extends Object>(enumClass: E): InstanceType<E>[]{
@@ -11,7 +14,13 @@ export default class Enum{
     }
 
     ///@ts-ignore
-    static findByValue<E extends Object>(enumClass: E, value: any): InstanceType<E>{
+    static toMap<E extends Object>(enumClass: E): ReactiveMap<InstanceType<E>, any>{
+        return Enum.keys(enumClass)
+            .reduce((map, key) => map.set(key, enumClass[key]), new SimpleMap<InstanceType<any>, any>());
+    }
+
+    ///@ts-ignore
+    static findByValue<E extends Object>(enumClass: E, value: any): InstanceType<E> | null{
         return Enum.keys(enumClass).find(k => enumClass[k].equals(value));
     }
 }
