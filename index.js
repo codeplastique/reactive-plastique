@@ -1232,7 +1232,7 @@ function Plastique(options){
                 undefined,
                 ts.createCall(
                     ts.createPropertyAccess(
-                        ts.createIdentifier(enumerableIdentifier),
+                        ts.createIdentifier(className),
                         ts.createIdentifier('init')
                     ),
                     undefined, // type arguments, e.g. Foo<T>()

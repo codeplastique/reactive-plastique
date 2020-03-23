@@ -25,11 +25,7 @@ export default abstract class Enumerable{
         return this.$[name];
     }
 
-    private static init(enumClass: any): void{
-        enumClass.valueOf = enumClass.valueOf.bind(enumClass);
-        enumClass.values = enumClass.values.bind(enumClass);
-        enumClass.checkInit = enumClass.checkInit.bind(enumClass);
-        // let entries = {};
+    private static init(enumClass: any){
         for(let e in enumClass){
             Object.defineProperty(enumClass[e], 'name$', {
                 value: e
@@ -37,13 +33,13 @@ export default abstract class Enumerable{
         }
         Object.defineProperty(enumClass, '$', {
             configurable: true,
-            value: true
+            writable: true
         })
+        return 1;
     }
 
-    private static checkInit(enumClass: any): void{
-        ///@ts-ignore
-        if(enumClass.$ === void 0)
+    private static checkInit(val: any): void{
+        if(val === void 0)
             throw new Error('Enum is not initialized yet!')
         
     }
