@@ -69,7 +69,7 @@ function Plastique(options){
     const CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY = 'clazz$';
     const ENUM_ANNOTATION_PATH = '/plastique/enum/Enum.ts';
     const ENUMERABLE_CLASS = 'Enumerable';
-    const ENUMERABLE_CLASS_PATH = '/plastique/enum/Enumerable.ts';
+    const ENUMERABLE_IDENTIFIER = 'plastique/enum/Enumerable';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -1219,8 +1219,8 @@ function Plastique(options){
             
         let className = node.name.escapedText;
         let parent = ts.getClassExtendsHeritageElement(node);
-        let enumerableIdentifier = getRealIdentifier(node.getSourceFile(), ENUMERABLE_CLASS_PATH);
-        if(parent == null || parent.name.escapedText != enumerableIdentifier)
+        let enumerableIdentifier = getRealIdentifier(node.getSourceFile(), ENUMERABLE_IDENTIFIER);
+        if(parent == null || parent.expression.escapedText != enumerableIdentifier)
             throw new Error(`Enum ${className} doesn't not extend Enumerable!`)
         
         node.members.push(
@@ -1242,6 +1242,8 @@ function Plastique(options){
                 )
             )
         );
+
+        removeDecorator(node, ANNOTATION_ENUM);
     }
 
     function getRealIdentifier(sourceFile, relativeClassPath) {
