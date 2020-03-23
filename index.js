@@ -54,6 +54,7 @@ function Plastique(options){
     const ANNOTATION_INIT_EVENT = 'InitEvent';
     const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitMarker';
     const ANNOTATION_TO_JSON = 'ToJson';
+    const ANNOTATION_ENUM = 'Enum';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const EVENTMANAGER_CLASS_NAME = 'Eventer';
@@ -66,6 +67,9 @@ function Plastique(options){
     const ENTRYPOINT_ANNOTATION_PATH = '/plastique/base/EntryPoint.ts';
     const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/plastique/component/Marker.ts';
     const CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY = 'clazz$';
+    const ENUM_ANNOTATION_PATH = '/plastique/enum/Enum.ts';
+    const ENUMERABLE_CLASS = 'Enumerable';
+    const ENUMERABLE_CLASS_PATH = '/plastique/enum/Enumerable.ts';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -302,7 +306,8 @@ function Plastique(options){
             }
 
             let classAppendAttr = rootComponent.getAttribute('v-bind:class');
-            rootComponent.setAttribute('v-bind:class', (classAppendAttr? (classAppendAttr + '+'): '') + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
+            let classPrefix = classAppendAttr? '('+ classAppendAttr + ') +" "+ ': ''
+            rootComponent.setAttribute('v-bind:class', classPrefix + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
             
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
@@ -1208,12 +1213,43 @@ function Plastique(options){
         }
     }
 
-    function getRealIdentifier(sourceFile, classPath) {
-        if(!sourceFile.resolvedModules.has(classPath))
-            return null;
+    function initEnums(node){
+        if(node.kind != ts.SyntaxKind.ClassDeclaration || !isNodeHasDecorator(node, ANNOTATION_ENUM))
+            return;
+            
+        let className = node.name.escapedText;
+        let parent = ts.getClassExtendsHeritageElement(node);
+        let enumerableIdentifier = getRealIdentifier(node.getSourceFile(), ENUMERABLE_CLASS_PATH);
+        if(parent == null || parent.name.escapedText != enumerableIdentifier)
+            throw new Error(`Enum ${className} doesn't not extend Enumerable!`)
+        
+        node.members.push(
+            ts.createProperty(
+                undefined,
+                [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+                ts.createIdentifier('$'),
+                undefined,
+                undefined,
+                ts.createCall(
+                    ts.createPropertyAccess(
+                        ts.createIdentifier(enumerableIdentifier),
+                        ts.createIdentifier('init')
+                    ),
+                    undefined, // type arguments, e.g. Foo<T>()
+                    [
+                        ts.createIdentifier(className),
+                    ]
+                )
+            )
+        );
+    }
+
+    function getRealIdentifier(sourceFile, relativeClassPath) {
+        if(!sourceFile.resolvedModules.has(relativeClassPath))
+            return null
         for(let statement of sourceFile.statements){
             if(statement.kind == ts.SyntaxKind.ImportDeclaration){
-                if(statement.moduleSpecifier.text == classPath){
+                if(statement.moduleSpecifier.text == relativeClassPath){
                     return statement.importClause.name.escapedText;
                 }
             }
@@ -1259,6 +1295,8 @@ function Plastique(options){
 
                 injectAutowired(node);
 
+                initEnums(node);
+
 
 
                 // tryBindListeners(node);
@@ -1297,7 +1335,8 @@ function Plastique(options){
                         name == ANNOTATION_INIT_VIRTUAL_COMPONENT ||
                         // name == ANNOTATION_TEMPLATE ||
                         name == ANNOTATION_TO_JSON ||
-                        name == ANNOTATION_REACTIVE_CLASS){
+                        name == ANNOTATION_REACTIVE_CLASS ||
+                        name == ANNOTATION_ENUM){
                         node.kind = -1;
                         return;
                     }

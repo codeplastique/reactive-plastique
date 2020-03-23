@@ -451,6 +451,13 @@ declare global {
         getClosestComponent: (types?: Array<Component | TypeDef<any> | Marker>) => CapturedComponent
     }
 }
+if(!Object.values){
+    Object.values = function(obj): any[]{
+        return Object.keys(obj).map(function(e) {
+            return obj[e]
+        })
+    }
+}
 Object.defineProperty(Object.prototype, 'equals', {
     value: function(obj: Object) {
         return this === obj;
