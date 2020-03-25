@@ -54,6 +54,7 @@ function Plastique(options){
     const ANNOTATION_INIT_EVENT = 'InitEvent';
     const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitMarker';
     const ANNOTATION_TO_JSON = 'ToJson';
+    const ANNOTATION_JSON_MERGE = 'JsonMerge';
     const ANNOTATION_ENUM = 'Enum';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
@@ -1111,6 +1112,7 @@ function Plastique(options){
     function initAppEvents(classNode){
         let jsonFields = [];
         let jsonMethods = [];
+        let jsonMergeFields = [];
         let jsonFieldNameToAlias = [];
         let jsonAliasToMethodName = [];
         let noStaticFieldsCount = 0;
@@ -1120,8 +1122,8 @@ function Plastique(options){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                     if(member.modifiers && member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
                         noStaticFieldsCount++;
+                        let memberName = member.name.escapedText;
                         if(isNodeHasDecorator(member, ANNOTATION_TO_JSON)){
-                            let memberName = member.name.escapedText;
                             let aliasName = getDecoratorArgumentMethodName(member, ANNOTATION_TO_JSON);
                             if(aliasName){
                                 jsonFieldNameToAlias.push(
@@ -1130,9 +1132,12 @@ function Plastique(options){
                             }else{
                                 jsonFields.push(ts.createStringLiteral(memberName));
                             }
+                        }else if(isNodeHasDecorator(member, ANNOTATION_JSON_MERGE)){
+                            jsonMergeFields.push(ts.createStringLiteral(memberName))
                         }
                     }
                     removeDecorator(member, ANNOTATION_TO_JSON);
+                    removeDecorator(member, ANNOTATION_JSON_MERGE);
                 }
                 if(member.kind == ts.SyntaxKind.MethodDeclaration){
                     if(member.modifiers && member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
@@ -1194,7 +1199,7 @@ function Plastique(options){
                 }
             }
         }
-        if(jsonFieldNameToAlias.length > 0 || jsonFields.length > 0 || jsonAliasToMethodName.length > 0 || jsonMethods.length > 0){
+        if(jsonFieldNameToAlias.length > 0 || jsonFields.length > 0 || jsonAliasToMethodName.length > 0 || jsonMethods.length > 0 || jsonMergeFields.length > 0){
             classNode.members.push(
                 ts.createProperty(
                     undefined,
@@ -1207,6 +1212,7 @@ function Plastique(options){
                         ts.createPropertyAssignment('fa', ts.createObjectLiteral(jsonFieldNameToAlias)), //aliasName to fieldName
                         ts.createPropertyAssignment('m', ts.createArrayLiteral(jsonMethods)), //methodNames
                         ts.createPropertyAssignment('am', ts.createObjectLiteral(jsonAliasToMethodName)), //aliasName to fieldName
+                        ts.createPropertyAssignment('mf', ts.createObjectLiteral(jsonMergeFields)), //merge fields
                     ])
                 )
             );
@@ -1337,6 +1343,7 @@ function Plastique(options){
                         name == ANNOTATION_INIT_VIRTUAL_COMPONENT ||
                         // name == ANNOTATION_TEMPLATE ||
                         name == ANNOTATION_TO_JSON ||
+                        name == ANNOTATION_JSON_MERGE ||
                         name == ANNOTATION_REACTIVE_CLASS ||
                         name == ANNOTATION_ENUM){
                         node.kind = -1;

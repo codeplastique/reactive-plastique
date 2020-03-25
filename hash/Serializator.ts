@@ -46,8 +46,9 @@ class Serializator{
             return result;
         }else if(obj != null && typeof obj === 'object'){
             
-            let [fieldNames, fieldNameToAlias, aliasToMethodName] = this.getJsonFields(obj);
+            let [fieldNames, fieldNameToAlias, aliasToMethodName, mergeFields] = this.getJsonFields(obj);
             let isSimpleObject = fieldNames.length == 0 
+                && mergeFields.length == 0 
                 && Object.keys(fieldNameToAlias).length == 0 
                 && Object.keys(aliasToMethodName).length == 0;
 
@@ -55,6 +56,11 @@ class Serializator{
             for(let fieldName in obj){
                 if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                     continue;
+
+                if(mergeFields.includes(fieldName)){
+                    Object.assign(result, this.serialize(obj[fieldName]))
+                    continue;
+                }
 
                 let aliasName = isSimpleObject? 
                     fieldName
@@ -87,13 +93,14 @@ class Serializator{
         return char && char == char.toUpperCase();
     }
 
-    private getJsonFields(obj: Object): [string[], object, object]{
-        let fields = [], fieldNameToAlias = {}, aliasNameToMethodName = {};
+    private getJsonFields(obj: Object): [string[], object, object, string[]]{
+        let fields = [], fieldNameToAlias = {}, aliasNameToMethodName = {}, mergeFields = [];
         let proto = Object.getPrototypeOf(obj);
         while(proto != null){
             let jsonConfiguration = proto.constructor['$json'];
             if(jsonConfiguration){
                 fields = fields.concat(jsonConfiguration.f);
+                mergeFields = mergeFields.concat(jsonConfiguration.mf);
                 Object.assign(fieldNameToAlias, jsonConfiguration.fa);
                 Object.assign(aliasNameToMethodName, jsonConfiguration.am);
                 
@@ -108,7 +115,7 @@ class Serializator{
             }
             proto = Object.getPrototypeOf(proto);
         }
-        return [fields, fieldNameToAlias, aliasNameToMethodName];
+        return [fields, fieldNameToAlias, aliasNameToMethodName, mergeFields];
     }
 }
 
