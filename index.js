@@ -1366,7 +1366,9 @@ function Plastique(options){
                         &&
                         !host.isSourceFileFromExternalLibrary(f)
                         &&
-                        !f.fileName.startsWith(libPath)
+                        !f.fileName.startsWith(libPath +'typescript/')
+                        &&
+                        !f.fileName.startsWith(libPath +'plastique/')
                     );
                     let vis = function (node) {
                         componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
