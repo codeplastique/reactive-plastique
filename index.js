@@ -1120,7 +1120,7 @@ function Plastique(options){
             let className = classNode.name.escapedText;
             for(let member of classNode.members){
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration){
-                    if(member.modifiers && member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
+                    if(!member.modifiers || member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
                         noStaticFieldsCount++;
                         let memberName = member.name.escapedText;
                         if(isNodeHasDecorator(member, ANNOTATION_TO_JSON)){
@@ -1157,7 +1157,7 @@ function Plastique(options){
                 }
                 if(member.kind == ts.SyntaxKind.PropertyDeclaration && isNodeHasDecorator(member, ANNOTATION_INIT_EVENT)){
                     let classFile = classNode.getSourceFile().fileName;
-                    let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
+                    let neededModifiers = (member.modifiers || []).filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                     let memberName = member.name.escapedText;
                     if(neededModifiers.length == 2){
                         let isCompositeEvent = member.type.members != null;
@@ -1212,7 +1212,7 @@ function Plastique(options){
                         ts.createPropertyAssignment('fa', ts.createObjectLiteral(jsonFieldNameToAlias)), //aliasName to fieldName
                         ts.createPropertyAssignment('m', ts.createArrayLiteral(jsonMethods)), //methodNames
                         ts.createPropertyAssignment('am', ts.createObjectLiteral(jsonAliasToMethodName)), //aliasName to fieldName
-                        ts.createPropertyAssignment('mf', ts.createObjectLiteral(jsonMergeFields)), //merge fields
+                        ts.createPropertyAssignment('mf', ts.createArrayLiteral(jsonMergeFields)), //merge fields
                     ])
                 )
             );
@@ -1402,7 +1402,7 @@ function Plastique(options){
                                     if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                                         if(isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT)){
                                             removeDecorator(node, ANNOTATION_INIT_VIRTUAL_COMPONENT);
-                                            let neededModifiers = member.modifiers.filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
+                                            let neededModifiers = (member.modifiers || []).filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                                             let memberName = member.name.escapedText;
                                             if(neededModifiers.length == 2){
                                                 MemberInitializator.initialize(node, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponents)
