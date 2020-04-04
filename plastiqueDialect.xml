@@ -19,6 +19,7 @@
     <attribute-processor name="each"  />
     <attribute-processor name="ref"  />
     <attribute-processor name="slot"  />
+    <attribute-processor name="animation"  />
 	<element-processor name="block"/>
 	<element-processor name="slot"/>
 

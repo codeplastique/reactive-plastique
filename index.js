@@ -250,6 +250,30 @@ function Plastique(options){
                 return specialTag;
             }
 
+            function replaceAnimationElems(root){
+                if(root.children == null)
+                    return;
+
+                let attrName = prefix +':animation';
+                for(let child of root.children){
+                    if(child.hasAttribute(attrName)){
+                        let val = child.getAttribute(attrName);
+                        child.removeAttribute(attrName);
+                        let isAnimString = val.trim().match(/^'.+'$/) != null;
+                        let transitionAttr = isAnimString? 
+                            `name="${val.trim().slice(1, -1)}"`
+                            : 
+                            `v-bind:name="${extractExpression(val)}"`;
+
+                        child.insertAdjacentHTML('beforebegin',`<transition ${transitionAttr}>${child.outerHTML}</transition>`);
+                        let newTag = child.previousSibling;
+                        child.remove();
+                        child = newTag; 
+                    }
+                    replaceAnimationElems(child);
+                }
+            }
+
             function replaceComponentElems(elems){
                 for(let elem of elems){
                     let componentAttr = Array.from(elem.attributes).find(a => a.name.startsWith(prefix+ ':component'));
@@ -299,9 +323,12 @@ function Plastique(options){
                     arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 }
 
-                replaceComponentElems(arrayElems);
+                replaceAnimationElems(rootTag);
+                
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
+                replaceComponentElems(arrayElems);
 
+                arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
                     .forEach(t => replaceSpecialTag('template', t));
             }
