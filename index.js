@@ -253,7 +253,7 @@ function Plastique(options){
             function replaceAnimationElems(root){
                 if(root.children == null)
                     return;
-
+                    
                 let attrName = prefix +':animation';
                 for(let child of root.children){
                     if(child.hasAttribute(attrName)){
@@ -323,7 +323,7 @@ function Plastique(options){
                     arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 }
 
-                replaceAnimationElems(rootTag);
+                replaceAnimationElems(rootComponent);
                 
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceComponentElems(arrayElems);
@@ -426,6 +426,9 @@ function Plastique(options){
                     case 'unless':
                         elem.setAttribute('v-if', '!('+ extractExpression(attr.value) +')');
                         break;
+                    case 'animation':
+                        return false;
+
                     case 'attrappend':
                     case 'eventappend':
                         for(let dynamicAttr of attr.value.split(',')){
