@@ -130,6 +130,8 @@ abstract class App{
     private static componentId = 0;
     private static epName: string; //entry point name
     private static ep: Object; //entry point
+    private static contextPath: string;
+    private static mappers: object[]; //mappers container
 
     private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any> | Marker>) {
         if(parent)
@@ -164,7 +166,7 @@ abstract class App{
         return new CapturedComponent();
     }
 
-    public static getBean<T>(id: String | Number, componentObj?: object): T{
+    private static getBean<T>(id: String | Number, componentObj?: object): T{
         if(id == -1 || id == App.epName)
             return App.ep as T;
         let beanName: any = typeof id == 'number'? App.beanIdToName[id as number]: id;
@@ -179,8 +181,8 @@ abstract class App{
             App.beanNameToDef[beanName] = bean = bean();
         return bean;
     }   
-    public getBean<T>(beanFunction: string): T{
-        return App.getBean(beanFunction);
+    public getBean<T>(beanName: string): T{
+        return App.getBean(beanName);
     }   
     
     private static addListeners(configuration: string, obj: any){
@@ -193,6 +195,50 @@ abstract class App{
                 events.push(method);
             }
             EventerImpl.addListener(event, method);
+        }
+    }
+
+
+    private static initRouting(mappersContainers: any[]): void{
+        App.mappers = mappersContainers;
+        mappersContainers.forEach((e, i, arr) => {
+            if(e != App.ep)
+                arr[i] = new e();
+        });
+        App.route(location.pathname);
+    }
+
+    private static route(path: string): void{
+        if(!App.mappers)
+            return;
+            
+        const contextPath = App.contextPath;
+        if(contextPath && path.startsWith(contextPath))
+            path = path.substr(0, contextPath.length);
+
+        for(let mappersContainer of App.mappers){
+            let mappers: [string | object, string, []][] = mappersContainer.constructor['routing$']; //mask, methodName, args indexes
+
+            for(let mapper of mappers){
+                if(typeof mapper[0] === 'string'){
+                    if(mapper[0] == path)
+                        mappersContainer[mapper[1]].call(mappersContainer);
+                }else{
+                    let match = path.match(mapper[0] as any);
+                    if(match && match.index == 0 && match[0].length == path.length){
+                        let args: any[];
+                        if(match[2]){
+                            args = mapper[2].reduce((args, e, i) => {
+                                args[i + 1] = e;
+                                return args;
+                            }, [])
+                        }else
+                            args = match.slice(1);
+
+                        mappersContainer[mapper[1]].apply(mappersContainer, args);  
+                    }
+                }
+            }
         }
     }
 
@@ -281,8 +327,9 @@ abstract class App{
 
     
 
-    constructor(element?: HTMLElement){
+    constructor(element?: HTMLElement, contextPath?: string){
         let $ = this.constructor['$'];
+        App.contextPath = contextPath;
         if($){
             let configurator = JSON.parse($);
             App.beanIdToName['0'] = 'Eventer';
@@ -311,6 +358,7 @@ abstract class App{
         _app.initComp = App.initComponent;
         _app.i18n = I18n.text;
         _app.listeners = App.addListeners;
+        _app.routing = App.initRouting;
         _app.getClosestComponent = App.getClosestComponent;
 
         window['getComponentPath'] =  function(elem){
