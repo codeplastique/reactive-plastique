@@ -214,7 +214,7 @@ abstract class App{
 
         const contextPath = App.contextPath;
         if(contextPath && path.startsWith(contextPath))
-            path = path.substr(0, contextPath.length);
+            path = path.substr(contextPath.length);
 
         for(let mappersContainer of App.mappers){
             let mappers: [string | object, string, []][] = mappersContainer.constructor['routing$']; //mask, methodName, args indexes
@@ -329,7 +329,10 @@ abstract class App{
 
     constructor(element?: HTMLElement, contextPath?: string){
         let $ = this.constructor['$'];
-       
+        
+        ///@ts-ignore
+        contextPath = element; //element is removed
+        
         if(contextPath){
             if(!contextPath.startsWith('/'))
                 contextPath = '/' + contextPath;
