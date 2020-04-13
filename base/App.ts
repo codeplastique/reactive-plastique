@@ -211,7 +211,7 @@ abstract class App{
     private static route(path: string): void{
         if(!App.mappers)
             return;
-            
+
         const contextPath = App.contextPath;
         if(contextPath && path.startsWith(contextPath))
             path = path.substr(0, contextPath.length);
@@ -227,9 +227,9 @@ abstract class App{
                     let match = path.match(mapper[0] as any);
                     if(match && match.index == 0 && match[0].length == path.length){
                         let args: any[];
-                        if(match[2]){
+                        if(mapper[2]){
                             args = mapper[2].reduce((args, e, i) => {
-                                args[i + 1] = e;
+                                args[i] = match[e];
                                 return args;
                             }, [])
                         }else
@@ -329,7 +329,14 @@ abstract class App{
 
     constructor(element?: HTMLElement, contextPath?: string){
         let $ = this.constructor['$'];
-        App.contextPath = contextPath;
+       
+        if(contextPath){
+            if(!contextPath.startsWith('/'))
+                contextPath = '/' + contextPath;
+            if(!contextPath.endsWith('/'))
+                contextPath += '/';
+        }
+        App.contextPath = contextPath || '/';
         if($){
             let configurator = JSON.parse($);
             App.beanIdToName['0'] = 'Eventer';

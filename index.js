@@ -56,6 +56,7 @@ function Plastique(options){
     const ANNOTATION_TO_JSON = 'ToJson';
     const ANNOTATION_JSON_MERGE = 'JsonMerge';
     const ANNOTATION_ENUM = 'Enum';
+    const ANNOTATION_REQUEST_MAPPING = 'RequestMapping';
 
     const COMPONENT_INTERFACE_NAME = 'Component';
     const EVENTMANAGER_CLASS_NAME = 'Eventer';
@@ -930,6 +931,89 @@ function Plastique(options){
         return beansDeclarations;
     }
 
+
+    function checkStringParameters(parameters, methodName){
+        let illegalParam = parameters.find(p => (p.type == null) || (p.kind == null) || (p.type.kind != ts.SyntaxKind.StringKeyword));
+        if(illegalParam)
+            throw new Error(`Parameter '${illegalParam.name.escapedText}' in request mapping method '${methodName}' must be a string!`);
+    }
+
+
+    function getMapperConfiguration(node){
+        let mappers = [];
+        if(node.members){
+            for(let member of node.members){
+                if(member.kind == ts.SyntaxKind.MethodDeclaration){
+                    let patternArg = getDecoratorArguments(member, ANNOTATION_REQUEST_MAPPING, true);
+                    if(patternArg != null){
+                        patternArg = patternArg[0]; //first argument
+
+                        let methodName = member.name.escapedText;
+                        if(patternArg.kind == ts.SyntaxKind.RegularExpressionLiteral){
+                            let pattern = patternArg.text;
+                            checkStringParameters(member.parameters, methodName);
+                            let methodParameters = member.parameters.map(p => p.name.escapedText);
+                            let argsIndices = [];
+
+                            if(methodParameters.length > 0){
+                                let groupSearcher = /(?<!\\)\(/g;
+                                let result;
+                                let groupIndex = 1;
+                                while ((result = groupSearcher.exec(pattern)) !== null) {
+                                    let namedGroup = pattern.substr(result.index).match(/\(?<(.+?)>/)
+                                    if(namedGroup && namedGroup.index == 2){
+                                        let variableId = namedGroup[1];
+                                        if(/^\w[\w\d]*$/.test(variableId) == false)
+                                            throw new Error(`Named group "${variableId}" is not valid!`)
+                                        
+                                        if(methodParameters.includes(variableId)){
+                                            let paramPos = methodParameters.indexOf(variableId);
+                                            methodParameters.splice(paramPos, 1, void 0);
+                                            argsIndices[paramPos] = ts.createNumericLiteral(String(groupIndex));
+                                        }
+                                    }
+
+                                    groupIndex++;
+                                }
+
+                                let undefinedVariableId = methodParameters.find(p => p !== void 0);
+                                if(undefinedVariableId)
+                                    throw new Error(`Parameter '${undefinedVariableId}' is not found in the request method pattern (${memberName})!`)
+                            }
+
+                            pattern = pattern.replace(/(?<!\\)\(\?<.+?>/g, '('); //remove all named groups
+                            let endOfRegexpPos = pattern.lastIndexOf('/');
+                            pattern = pattern.substr(0, endOfRegexpPos) + pattern.substr(endOfRegexpPos).replace('g',''); //remove 'g' modifier
+
+                            let isArgsIndecesConsistent = argsIndices.find((e, i) => (+e.text) != (i+1)) === void 0
+                            if(argsIndices.length > 0 && !isArgsIndecesConsistent)
+                                mappers.push(ts.createArrayLiteral([
+                                    ts.createLiteral(methodName),
+                                    ts.createRegularExpressionLiteral(pattern),
+                                    ts.createArrayLiteral(argsIndices)
+                                ]));
+                            else
+                                mappers.push(ts.createArrayLiteral([
+                                    ts.createLiteral(methodName),
+                                    ts.createRegularExpressionLiteral(pattern)
+                                ]));
+                        }else{
+                            mappers.push(ts.createArrayLiteral([
+                                ts.createLiteral(methodName),
+                                ts.createLiteral(patternArg.text)
+                            ]));
+                        }
+
+                        removeDecorator(member, ANNOTATION_REQUEST_MAPPING)
+                    }
+                }
+            }
+        }
+        return mappers;
+    }
+
+
+
     function configureEntryPointClass(entryPointNode, context){
         let entryPointClassName = entryPointNode.name.escapedText;
         let beansClassesBeans = [];
@@ -978,6 +1062,32 @@ function Plastique(options){
                 )
             )
         );
+
+        let routingMappers = getMapperConfiguration(entryPointNode)
+        if(routingMappers.length > 0){
+            entryPointNode.members.push(
+                ts.createProperty(
+                    undefined,
+                    [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
+                    ts.createIdentifier('routing$'),
+                    undefined,
+                    ts.createKeywordTypeNode(ts.SyntaxKind.ArrayLiteralExpression),
+                    ts.createArrayLiteral(routingMappers)
+                )
+            );
+
+            getOrCreateConstructor(entryPointNode).body.statements.push(ts.createCall(
+                ts.createPropertyAccess(
+                    ts.createIdentifier('_app'),
+                    ts.createIdentifier('routing')
+                ),
+                undefined, // type arguments, e.g. Foo<T>()
+                [
+                    ts.createThis()
+                ]
+            ));
+        }
+
         entryPointsNames.push(entryPointNode.name.escapedText);
         removeDecorator(entryPointNode, ANNOTATION_BEANS)
         removeDecorator(entryPointNode, ANNOTATION_ENTRY_POINT_CLASS)
@@ -1337,6 +1447,8 @@ function Plastique(options){
 
 
 
+
+
                 // tryBindListeners(node);
                 // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
                 // beans.push(className);
@@ -1375,6 +1487,7 @@ function Plastique(options){
                         name == ANNOTATION_TO_JSON ||
                         name == ANNOTATION_JSON_MERGE ||
                         name == ANNOTATION_REACTIVE_CLASS ||
+                        name == ANNOTATION_REQUEST_MAPPING ||
                         name == ANNOTATION_ENUM){
                         node.kind = -1;
                         return;
