@@ -988,19 +988,19 @@ function Plastique(options){
                             let isArgsIndecesConsistent = argsIndices.find((e, i) => (+e.text) != (i+1)) === void 0
                             if(argsIndices.length > 0 && !isArgsIndecesConsistent)
                                 mappers.push(ts.createArrayLiteral([
-                                    ts.createLiteral(methodName),
                                     ts.createRegularExpressionLiteral(pattern),
+                                    ts.createLiteral(methodName),
                                     ts.createArrayLiteral(argsIndices)
                                 ]));
                             else
                                 mappers.push(ts.createArrayLiteral([
-                                    ts.createLiteral(methodName),
-                                    ts.createRegularExpressionLiteral(pattern)
+                                    ts.createRegularExpressionLiteral(pattern),
+                                    ts.createLiteral(methodName)
                                 ]));
                         }else{
                             mappers.push(ts.createArrayLiteral([
-                                ts.createLiteral(methodName),
-                                ts.createLiteral(patternArg.text)
+                                ts.createLiteral(patternArg.text),
+                                ts.createLiteral(methodName)
                             ]));
                         }
 
@@ -1083,7 +1083,9 @@ function Plastique(options){
                 ),
                 undefined, // type arguments, e.g. Foo<T>()
                 [
-                    ts.createThis()
+                    ts.createArrayLiteral(
+                        [ts.createThis()]
+                    )
                 ]
             ));
         }
