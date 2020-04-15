@@ -498,7 +498,7 @@ declare global {
         removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
         includes(searchElement: T, fromIndex?: number): boolean;
-        clear(): void
+        clear(...newElems: T[]): void
     }
 
     interface Event{
@@ -546,6 +546,8 @@ Array.prototype.removeValues = function (values: any[]) {
 }
 Array.prototype.clear = function () {
     this.splice(0, this.length);
+    if(arguments.length > 0)
+        this.push.apply(this, arguments)
 }
 Array.prototype.set = function (index: number, value: any) {
     if("__ob__" in this)
