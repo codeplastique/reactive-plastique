@@ -15,10 +15,12 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         this.k = [];
     }    
     public delete(key: K): boolean {
-        let keyIndex = this.getKeyIndex(key)
-        if(keyIndex >= 0){
-            this.k.remove(keyIndex);
-            this.v.remove(keyIndex);
+        return this.deleteIndex(this.getKeyIndex(key));
+    }
+    protected deleteIndex(index: number): boolean{
+        if(index >= 0){
+            this.k.remove(index);
+            this.v.remove(index);
             return true;
         }
     }
@@ -34,7 +36,7 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         return this.getKeyIndex(key) >= 0;
     }
     protected getKeyIndex(key: K): number{
-        return this.k.findIndex(k => k === key);
+        return this.k.findIndex(k => k.equals(key));
     }
 
     /**
@@ -50,6 +52,13 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         }
         return this;
     }
+
+    private addKey(key: K): void {
+        let index = this.getKeyIndex(key)
+        if(index < 0)
+            this.k.push(key);
+    }
+
     public entries(): MapEntry<K, V>[] {
         let vals = this.v;
         return this.k.map((key, i) => {

@@ -25,7 +25,8 @@ export default class SimpleSet<V> implements ReactiveSet<V>{
     }
 
     public add(value: V): this {
-        this.map.set(value, null);
+        ///@ts-ignore
+        this.map.addKey(value);
         return this;
     }
     public values(): V[] {
@@ -46,7 +47,8 @@ export default class SimpleSet<V> implements ReactiveSet<V>{
     public static of<V>(...values: V[]): SimpleSet<V>{
         let set: SimpleSet<V> = new SimpleSet();
         for(let val of values)
-            set.map.set(val, null)
+            ///@ts-ignore
+            set.map.addKey(val)
         return set;
     }
 }

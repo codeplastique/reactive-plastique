@@ -1,7 +1,5 @@
 import Hashable from "../../hash/Hashable";
 import ReactiveSet from "../ReactiveSet";
-
-
 declare const Vue: any;
 
 export default class HashSet<V extends Hashable> implements ReactiveSet<V>{

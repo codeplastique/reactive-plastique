@@ -13,15 +13,14 @@ export default class HashMap<K extends Hashable, V> extends SimpleMap<K, V>{
         super.clear()
         this.hashCodes = []
     }    
-    public delete(key: K): boolean {
-        let keyIndex = this.getKeyIndex(key)
-        if(keyIndex >= 0){
-            this.k.remove(keyIndex);
-            this.v.remove(keyIndex);
-            this.hashCodes.remove(keyIndex);
+
+    protected deleteIndex(index: number): boolean{
+        if(super.deleteIndex(index)){
+            this.hashCodes.remove(index);
             return true;
         }
     }
+
     protected getKeyIndex(key: K, hashCode?: string): number{
         let hash = hashCode === void 0? key.hashCode(): hashCode;
         return this.hashCodes.indexOf(hash);
