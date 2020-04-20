@@ -277,24 +277,29 @@ function Plastique(options){
                 }
             }
 
-            function replaceTagElems(tagName, raplaceTagName){
-                let root = rootComponent;
+            function replaceTagElems(replaceFilterAction, raplaceTagName, newTagTransform, root){
+                if(root == null)
+                    root = rootComponent;
                 if(root.children == null)
                     return;
                     
-                let tagName = tagName.toUpperCase();
+                if(root.tagName == 'TEMPLATE')
+                    root = root.content
                 for(let child of root.children){
-                    if(child.tagName == tagName){
-                        child.insertAdjacentHTML('beforebegin',`<${raplaceTagName}>${child.outerHTML}</${raplaceTagName}>`);
+                    if(replaceFilterAction(child)){
+                        child.insertAdjacentHTML('beforebegin',`<${raplaceTagName}>${child.innerHTML}</${raplaceTagName}>`);
                         let newTag = child.previousSibling;
 
                         for(let attr of child.attributes)
                             newTag.setAttribute(attr.name, attr.value);
 
+                        if(newTagTransform)
+                            newTagTransform(newTag)
+
                         child.remove();
                         child = newTag; 
                     }
-                    replaceAnimationElems(child);
+                    replaceTagElems(replaceFilterAction, raplaceTagName, newTagTransform, child);
                 }
             }
 
@@ -338,14 +343,15 @@ function Plastique(options){
                     arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 }
 
-                let templatesElems = arrayElems.filter(t => t.hasAttribute('v-hasSlot')).map(t => {
-                    t.removeAttribute('v-hasSlot');
-                    return t;
-                }).filter(t => t.tagName != (prefix.toUpperCase() +':BLOCK'));
-                if(templatesElems.length > 0){
-                    templatesElems.forEach(t => replaceSpecialTag(prefix.toUpperCase() +':block', t));
-                    arrayElems = Array.from(rootTag.querySelectorAll('*'))
-                }
+                // let templatesElems = arrayElems.filter(t => t.hasAttribute('v-hasSlot')).map(t => {
+                //     t.removeAttribute('v-hasSlot');
+                //     return t;
+                // }).filter(t => t.tagName != (prefix.toUpperCase() +':BLOCK'));
+                // if(templatesElems.length > 0){
+                //     templatesElems.forEach(t => replaceSpecialTag(prefix.toUpperCase() +':block', t));
+                    // arrayElems = Array.from(rootTag.querySelectorAll('*'))
+                replaceTagElems(tag => tag.hasAttribute('v-hasSlot'), (prefix +':block'), tag => tag.removeAttribute('v-hasSlot'))
+                // }
 
                 replaceAnimationElems(rootComponent);
                 
@@ -356,7 +362,7 @@ function Plastique(options){
                 // arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
                 //     .forEach(t => replaceSpecialTag('template', t));
                 
-                replaceTagElems((prefix.toUpperCase() +':block'), 'template')
+                replaceTagElems(tag => tag.tagName == (prefix.toUpperCase() +':BLOCK'), 'template')
             }
 
             let classAppendAttr = rootComponent.getAttribute('v-bind:class');
