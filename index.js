@@ -242,6 +242,8 @@ function Plastique(options){
         }
         rootComponent.setAttribute('data-cn', componentName)
         if(handle(prefix, elems, componentName)){
+
+
             function replaceSpecialTag(tagName, tag){
                 tag.insertAdjacentHTML('beforebegin',`<${tagName}>${tag.innerHTML}</${tagName}>`);
                 let specialTag = tag.previousSibling;
@@ -268,6 +270,27 @@ function Plastique(options){
 
                         child.insertAdjacentHTML('beforebegin',`<transition ${transitionAttr}>${child.outerHTML}</transition>`);
                         let newTag = child.previousSibling;
+                        child.remove();
+                        child = newTag; 
+                    }
+                    replaceAnimationElems(child);
+                }
+            }
+
+            function replaceTagElems(tagName, raplaceTagName){
+                let root = rootComponent;
+                if(root.children == null)
+                    return;
+                    
+                let tagName = tagName.toUpperCase();
+                for(let child of root.children){
+                    if(child.tagName == tagName){
+                        child.insertAdjacentHTML('beforebegin',`<${raplaceTagName}>${child.outerHTML}</${raplaceTagName}>`);
+                        let newTag = child.previousSibling;
+
+                        for(let attr of child.attributes)
+                            newTag.setAttribute(attr.name, attr.value);
+
                         child.remove();
                         child = newTag; 
                     }
@@ -329,9 +352,11 @@ function Plastique(options){
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceComponentElems(arrayElems);
 
-                arrayElems = Array.from(rootTag.querySelectorAll('*'))
-                arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
-                    .forEach(t => replaceSpecialTag('template', t));
+                // arrayElems = Array.from(rootTag.querySelectorAll('*'))
+                // arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
+                //     .forEach(t => replaceSpecialTag('template', t));
+                
+                replaceTagElems((prefix.toUpperCase() +':block'), 'template')
             }
 
             let classAppendAttr = rootComponent.getAttribute('v-bind:class');
