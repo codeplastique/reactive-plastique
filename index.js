@@ -636,7 +636,13 @@ function Plastique(options){
         let relativeModulePath = f
             .moduleSpecifier
             .text
-        return node.getSourceFile().resolvedModules.get(relativeModulePath).resolvedFileName;
+            
+        let module = node.getSourceFile().resolvedModules.get(relativeModulePath);
+        if(module == null){
+            throw new Error(`${relativeModulePath} is not found in ${node.getSourceFile().fileName}`)
+        }
+
+        return module.resolvedFileName
     }
 
     function getClass(currentNode, className, context){
