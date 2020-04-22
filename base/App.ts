@@ -560,7 +560,10 @@ Element.prototype.getClosestComponent = function(types?: Array<Component | TypeD
     return _app.getClosestComponent(this, null, types);
 }
 Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any> | Marker>) {
-    return _app.getClosestComponent(this.target, this.currentTarget, types);
+    function getElem(elem): Element{
+        return elem == window || elem == document? document.documentElement: elem;
+    }
+    return _app.getClosestComponent(getElem(this.target), getElem(this.currentTarget), types);
 }
 
 window['_app'] = {
