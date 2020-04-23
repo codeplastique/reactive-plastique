@@ -366,7 +366,7 @@ function Plastique(options){
             }
 
             let classAppendAttr = rootComponent.getAttribute('v-bind:class');
-            let classPrefix = classAppendAttr? '('+ classAppendAttr + ') +" "+ ': ''
+            let classPrefix = classAppendAttr? `(${classAppendAttr})+' '+`: ''
             rootComponent.setAttribute('v-bind:class', classPrefix + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
             
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
@@ -385,7 +385,7 @@ function Plastique(options){
 
 
         function extractExpression(val){
-            val = val.trim();
+            val = val.trim().replace(/\s*\n\s*/g, ' ') //remove all break lines
             let exprMatch = val.match(/[$#]\{(.+?)\}/g);
             if(exprMatch == null)
                 return val;
