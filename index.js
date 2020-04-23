@@ -1073,7 +1073,7 @@ function Plastique(options){
         // $ = (window[class] = class, jsonConfiguration)
         entryPointNode.members.push(
             ts.createProperty(
-                undefined,
+                [],
                 [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                 ts.createIdentifier('$beans'),
                 undefined,
@@ -1083,7 +1083,7 @@ function Plastique(options){
         );
         entryPointNode.members.push(
             ts.createProperty(
-                undefined,
+                [],
                 [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                 ts.createIdentifier('$'),
                 undefined,
@@ -1104,7 +1104,7 @@ function Plastique(options){
         if(routingMappers.length > 0){
             entryPointNode.members.push(
                 ts.createProperty(
-                    undefined,
+                    [],
                     [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                     ts.createIdentifier('routing$'),
                     undefined,
@@ -1267,11 +1267,11 @@ function Plastique(options){
             // );
             classNode.members.push(
                 ts.createProperty(
-                    undefined,
+                    [],
                     [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                     ts.createIdentifier('$intf'),
-                    undefined,
-                    undefined,
+                    ts.createToken(ts.SyntaxKind.ExclamationToken),
+                    ts.createKeywordTypeNode(ts.SyntaxKind.ArrayLiteralExpression),
                     ts.createArrayLiteral(
                         interfaceMask.map(id => ts.createNumericLiteral(String(id)))
                     )
@@ -1381,7 +1381,7 @@ function Plastique(options){
         if(jsonFieldNameToAlias.length > 0 || jsonFields.length > 0 || jsonAliasToMethodName.length > 0 || jsonMethods.length > 0 || jsonMergeFields.length > 0){
             classNode.members.push(
                 ts.createProperty(
-                    undefined,
+                    [],
                     [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                     ts.createIdentifier('$json'),
                     undefined,
@@ -1410,7 +1410,7 @@ function Plastique(options){
         
         node.members.push(
             ts.createProperty(
-                undefined,
+                [],
                 [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                 ts.createIdentifier('$'),
                 undefined,
