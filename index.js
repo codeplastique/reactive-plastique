@@ -307,15 +307,38 @@ function Plastique(options){
                 for(let elem of elems){
                     let componentAttr = Array.from(elem.attributes).find(a => a.name.startsWith(prefix+ ':component'));
                     if(componentAttr){
-                        var componentVar = extractExpression(componentAttr.value);
+                        let componentExpr = extractExpression(componentAttr.value);
                         elem.removeAttribute(componentAttr.name)
                         let cloneComponent = replaceSpecialTag('component', elem);
                         if(cloneComponent.hasChildNodes()){
                             replaceComponentElems(cloneComponent.querySelectorAll('*'))
                         }
 
-                        let [componentCast] = getModifiers(componentAttr.name);
-                        let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                        // let [componentCast] = getModifiers(componentAttr.name);
+
+                        let componentVar;
+                        let componentName;
+                        if(componentExpr.includes(' as ')){
+                            componentName = componentExpr.replace(/([\w\d]+)\s+as\s+([\w\d]+)/g, (_, varName, cast) => {
+                                if(componentVar && componentVar != varName)
+                                    throw new Error(`Invalid casting in ${componentAttr.value}`)
+                                componentVar = varName;
+                                return `'${cast.toUpperCase()}'`
+                            })
+
+                            let regexp = new RegExp(`(?<=[?:]\\s*)${componentVar}`, 'g');
+                            componentName = componentName.replace(regexp, componentVar + '.app$.cn')
+
+                        }else{
+                            componentVar = componentExpr;
+                            componentName = componentVar + '.app$.cn';
+                        }
+
+                        // let componentVar = componentExpr;
+                        // let componentName = componentVar + '.app$.cn';
+                        // componentVar.replace(/([\w\d]+)\s+as\s+([\w\d]+)/g, (a, b, c) => `'${c.toUpperCase()}'`)
+                        
+                        // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
                         cloneComponent.setAttribute(':is', componentName);
                         cloneComponent.setAttribute(':key', componentVar +'.app$.id');
                         cloneComponent.setAttribute('v-bind:m', `$convComp(${componentVar})`);
