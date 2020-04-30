@@ -41,32 +41,33 @@ export default class TemplateAttribute{
     transformToPlastique(): void{
         let elem = this.elem;
         let attr = this.attr;
+        let modifiers = this.getModifiers();
         switch(this.getName()){
             case 'ref':
                 elem.setAttribute('ref', this.extractExpression(attr.value));
                 break;
             case 'slot':
                 if(modifiers.length > 0 && attr.value.length > 0){
-                    throw new Error(`Component ${componentName}. Indefinable slot name: ${attr.name}="${attr.value}"`)
+                    throw new Error(`Indefinable slot name: ${attr.name}="${attr.value}"`)
                 }else if(modifiers.length == 0 && attr.value.length == 0){
-                    throw new Error(`Component ${componentName}. Slot without name!`)
+                    throw new Error(`Slot without name!`)
                 }
-                let slotAttrName = 'v-slot:'+ (modifiers.length > 0? modifiers[0]: '['+ extractExpression(attr.value) +']');
+                let slotAttrName = 'v-slot:'+ (modifiers.length > 0? modifiers[0]: '['+ this.extractExpression(attr.value) +']');
                 elem.setAttribute(slotAttrName, '');
                 elem.setAttribute('v-hasSlot', '');
                 break;
             case 'model':
-                elem.setAttribute('v-model' + addModifiers(modifiers), extractExpression(attr.value));
+                elem.setAttribute('v-model' + addModifiers(modifiers), this.extractExpression(attr.value));
                 break;
             case 'text':
-                let expression = extractExpression(attr.value)
+                let expression = this.extractExpression(attr.value)
                 elem.textContent = '{{'+ expression +'}}';
                 break;
             case 'if':
-                elem.setAttribute('v-if', extractExpression(attr.value));
+                elem.setAttribute('v-if', this.extractExpression(attr.value));
                 break;
             case 'unless':
-                elem.setAttribute('v-if', '!('+ extractExpression(attr.value) +')');
+                elem.setAttribute('v-if', '!('+ this.extractExpression(attr.value) +')');
                 break;
             case 'animation':
                 return false;
@@ -78,63 +79,31 @@ export default class TemplateAttribute{
                         continue;
                     let [dynAttrName, dynAttrVal] = dynamicAttr.trim().split('=');
                     dynAttrName = dynAttrName.trim();
-                    if(isExpression(dynAttrName)){
+                    if(this.isPlastiqueExpression(dynAttrName)){
                         var macrosType = attrName == 'attrappend'? '__:': '___:';
-                        elem.setAttribute(macrosType + extractExpression(dynAttrName) + macrosType, extractExpression(dynAttrVal));
-                    }else if(isExpression(dynAttrVal)){
-                        handleUnknownAttr(elem, dynAttrName, dynAttrVal);
+                        elem.setAttribute(macrosType + this.extractExpression(dynAttrName) + macrosType, this.extractExpression(dynAttrVal));
+                    }else if(this.isPlastiqueExpression(dynAttrVal)){
+                        this.handleUnknownAttrName(elem, dynAttrName, dynAttrVal);
                     }else{
                         elem.setAttribute(dynAttrName, dynAttrVal);
                     }
                 }
                 break;
             case 'classappend':
-                elem.setAttribute('v-bind:class', extractExpression(attr.value));
+                elem.setAttribute('v-bind:class', this.extractExpression(attr.value));
                 break;
             case 'component':
-                // var componentVar = extractExpression(attr.value);
-                // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
-                    // elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                // }else{
                 return false;
-                    // let componentCast = modifiers[0];
-                    // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                    // elem.insertAdjacentHTML('beforebegin',
-                    //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                    // );
-                    // let clone = elem.previousSibling;
-                    // copyIfUnlessEachAttributesToComponent(elem, clone);
-                    // elem.setAttribute = function(){
-                    //     clone.setAttribute.apply(clone, arguments);
-                    // }
-                    // elem.remove();
-                // }
-                // break;
             case 'marker':
-                var componentVar = extractExpression(attr.value);
-                // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
+                let componentVar = this.extractExpression(attr.value);
                 elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                // }else{
-                    // return false;
-                    // let componentCast = modifiers[0];
-                    // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                    // elem.insertAdjacentHTML('beforebegin',
-                    //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                    // );
-                    // let clone = elem.previousSibling;
-                    // copyIfUnlessEachAttributesToComponent(elem, clone);
-                    // elem.setAttribute = function(){
-                    //     clone.setAttribute.apply(clone, arguments);
-                    // }
-                    // elem.remove();
-                // }
                 break;
             case 'each':
                 let iterateParts = attr.value.split(':');
                 let leftExpr = iterateParts[0].trim();
                 let rightExpr = iterateParts[1].trim();
                 let isWithState = leftExpr.includes(',')? 1: 0;
-                rightExpr = `$convState(${isWithState},${extractExpression(rightExpr)})`;
+                rightExpr = `$convState(${isWithState},${this.extractExpression(rightExpr)})`;
                 if(isWithState){
                     let leftPartVars = leftExpr.split(',');
                     elem.insertAdjacentText('afterBegin',
@@ -163,7 +132,7 @@ export default class TemplateAttribute{
         let name = this.getName();
         if(name == 'name' && this.isPlastiqueTag('slot')) {
             if(this.hasModifiers()) 
-                throw new Error(`Component ${componentName}. Slot has name modifier and name attribute: <${elem.tagName.toLowerCase()} ${this.attr.name}="...">`)
+                throw new Error(`Slot has name modifier and name attribute: <${elem.tagName.toLowerCase()} ${this.attr.name}="...">`)
             elem.setAttribute('v-bind:name', attrVal);
         }else if(name.startsWith('on')){
             elem.setAttribute('v-on:'+ name.substr(2) + addModifiers(modifiers), attrVal);
