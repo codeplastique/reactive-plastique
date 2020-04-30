@@ -469,7 +469,13 @@ abstract class App{
         }
     }
 
+    public static triggerDomReflow(): void{
+        void window.innerHeight;
+    }
 
+    public static nextTick(action: Function): void{
+        Vue.nextTick(action);
+    }
     // protected attachedComponents = {};
     // public whenAttached(component: Component): Promise<Component>{
     //     if(this.isComponentAttached(component))
