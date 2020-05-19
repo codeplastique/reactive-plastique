@@ -279,7 +279,7 @@ function Plastique(options){
 
             function replaceTagElems(replaceFilterAction, raplaceTagName, newTagTransform, root){
                 if(root == null)
-                    root = rootComponent;
+                    root = rootTag.firstElementChild;
                 if(root.children == null)
                     return;
                     
@@ -376,7 +376,7 @@ function Plastique(options){
                 replaceTagElems(tag => tag.hasAttribute('v-hasSlot'), (prefix +':block'), tag => tag.removeAttribute('v-hasSlot'))
                 // }
 
-                replaceAnimationElems(rootComponent);
+                replaceAnimationElems(rootTag.firstElementChild);
                 
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceComponentElems(arrayElems);
@@ -388,9 +388,9 @@ function Plastique(options){
                 replaceTagElems(tag => tag.tagName == (prefix.toUpperCase() +':BLOCK'), 'template')
             }
 
-            let classAppendAttr = rootComponent.getAttribute('v-bind:class');
+            let classAppendAttr = rootTag.firstElementChild.getAttribute('v-bind:class');
             let classPrefix = classAppendAttr? `(${classAppendAttr})+' '+`: ''
-            rootComponent.setAttribute('v-bind:class', classPrefix + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
+            rootTag.firstElementChild.setAttribute('v-bind:class', classPrefix + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
             
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);

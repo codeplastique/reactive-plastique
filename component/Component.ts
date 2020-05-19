@@ -11,6 +11,14 @@ interface Component extends Eventer, Hashable{
 
     fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>
 
+    /**
+     * Execute action as if the component had the specified parents.
+     * The real parents are ignored.
+     * Useful when the component is not attached.
+     * @param parents in ascending order
+     */
+    runWithFakeParents(action: Function, ...parents: Component[]): Promise<any>
+
     getElement(): Element;
 
     whenAttached(callback: Function): void;

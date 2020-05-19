@@ -64,23 +64,54 @@ class ComponentImpl extends EventerImpl implements Component{
         return this.app$.v$ != null
     }
     public getClosestComponent(types?: Array<Component | TypeDef<any> | Marker>): CapturedComponent {
-        this.checkInit(true);
-        //@ts-ignore
-        return _app.getClosestComponent(this.app$.v$.$el.parentElement, null, types);
+        this.checkInit();
+        ///@ts-ignore
+        let app$ = this.app$;
+        if(app$.fp){
+            let closest = types && types.length != 0?
+                app$.fp.find(parent => types.find(type => _app.instanceOf(parent, type)))
+                :
+                app$.fp[0];
+            ///@ts-ignore
+            return new CapturedComponent(closest);
+        }else {
+            this.checkInit(true);
+            //@ts-ignore
+            return _app.getClosestComponent(app$.v$.$el.parentElement, null, types);
+        }
     }
     public fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>{
+        this.checkInit();
+        ///@ts-ignore
+        let app$ = this.app$;
+        let fakeParents: Array<any>;
+        if(app$.fp)
+            fakeParents = app$.fp.slice().reverse();
+        else
         this.checkInit(true);
         eventName = (eventName as string).toLowerCase();
-        ///@ts-ignore
-        let parent = this.app$.parent;
+        let parent = fakeParents? fakeParents.pop(): app$.parent;
         while(parent){
             if(parent.app$.events[eventName as string])
                 return Promise.resolve(parent.app$.events[eventName as string][0](eventObject, this));
-            parent = parent.app$.parent;
+            parent = fakeParents? fakeParents.pop(): parent.app$.parent;
         }
         console.log('No parent listeners for event: '+ eventName);
+        return Promise.resolve() as Promise<any>;
+    }
+
+    public runWithFakeParents(action: Function, ...parents: Component[]): Promise<any>{
         ///@ts-ignore
-        return Promise.resolve();
+        this.app$.fp = parents;
+        try {
+            return Promise.resolve(action()).finally(() =>
+        ///@ts-ignore
+                this.app$.fp = null)
+        }catch (e) {
+            ///@ts-ignore
+            this.app$.fp = null;
+            throw e
+        }
     }
 
     public getElement(): Element{
