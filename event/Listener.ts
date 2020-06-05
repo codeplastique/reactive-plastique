@@ -1,7 +1,13 @@
 import AppEvent from "./AppEvent";
 
 /**
- * Слушает событие / события; 
+ * for methods only!
+ *
+ * Listening the specified events
+ * Arguments that are passed to the method:
+ * 1. argument of the event
+ * @see AppEvent
+ * 2. Component instance which is fired the specified event
  */
-declare const Listener: (event: AppEvent<any>) => Function;
+declare const Listener: (...event: AppEvent<any>[]) => Function;
 export default Listener;

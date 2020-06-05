@@ -217,6 +217,19 @@ function Plastique(options){
         ]
     }
 
+    function getDecoratorArgumentsCallExpr(nodeClass, decoratorName, required){
+        let args = getDecoratorArguments(nodeClass, decoratorName, required);
+        if(args == null)
+            return null;
+        return args.map(arg => {
+            let isCompositeName = arg.expression.expression != null;
+            return [
+                (isCompositeName? arg.expression.expression.escapedText: arg.expression.escapedText),
+                (isCompositeName? (arg.expression.name.escapedText +'.'): '') + arg.name.escapedText
+            ]
+        })
+    }
+
     function getFileNameWithoutExt(filePath){
         var nameArray = filePath.split('/');
         return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
@@ -414,7 +427,15 @@ function Plastique(options){
                 return val;
             let isWithBrackets = exprMatch.length > 1;
             return val.replace(/(?<!\w)this\./g, '')
-                .replace(/#\{(.+?)(\((.+?)\))?}/g, I18N_METHOD +"('$1',$3)")
+                .replace(/^#{(\$\{.+?\}|[\w_.]+)(?:\((\$\{.+\}|[\w_.]+)\))?}/g, function(text, first, second){
+                    var result = I18N_METHOD+ '('
+                    result += first.startsWith('${')? extractExpression(first): ("'"+ first +"'");
+                    if(second) {
+                        result += ',';
+                        result += second.startsWith('${') ? extractExpression(second) : ("'" + second + "'");
+                    }
+                    return result + ")";
+                })
                 .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
         }
         function isExpression(val){
@@ -1231,23 +1252,30 @@ function Plastique(options){
 
     function tryBindListeners(classNode){
         if (classNode.members) {
-            let methodToEvent = {};
+            let methodToEvent = [];
             let hasListeners;
             for(let member of classNode.members){
+                let memberName = member.name.escapedText;
                 if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
                     hasListeners = true;
-                    let [className, propName] = getDecoratorArgumentCallExpr(member, ANNOTATION_LISTENER, true);
-                    let path = getNodePath(classNode, className);
-                    let index = eventToIdentifier.findIndex(o => o.classFile == path && o.className == className && o.memberName == propName);
-                    if(index == null || index < 0)
-                        index = eventToIdentifier.push({
-                            classFile: path,
-                            className: className,
-                            memberName: propName,
-                            init: false
-                        }) - 1;
+                    let events = getDecoratorArgumentsCallExpr(member, ANNOTATION_LISTENER, true);
+                    let eventsIds = events.map(event => {
+                        let [className, propName] = event;
+                        let path = getNodePath(classNode, className);
+                        let index = eventToIdentifier.findIndex(o => o.classFile == path && o.className == className && o.memberName == propName);
+                        if(index == null || index < 0)
+                            index = eventToIdentifier.push({
+                                classFile: path,
+                                className: className,
+                                memberName: propName,
+                                init: false
+                            }) - 1;
+                        return ts.createStringLiteral(String(index));
+                    })
 
-                    methodToEvent[member.name.escapedText] = String(index);
+                    methodToEvent.push(
+                        ts.createPropertyAssignment(memberName, ts.createArrayLiteral(eventsIds))
+                    );
                     removeDecorator(member, ANNOTATION_LISTENER);
                 }
             }
@@ -1260,7 +1288,7 @@ function Plastique(options){
                     ),
                     undefined, // type arguments, e.g. Foo<T>()
                     [
-                        ts.createLiteral(JSON.stringify(methodToEvent)),
+                        ts.createObjectLiteral(methodToEvent),
                         ts.createThis()
                     ]
                 );

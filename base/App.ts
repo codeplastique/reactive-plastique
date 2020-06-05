@@ -17,11 +17,13 @@ class EventerImpl implements Eventer{
     static listeners: {[eventName: string]: Array<(event?: any, caller?: any) => Promise<any>>} = {} 
     constructor(private $caller){}
 
-    public static addListener(eventName: string, func: Function): void{
-        if(EventerImpl.listeners[eventName] == null)
-            EventerImpl.listeners[eventName] = [];
-        ///@ts-ignore
-        EventerImpl.listeners[eventName].push(func);
+    public static addListener(eventIds: string[], func: Function): void{
+        eventIds.forEach(eventId => {
+            if(EventerImpl.listeners[eventId] == null)
+                EventerImpl.listeners[eventId] = [];
+            ///@ts-ignore
+            EventerImpl.listeners[eventId].push(func);
+        })
     }
     public fireEvent<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T[]>{
         eventName = (eventName as string).toLowerCase();
@@ -181,7 +183,9 @@ abstract class App{
                     if(types){
                         for(let type of types){
                             ///@ts-ignore
-                            if(_app.instanceOf(parent.__vue__._data, type))
+
+                            //if type is not marker and ...
+                            if(typeof type !== 'string' && _app.instanceOf(parent.__vue__._data, type))
                                 ///@ts-ignore
                                 return new CapturedComponent(parent.__vue__._data, marker);
                         }
@@ -216,16 +220,17 @@ abstract class App{
         return App.getBean(beanName);
     }   
     
-    private static addListeners(configuration: string, obj: any){
-        let methodNameToEvent = JSON.parse(configuration);
-        for(let methodName in methodNameToEvent){
-            let event = methodNameToEvent[methodName];
+    private static addListeners(methodNameToEventsIds: {[method: string]: string[]}, obj: any){
+        for(let methodName in methodNameToEventsIds){
+            let eventsIds = methodNameToEventsIds[methodName];
             let method = obj[methodName].bind(obj);
             if(obj.app$){
-                let events = obj.app$.events[event] = obj.app$.events[event] || [];
-                events.push(method);
+                eventsIds.forEach(eventId => {
+                    let events = obj.app$.events[eventId] = obj.app$.events[eventId] || [];
+                    events.push(method);
+                })
             }
-            EventerImpl.addListener(event, method);
+            EventerImpl.addListener(eventsIds, method);
         }
     }
 
