@@ -1255,8 +1255,8 @@ function Plastique(options){
             let methodToEvent = [];
             let hasListeners;
             for(let member of classNode.members){
-                let memberName = member.name.escapedText;
                 if(isNodeHasDecorator(member, ANNOTATION_LISTENER)){
+                    let memberName = member.name.escapedText;
                     hasListeners = true;
                     let events = getDecoratorArgumentsCallExpr(member, ANNOTATION_LISTENER, true);
                     let eventsIds = events.map(event => {
