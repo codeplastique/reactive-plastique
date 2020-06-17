@@ -4,12 +4,6 @@ class Serializator{
         filter?: (object: Object, propertyNameOrIndex: string | number, value: any) => boolean,
         transformator?: (object: Object, propertyNameOrIndex: string | number, value: any) => any,
     ): string{
-        obj = obj['_data']? obj['_data']: obj;
-        ///@ts-ignore
-        if(obj.toJSON){
-            ///@ts-ignore
-            obj = obj.toJSON();
-        }
         return JSON.stringify(new Serializator(filter, transformator).serialize(obj));
     }
 
@@ -34,13 +28,24 @@ class Serializator{
     }
 
     public serialize(obj: any): Object | Object[]{
+        obj = obj['_data']? obj['_data']: obj;
+        ///@ts-ignore
+        if(obj.toJSON){
+            ///@ts-ignore
+            obj = obj.toJSON();
+        }
+        return this.serializePart(obj);
+    }
+
+
+    public serializePart(obj: any): Object | Object[]{
         let filter = this.filter;
         if(Array.isArray(obj)){
             let result = [];
             for(let i = 0; i < obj.length; i++){
                 let transformValResult = this.transform(obj, i, obj[i])[1]; //index is the same
                 if(filter == null || filter(obj, i, transformValResult)){
-                    result.push(this.serialize(transformValResult));
+                    result.push(this.serializePart(transformValResult));
                 }
             }
             return result;
@@ -58,7 +63,12 @@ class Serializator{
                     continue;
 
                 if(mergeFields.includes(fieldName)){
-                    Object.assign(result, this.serialize(obj[fieldName]))
+                    let val = obj[fieldName]
+                    if(val != null && (filter == null || filter(obj, fieldName, val))){
+                        if(val.toJSON)
+                            val = val.toJSON();
+                        Object.assign(result, this.serializePart(val))
+                    }
                     continue;
                 }
 
@@ -73,7 +83,7 @@ class Serializator{
                 if(aliasName){
                     let [key, val] = this.transform(obj, aliasName, obj[fieldName]);
                     if(filter == null || filter(obj, key, val)){
-                        result[key] = this.serialize(val);
+                        result[key] = this.serializePart(val);
                     }
                 }
             }
@@ -81,7 +91,7 @@ class Serializator{
                 let methodName = aliasToMethodName[aliasName];
                 let [key, val] = this.transform(obj, aliasName, obj[methodName]());
                 if(filter == null || filter(obj, key, val)){
-                    result[key] = this.serialize(val);
+                    result[key] = this.serializePart(val);
                 }
             }
             return result;
