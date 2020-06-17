@@ -338,16 +338,17 @@ abstract class App{
                                     }
                                 })
                     }
-                    if(!('clazz$' in this.m)) {
-                        Object.defineProperty(this.m, 'clazz$', {
-                            enumerable: true,
-                            get: (function (p) {
-                                return function () {
-                                    return p.c || ''
-                                }
-                            })(this)
-                        })
-                    }
+                    // if(!('clazz$' in this.m)) {
+                    Object.defineProperty(this.m, 'clazz$', {
+                        enumerable: true,
+                        configurable: true,
+                        get: (function (p) {
+                            return function () {
+                                return p.c || ''
+                            }
+                        })(this)
+                    })
+                    // }
                     return this.m
                 }
             }(configurator.ep),
