@@ -357,8 +357,8 @@ abstract class App{
             // computed: {},
             render: render.r,
             staticRenderFns: render.s,
-            mounted: config.ah? methodNameToMethod[config.ah]: null,
-            beforeDestroy: config.dh? methodNameToMethod[config.dh]: null
+            mounted: configurator.ah? methodNameToMethod[configurator.ah]: null,
+            beforeDestroy: configurator.dh? methodNameToMethod[configurator.dh]: null
         });
     }
 
@@ -445,6 +445,17 @@ abstract class App{
                     });
                 }
                 
+            },
+            destroyed: function(){
+                if(this._data.app$) {
+                    this._data.app$.parent = null
+                    this._data.app$.v$ = null
+                }
+                this._data = null
+                this.$vnode.componentOptions.propsData = null
+                this.$children = [];
+                this._props = null;
+                this.$options.propsData = null;
             },
             methods: {
                 $convState: function (isWithState: number, iterable: object | any[]){
