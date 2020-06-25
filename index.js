@@ -950,7 +950,13 @@ function Plastique(options){
             // let render = getVueTemplateRender(template, componentName);
             // renderObj = ts.createSourceFile("a", `alert(${render})`).statements[0].expression.arguments[0];
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
-            let templateRender = getVueTemplateRender(template, componentNode);
+            let templateRender
+            try {
+                templateRender = getVueTemplateRender(template, componentNode);
+            }catch (e) {
+                console.error('Template component "'+ componentName +'" error!')
+                throw e
+            }
             // for(let interfaceId of templateRender.virtualComponents){
             //     let interfaceName = Interfaces.getNameById(interfaceId);
             //     if(!isImplementsInterface(context, componentNode, interfaceName, true))

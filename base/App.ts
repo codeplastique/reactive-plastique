@@ -98,7 +98,7 @@ class ComponentImpl extends EventerImpl implements Component{
                 return Promise.resolve(parent.app$.events[eventName as string][0](eventObject, this));
             parent = fakeParents? fakeParents.pop(): parent.app$.parent;
         }
-        console.log('No parent listeners for event: '+ eventName);
+        // console.log('No parent listeners for event: '+ eventName);
         return Promise.resolve() as Promise<any>;
     }
 
