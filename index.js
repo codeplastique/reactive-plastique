@@ -1580,6 +1580,7 @@ function Plastique(options){
                     if(
                         name == ANNOTATION_AUTOWIRED ||
                         name == ANNOTATION_BEAN ||
+                        name == ANNOTATION_SCOPE ||
                         name == ANNOTATION_BEANS ||
                         name == ANNOTATION_ENTRY_POINT_CLASS ||
                         name == ANNOTATION_ONCHANGE ||
