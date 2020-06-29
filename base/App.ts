@@ -159,6 +159,7 @@ class ComponentImpl extends EventerImpl implements Component{
 }
 abstract class App{
     private static beanNameToDef: {[beanName: string]: Function | Object} = {};
+    private static beanNameToProto: {[beanName: string]: boolean} = {};
     private static beanIdToName: {[beanId: number]: string} = {};
     private static componentId = 0;
     private static epName: string; //entry point name
@@ -212,8 +213,11 @@ abstract class App{
             throw new Error('You can get Eventer through Autowired only!')
         }
         let bean: any = App.beanNameToDef[beanName];
-        if(bean instanceof Function)
-            App.beanNameToDef[beanName] = bean = bean();
+        if(bean instanceof Function) {
+            bean = bean();
+            if(!App.beanNameToProto[beanName])
+                App.beanNameToDef[beanName] = bean
+        }
         return bean;
     }   
     public getBean<T>(beanName: string): T{
@@ -387,7 +391,9 @@ abstract class App{
                 let beanClassBeans = configurator.beans[i];
                 let beanClass = beansClasses[i] != this? new beansClasses[i](): beansClasses[i];
                 for(let bean in beanClassBeans){
-                    let [beanId, beanName] = bean.split(';');
+                    let [beanId, beanName, isPrototype] = bean.split(';');
+                    if(isPrototype)
+                        App.beanNameToProto[beanName] = true;
                     App.beanIdToName[beanId] = beanName;
                     App.beanNameToDef[beanName] = beanClass[configurator.beans[i][bean]].bind(beanClass);
                 }
@@ -643,7 +649,7 @@ window['_app'] = {
     },
     mixin: function (clazz) {
         Object.getOwnPropertyNames(ComponentImpl.prototype).forEach(name => {
-            if(name != 'constructor')
+            if(name != 'constructor' && !clazz.prototype[name])
                 Object.defineProperty(clazz.prototype, name, Object.getOwnPropertyDescriptor(ComponentImpl.prototype, name));
         });
         Object.defineProperty(clazz.prototype, 'fireEvent', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEvent'));

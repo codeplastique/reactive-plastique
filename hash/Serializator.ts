@@ -1,24 +1,27 @@
+import SerializeFilter from "./SerializeFilter";
+import SerializeTransformer from "./SerializeTransformer";
+
 class Serializator{
     public static toJson(
         obj: Object | Object[], 
-        filter?: (object: Object, propertyNameOrIndex: string | number, value: any) => boolean,
-        transformator?: (object: Object, propertyNameOrIndex: string | number, value: any) => any,
+        filter?: SerializeFilter,
+        transformer?: SerializeTransformer,
     ): string{
-        return JSON.stringify(new Serializator(filter, transformator).serialize(obj));
+        return JSON.stringify(new Serializator(filter, transformer).serialize(obj));
     }
 
     public constructor(
-        private readonly filter?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => boolean,
-        private readonly transformator?: (object: Object | Array<any>, propertyNameOrIndex: string | number, value: any) => [string | number, any]
+        private readonly filter?: SerializeFilter,
+        private readonly transformer?: SerializeTransformer
     ){}
 
     private transform(object: Object | Array<any>, propertyNameOrIndex: string | number, value: any): [string | number, any] {
         if(value != null && value.toJSON)
             value = value.toJSON();
 
-        let transformator = this.transformator;
-        if(transformator){
-            let result = transformator(object, propertyNameOrIndex, value);
+        let transformer = this.transformer;
+        if(transformer){
+            let result = transformer(object, propertyNameOrIndex, value);
             if(typeof propertyNameOrIndex === 'number' && propertyNameOrIndex !== result[0])
                 throw new Error('Array index is not changeable!')
             propertyNameOrIndex = result[0];

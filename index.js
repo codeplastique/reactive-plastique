@@ -46,6 +46,7 @@ function Plastique(options){
     const ANNOTATION_AUTOWIRED = 'Autowired';
     const ANNOTATION_ONCHANGE = 'OnChange';
     const ANNOTATION_BEAN = 'Bean';
+    const ANNOTATION_SCOPE = 'Scope';
     const ANNOTATION_BEANS = 'Beans';
     const ANNOTATION_LISTENER = 'Listener';
     const ANNOTATION_AFTERATTACH = 'AfterAttach';
@@ -998,6 +999,13 @@ function Plastique(options){
                     throw new Error('Method '+ member.name.escapedText +' should not have parameters')
                 // beansDeclarations[member.type.typeName.escapedText] = member.name.escapedText;
 
+                let isPrototype
+                if(isNodeHasDecorator(member, ANNOTATION_SCOPE)) {
+                    let scope = getDecoratorArguments(member, ANNOTATION_SCOPE, true)
+                    isPrototype = scope.text === 'PROTOTYPE';
+                    removeDecorator(member, ANNOTATION_SCOPE);
+                }
+
                 let typeName = member.type.typeName.escapedText
 
                 let beanId = beanToId[typeName];
@@ -1010,7 +1018,9 @@ function Plastique(options){
                 }else if(beansOfEntryPoint && beansOfEntryPoint.includes(typeName)){
                     throw new Error(`Bean with type ${typeName} is initialized twice!`)
                 }
-                beansDeclarations[beanId +';'+ typeName] = member.name.escapedText;
+
+                let beanKey = beanId +';'+ typeName + (isPrototype? ';1': '');
+                beansDeclarations[beanKey] = member.name.escapedText;
                 removeDecorator(member, ANNOTATION_BEAN);
                 cleanMemberCache(member);
             }
