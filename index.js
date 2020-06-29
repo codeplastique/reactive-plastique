@@ -1002,7 +1002,7 @@ function Plastique(options){
                 let isPrototype
                 if(isNodeHasDecorator(member, ANNOTATION_SCOPE)) {
                     let scope = getDecoratorArguments(member, ANNOTATION_SCOPE, true)
-                    isPrototype = scope.text === 'PROTOTYPE';
+                    isPrototype = scope[0].text === 'PROTOTYPE';
                     removeDecorator(member, ANNOTATION_SCOPE);
                 }
 
