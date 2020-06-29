@@ -290,11 +290,12 @@ abstract class App{
         };
         if(obj.app$){
             //from super
-            // obj.app$.pc.super = obj.app$.cn;
+            let pc = obj.app$.pc;
             obj.app$.cn = componentName; //replace parent name to child name
-            Object.assign(obj.app$.pc.w, config.w);
-            // obj.app$.pc.c = obj.app$.pc.c.concat(config.c);
-            obj.app$.pc.ep = (obj.app$.pc.ep || []).concat(config.ep); // element prop
+            Object.assign(pc.w, config.w);
+            pc.ah = config.ah || pc.ah
+            pc.dh = config.dh || pc.dh
+            pc.ep = (pc.ep || []).concat(config.ep); // element prop
             obj.app$.tg = templateGenerator? templateGenerator: obj.app$.tg
         }else{
             Object.defineProperty(obj, 'app$', {
