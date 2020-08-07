@@ -11,11 +11,11 @@ class Serializator{
     }
 
     public constructor(
-        private readonly filter?: SerializeFilter,
-        private readonly transformer?: SerializeTransformer
+        protected filter?: SerializeFilter,
+        protected transformer?: SerializeTransformer
     ){}
 
-    private transform(object: Object | Array<any>, propertyNameOrIndex: string | number, value: any): [string | number, any] {
+    protected transform(object: Object | Array<any>, propertyNameOrIndex: string | number, value: any): [string | number, any] {
         if(value != null && value.toJSON)
             value = value.toJSON();
 
@@ -41,7 +41,7 @@ class Serializator{
     }
 
 
-    public serializePart(obj: any): Object | Object[]{
+    protected serializePart(obj: any): Object | Object[]{
         let filter = this.filter;
         if(Array.isArray(obj)){
             let result = [];
@@ -102,11 +102,11 @@ class Serializator{
             return obj;
     }
 
-    private isUpperCase(char: string){
+    protected isUpperCase(char: string){
         return char && char == char.toUpperCase();
     }
 
-    private getJsonFields(obj: Object): [string[], object, object, string[]]{
+    protected getJsonFields(obj: Object): [string[], object, object, string[]]{
         let fields = [], fieldNameToAlias = {}, aliasNameToMethodName = {}, mergeFields = [];
         let proto = Object.getPrototypeOf(obj);
         while(proto != null){
