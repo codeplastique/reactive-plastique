@@ -76,7 +76,7 @@ class Serializator{
                 && Object.keys(fieldNameToAlias).length == 0 
                 && Object.keys(aliasToMethodName).length == 0;
 
-            let result = {};
+            result = {};
             for(let fieldName in obj){
                 if(!obj.hasOwnProperty(fieldName) || fieldName == 'app$')
                     continue;
