@@ -1670,9 +1670,9 @@ function Plastique(options){
                                 break typeExpr;
                             }
                             if(node.typeArguments == null || node.typeArguments.length == 0)
-                                throw new Error('Genertic type of Type is not set!')
+                                throw new Error('Generic type of Type is not set!')
                             if(node.typeArguments[0].typeName == null)
-                                throw new Error('Genertic type of Type is not valid: '+ node.typeArguments)
+                                throw new Error('Generic type of Type is not valid: '+ node.typeArguments)
 
                             let typeName = node.typeArguments[0].typeName.escapedText;
                             let typePath = getNodePath(node, typeName);
