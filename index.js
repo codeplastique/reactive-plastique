@@ -414,8 +414,8 @@ function Plastique(options){
 
             let withParentTag = vueCompilerResult.render.includes(`_c('${prefix}:parent')`)
             vueCompilerResult.render = vueCompilerResult.render
-                .replace(`_c('${prefix}:parent')`, '_data.app$.ptg.call(this)')
-                .replace("clazz$", '(css$? css$: clazz$)');
+                .replace(`_c('${prefix}:parent')`, '_data.app$.ptg.call(this, null, "")')
+                .replace("clazz$", '(css$ != null? css$: clazz$)');
 
             return {
                 template: `{r:function(_$, css$){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`, //_$ - vue js object,
