@@ -282,7 +282,7 @@ abstract class App{
         }
     }
 
-    private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator: Function){
+    private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator?: Function, initParentTG?: boolean){
         let config = JSON.parse(configuration);
         // let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
@@ -296,6 +296,8 @@ abstract class App{
             pc.ah = config.ah || pc.ah
             pc.dh = config.dh || pc.dh
             pc.ep = (pc.ep || []).concat(config.ep); // element prop
+            if(initParentTG)
+                obj.app$.ptg = obj.app$.tg().r;
             obj.app$.tg = templateGenerator? templateGenerator: obj.app$.tg
         }else{
             Object.defineProperty(obj, 'app$', {
@@ -359,7 +361,6 @@ abstract class App{
             }(configurator.ep),
             methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
-            // computed: {},
             render: render.r,
             staticRenderFns: render.s,
             mounted: configurator.ah? methodNameToMethod[configurator.ah]: null,
@@ -367,9 +368,8 @@ abstract class App{
         });
     }
 
-    
 
-    constructor(element?: HTMLElement, contextPath?: string){
+    protected constructor(element?: HTMLElement, contextPath?: string){
         let $ = this.constructor['$'];
         
         ///@ts-ignore

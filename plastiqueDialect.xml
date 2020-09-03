@@ -22,6 +22,7 @@
     <attribute-processor name="animation"  />
 	<element-processor name="block"/>
 	<element-processor name="slot"/>
+	<element-processor name="parent"/>
 
 
     <!-- URL and form-specific attribute processors -->

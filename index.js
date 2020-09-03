@@ -236,7 +236,16 @@ function Plastique(options){
         return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
     }
 
-    function getVueTemplateRender(vueTemplate, componentNode){
+    function closeUnclosedTags(template, prefix){
+        let tagPrefix = prefix? prefix: 'v';
+        return template
+            .replace(new RegExp(`<${tagPrefix}:parent\\s*\/>`), `<${tagPrefix}:parent></${tagPrefix}:parent>`)
+            .replace(new RegExp(`<${tagPrefix}:slot\\s*\/>`), `<${tagPrefix}:slot></${tagPrefix}:slot>`);
+    }
+
+    function getVueTemplateRender(vueTemplate, componentNode, realPrefix){
+        vueTemplate = closeUnclosedTags(vueTemplate, realPrefix);
+
         const componentName = componentNode.name.escapedText;
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
@@ -244,16 +253,20 @@ function Plastique(options){
         if(rootTag.children.length > 1)
             console.error('Component '+ componentName +' has multiple root tags!')
         let rootComponent = rootTag.children[0];
-    
+
         let prefixAttr = Array.from(rootComponent.attributes)
                 .find(a => a.name.startsWith('xmlns:') && a.value == VUE_SCRIPT_DIALECT_URL);
         let prefixAttrName = prefixAttr? prefixAttr.name: null;
 
-        let prefix;
+        let prefix = null;
         if(prefixAttrName){
             rootComponent.removeAttribute(prefixAttrName);
             prefix = prefixAttrName.substr(6)
         }
+
+        if(prefix != 'v')
+            return getVueTemplateRender(vueTemplate, componentNode, prefix);
+
         rootComponent.setAttribute('data-cn', componentName)
         if(handle(prefix, elems, componentName)){
 
@@ -348,11 +361,6 @@ function Plastique(options){
                             componentName = componentVar + '.app$.cn';
                         }
 
-                        // let componentVar = componentExpr;
-                        // let componentName = componentVar + '.app$.cn';
-                        // componentVar.replace(/([\w\d]+)\s+as\s+([\w\d]+)/g, (a, b, c) => `'${c.toUpperCase()}'`)
-                        
-                        // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
                         cloneComponent.setAttribute(':is', componentName);
                         cloneComponent.setAttribute(':key', componentVar +'.app$.id');
                         cloneComponent.setAttribute('v-bind:m', `$convComp(${componentVar})`);
@@ -380,24 +388,13 @@ function Plastique(options){
                     arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 }
 
-                // let templatesElems = arrayElems.filter(t => t.hasAttribute('v-hasSlot')).map(t => {
-                //     t.removeAttribute('v-hasSlot');
-                //     return t;
-                // }).filter(t => t.tagName != (prefix.toUpperCase() +':BLOCK'));
-                // if(templatesElems.length > 0){
-                //     templatesElems.forEach(t => replaceSpecialTag(prefix.toUpperCase() +':block', t));
-                    // arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceTagElems(tag => tag.hasAttribute('v-hasSlot'), (prefix +':block'), tag => tag.removeAttribute('v-hasSlot'))
-                // }
 
                 replaceAnimationElems(rootTag.firstElementChild);
                 
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceComponentElems(arrayElems);
 
-                // arrayElems = Array.from(rootTag.querySelectorAll('*'))
-                // arrayElems.filter(e => e.tagName == (prefix.toUpperCase() +':BLOCK'))
-                //     .forEach(t => replaceSpecialTag('template', t));
                 
                 replaceTagElems(tag => tag.tagName == (prefix.toUpperCase() +':BLOCK'), 'template')
             }
@@ -414,8 +411,15 @@ function Plastique(options){
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
             }
+
+            let withParentTag = vueCompilerResult.render.includes(`_c('${prefix}:parent')`)
+            vueCompilerResult.render = vueCompilerResult.render
+                .replace(`_c('${prefix}:parent')`, '_data.app$.ptg.call(this)')
+                .replace("clazz$", '(css$? css$: clazz$)');
+
             return {
-                template: `{r:function(){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`
+                template: `{r:function(_$, css$){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`, //_$ - vue js object,
+                withParentTag: withParentTag
             };
         }else
             return null;
@@ -946,6 +950,7 @@ function Plastique(options){
             configuration.dh = componentRoot.detachHook
 
         let renderObj
+        let withParentTag
         if(template){
             // configuration.tn = templateName.toUpperCase();
             // let render = getVueTemplateRender(template, componentName);
@@ -953,7 +958,9 @@ function Plastique(options){
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
             let templateRender
             try {
-                templateRender = getVueTemplateRender(template, componentNode);
+                let templateRenderResult = getVueTemplateRender(template, componentNode);
+                templateRender = templateRenderResult.template
+                withParentTag = templateRenderResult.withParentTag;
             }catch (e) {
                 console.error('Template component "'+ componentName +'" error!')
                 throw e
@@ -963,30 +970,39 @@ function Plastique(options){
             //     if(!isImplementsInterface(context, componentNode, interfaceName, true))
             //         throw new Error('Invalid template virtual component "Type<'+ interfaceName +'>". Component "'+ componentName + '" does not implement interface: '+ interfaceName);
             // }
-            componentPathToTemplate[componentNode.parent.fileName] = templateRender.template;
+            componentPathToTemplate[componentNode.parent.fileName] = templateRender;
             // removeDecorator(componentNode, ANNOTATION_TEMPLATE)
         }
 
-        let callExpr = (isStatic) => ts.createCall(
+        if(isEntryPointNode(componentNode))
+            constructorNode.body.statements.unshift(genInitComponentCallExpression(true, componentName, configuration, renderObj, withParentTag));
+        else
+            constructorNode.body.statements.push(genInitComponentCallExpression(false, componentName, configuration, renderObj, withParentTag));
+
+        removeDecorator(componentNode, ANNOTATION_REACTIVE_CLASS)
+        componentsNames.push(componentName);
+    }
+
+
+    function genInitComponentCallExpression(isStatic, componentName, configuration, renderObj, withParentTag){
+        let callArgs = [
+            ts.createLiteral(componentName.toUpperCase()),
+            ts.createLiteral(JSON.stringify(configuration)),
+            ts.createThis()
+        ]
+        if(renderObj)
+            callArgs.push(renderObj)
+        if(withParentTag)
+            callArgs.push(ts.createTrue())
+
+        return ts.createCall(
             ts.createPropertyAccess(
                 ts.createIdentifier(isStatic? '_super': '_app'),
                 ts.createIdentifier(isStatic? 'initComponent': 'initComp')
             ),
             undefined, // type arguments, e.g. Foo<T>()
-            [
-                ts.createLiteral(componentName.toUpperCase()),
-                ts.createLiteral(JSON.stringify(configuration)),
-                ts.createThis(),
-                renderObj == null? ts.createNull(): renderObj
-            ]
+            callArgs
         );
-        if(isEntryPointNode(componentNode))
-            constructorNode.body.statements.unshift(callExpr(true));
-        else
-            constructorNode.body.statements.push(callExpr(false));
-
-        removeDecorator(componentNode, ANNOTATION_REACTIVE_CLASS)
-        componentsNames.push(componentName);
     }
 
     function getBeansDeclarations(beanClass, beansOfEntryPoint){
