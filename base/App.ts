@@ -178,9 +178,7 @@ abstract class App{
                         types = void 0;// clear types, because the marker is caught
                     }
                 }
-                if(marker || parent.hasAttribute('data-cn')){
-                    if(parent.__vue__ == null) //if server template
-                        break;
+                if((marker || parent.hasAttribute('data-cn')) && parent.__vue__ != null){ //__vue__ can be the null if the tag is v:parent or out or root tag
                     if(types){
                         for(let type of types){
                             ///@ts-ignore
@@ -373,7 +371,7 @@ abstract class App{
         let $ = this.constructor['$'];
         
         ///@ts-ignore
-        contextPath = element; //element is removed
+        contextPath = element; //element is moved to this.attachComponent, in the compile time element is the contextPath
         
         if(contextPath){
             if(!contextPath.startsWith('/'))
@@ -505,7 +503,7 @@ abstract class App{
         });
     }
 
-    public attachComponent(element: HTMLElement, component: Component){
+    private attachComponent(element: HTMLElement, component: Component){
         new Vue({
             el: element,
             data: {c: component},
@@ -514,15 +512,15 @@ abstract class App{
         });
     }
 
-    public isComponentAttached(component: Component){
-        let parent = component;
-        while(parent){
-            if(parent['_isVue'])
-                return true;
-            ///@ts-ignore
-            parent = parent.app$.parent;
-        }
-    }
+    // public isComponentAttached(component: Component){
+    //     let parent = component;
+    //     while(parent){
+    //         if(parent['_isVue'])
+    //             return true;
+    //         ///@ts-ignore
+    //         parent = parent.app$.parent;
+    //     }
+    // }
 
     public static triggerDomReflow(): void{
         void window.innerHeight;
@@ -622,7 +620,7 @@ Element.prototype.getClosestComponent = function(types?: Array<Component | TypeD
 }
 Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any> | Marker>) {
     function getElem(elem): Element{
-        return elem == window || elem == document? document.documentElement: elem;
+        return elem == window || elem == document? null: elem;
     }
     return _app.getClosestComponent(getElem(this.target), getElem(this.currentTarget), types);
 }
