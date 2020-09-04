@@ -236,15 +236,15 @@ function Plastique(options){
         return nameArray[nameArray.length - 1].split('.').slice(0, -1)[0]
     }
 
-    function closeUnclosedTags(template, prefix){
+    function closePlastiqueUnclosedTags(template, prefix){
         let tagPrefix = prefix? prefix: 'v';
         return template
-            .replace(new RegExp(`<${tagPrefix}:parent\\s*\/>`), `<${tagPrefix}:parent></${tagPrefix}:parent>`)
+            .replace(new RegExp(`<${tagPrefix}:parent(.*?)\/>`), `<${tagPrefix}:parent$1></${tagPrefix}:parent>`)
             .replace(new RegExp(`<${tagPrefix}:slot\\s*\/>`), `<${tagPrefix}:slot></${tagPrefix}:slot>`);
     }
 
     function getVueTemplateRender(vueTemplate, componentNode, realPrefix){
-        vueTemplate = closeUnclosedTags(vueTemplate, realPrefix);
+        vueTemplate = closePlastiqueUnclosedTags(vueTemplate, realPrefix);
 
         const componentName = componentNode.name.escapedText;
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
@@ -373,7 +373,7 @@ function Plastique(options){
                     }
                 }
             }
-            
+
             if(prefix){
                 let arrayElems = Array.from(elems);
                 let slotElems = arrayElems.filter(t => t.tagName.startsWith(prefix.toUpperCase() +':SLOT'))
@@ -385,10 +385,12 @@ function Plastique(options){
                             return t;
                         })
                         .forEach(t => replaceSpecialTag('slot', t));
-                    arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 }
 
-                replaceTagElems(tag => tag.hasAttribute('v-hasSlot'), (prefix +':block'), tag => tag.removeAttribute('v-hasSlot'))
+                replaceTagElems(
+                    tag => tag.hasAttribute('v-hasSlot'),
+                    prefix +':block',
+                    tag => tag.removeAttribute('v-hasSlot'))
 
                 replaceAnimationElems(rootTag.firstElementChild);
                 
@@ -412,9 +414,13 @@ function Plastique(options){
                 staticRenders.push(`function(){${staticRender}}`);
             }
 
-            let withParentTag = vueCompilerResult.render.includes(`_c('${prefix}:parent')`)
+            var parentDefPattern = new RegExp(`_c\\('${prefix}:parent'(,\\{class:(.+?)})?\\)`);
+            let withParentTag = false;
             vueCompilerResult.render = vueCompilerResult.render
-                .replace(`_c('${prefix}:parent')`, '_data.app$.ptg.call(this, null, "")')
+                .replace(parentDefPattern, (all, p1, p2) => {
+                    withParentTag = true;
+                    return `_data.app$.ptg.call(this, null, ${p2 != null? p2: '""'})`
+                })
                 .replace("clazz$", '(css$ != null? css$: clazz$)');
 
             return {

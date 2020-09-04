@@ -1,4 +1,4 @@
 declare const Beans: (
-    beansClasses: Clazz[]
+    beansClasses: object[]
 ) => Function;
 export default Beans;

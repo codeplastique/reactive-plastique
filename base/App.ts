@@ -547,7 +547,6 @@ abstract class App{
 
 
 declare global {
-    interface Clazz extends Function{}
     interface Object{
         equals(obj: Object): boolean;
     }

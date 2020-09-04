@@ -1,4 +1,4 @@
 declare const RequestMappers: (
-    beansClasses: Clazz[]
+    beansClasses: object[]
 ) => Function;
 export default RequestMappers;
