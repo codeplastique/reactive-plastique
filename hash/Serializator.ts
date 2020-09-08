@@ -2,19 +2,15 @@ import SerializeFilter from "./SerializeFilter";
 import SerializeTransformer from "./SerializeTransformer";
 
 class Serializator{
-    private stack = [];
+    protected stack = [];
 
     public constructor(
         protected readonly filtrator?: (filter: SerializeFilter) => boolean,
         protected readonly transformer?: (transformer: SerializeTransformer) => void
     ){}
 
-    public static toJson(
-        obj: Object | Object[],
-        filter?: (filtrator: SerializeFilter) => boolean,
-        transformer?: (transformer: SerializeTransformer) => void,
-    ): string{
-        return JSON.stringify(new Serializator(filter, transformer).serialize(obj));
+    public toJson(obj: Object | Object[]): string{
+        return JSON.stringify(this.serialize(obj));
     }
 
     protected filter(filtrator: SerializeFilter): boolean{
@@ -40,15 +36,10 @@ class Serializator{
 
     public serialize(obj: any): Object | Object[]{
         obj = obj['_data']? obj['_data']: obj;
-        ///@ts-ignore
-
-        // this.stack.push(obj);
         if(obj.toJSON){
-            ///@ts-ignore
             obj = obj.toJSON();
         }
         return this.serializePart(obj);
-        // this.stack.pop();
     }
 
 
