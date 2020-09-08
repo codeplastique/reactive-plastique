@@ -65,7 +65,7 @@ class ComponentImpl extends EventerImpl implements Component{
         //@ts-ignore
         return this.app$.v$ != null
     }
-    public getClosestComponent(types?: Array<Component | TypeDef<any> | Marker>): CapturedComponent {
+    public getClosestComponent(types?: Array<ComponentClass | TypeDef<any> | Marker>): CapturedComponent {
         this.checkInit();
         ///@ts-ignore
         let app$ = this.app$;
@@ -167,7 +167,7 @@ abstract class App{
     private static contextPath: string;
     private static mappers: object[]; //mappers container
 
-    private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<Component | TypeDef<any> | Marker>) {
+    private static getClosestComponent(parent: any, topLimitElem: HTMLElement, types?: Array<ComponentClass | TypeDef<any> | Marker>) {
         if(parent)
             while(true){
                 let marker: any
@@ -547,6 +547,7 @@ abstract class App{
 
 
 declare global {
+    type ComponentClass = Function & { prototype: Component }
     interface Object{
         equals(obj: Object): boolean;
     }
@@ -560,11 +561,11 @@ declare global {
     }
 
     interface Event{
-        getClosestComponent: (types?: Array<Component | TypeDef<any> | Marker>) => CapturedComponent
+        getClosestComponent: (types?: Array<ComponentClass | TypeDef<any> | Marker>) => CapturedComponent
     }
 
     interface Element{
-        getClosestComponent: (types?: Array<Component | TypeDef<any> | Marker>) => CapturedComponent
+        getClosestComponent: (types?: Array<ComponentClass | TypeDef<any> | Marker>) => CapturedComponent
     }
 }
 if(!Object.values){
@@ -614,10 +615,10 @@ Array.prototype.set = function (index: number, value: any) {
         this[index] = value;
     return this;
 }
-Element.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any> | Marker>) {
+Element.prototype.getClosestComponent = function(types?: Array<ComponentClass | TypeDef<any> | Marker>) {
     return _app.getClosestComponent(this, null, types);
 }
-Event.prototype.getClosestComponent = function(types?: Array<Component | TypeDef<any> | Marker>) {
+Event.prototype.getClosestComponent = function(types?: Array<ComponentClass | TypeDef<any> | Marker>) {
     function getElem(elem): Element{
         return elem == window || elem == document? null: elem;
     }

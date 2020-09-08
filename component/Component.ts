@@ -7,7 +7,7 @@ import Hashable from "../hash/Hashable";
 interface Component extends Eventer, Hashable{
     isComponentAttached(): boolean
 
-    getClosestComponent(types?: Array<Component | TypeDef<any>>): CapturedComponent
+    getClosestComponent(types?: Array<ComponentClass | TypeDef<any>>): CapturedComponent
 
     fireEventOnParents<A, T>(eventName: AppEvent<A>, eventObject?: A): Promise<T>
 
