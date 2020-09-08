@@ -16,7 +16,7 @@ class RestService{
         if(req.content != null){
             let data = req.content.data;
             if(req.content instanceof JsonRequestContent)
-                props.data = typeof data == 'string'? data: Serializator.toJson(data)
+                props.data = typeof data == 'string'? data: new Serializator().toJson(data)
             else if(req.content instanceof UrlEncodedRequestContent)
                 props.data = this.encodeMap(data);
             else // FormDataRequestContent
