@@ -626,6 +626,22 @@ function Plastique(options){
     //     }
     // }
 
+
+    function requireIdenticalLocales(nameToProps){
+        let localeToKeysArr = nameToProps.map(it => {
+            return {name: it[0], keys: Object.keys(it[1])}
+        })
+        for(let localeToKeys1 of localeToKeysArr){
+            for(let localeToKeys2 of localeToKeysArr){
+                if(localeToKeys1 !== localeToKeys2){
+                    let missed = localeToKeys1.keys.find(k => !localeToKeys2.keys.includes(k))
+                    if(missed)
+                        throw new Error(`There is no bundle key "${missed}" in the ${localeToKeys2.name.toUpperCase()} properties file`)
+                }
+            }
+        }
+    }
+
     function buildLocales(){
         let langToPropertiesReader = {};
         let regexp = new RegExp('"([^(\")"]+)":', 'g');
@@ -636,8 +652,14 @@ function Plastique(options){
                 langToPropertiesReader[locale] = new PropertiesReader();
             langToPropertiesReader[locale].append(filePath);
         });
-        for(let locale in langToPropertiesReader){
-            let i18nObj = JSON.stringify(langToPropertiesReader[locale]._properties).replace(regexp,"$1:");
+
+        let langToProperties = Object.entries(langToPropertiesReader);
+        langToProperties.forEach(it => it[1] = it[1]._properties);
+
+        requireIdenticalLocales(langToProperties);
+        for(let localeToProps of langToProperties){
+            let [locale, props] = localeToProps;
+            let i18nObj = JSON.stringify(props).replace(regexp,"$1:");
             let localeFileString = 'var _AppLocale={locale:"'+ locale +'",values:'+ i18nObj +'};';
             if (!fs.existsSync(OUTPUT_DIR)) {
                 fs.mkdirSync(OUTPUT_DIR, {recursive: true});
