@@ -153,7 +153,7 @@ class Popup{
     
   private welcomeText: string;
   constructor(welcomeText: string){
-    this.setWelcomeText(welcomeText);
+    this.welcomeText = welcomeText;
   }
   
   public requestNewText(): void{
