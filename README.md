@@ -142,14 +142,23 @@ class Page{
 @Reactive(function(this: Popup){
 `<div xmlns:v="http://github.com/codeplastique/plastique">
   <div v:text="${this.welcomeText}"></div>
+  
+  <button v:onclick="${this.requestNewText}">Change welcome text</button>
   <button v:onclick="${this.close}">Close popup</button>
 </div>
 `})
 class Popup{
   @InitEvent public static readonly CLOSE_EVENT: AppEvent<string>;
+  @InitEvent public static readonly REQUEST_WELCOME_TEXT_EVENT: AppEvent<void>;
+    
   private welcomeText: string;
   constructor(welcomeText: string){
     this.setWelcomeText(welcomeText);
+  }
+  
+  public requestNewText(): void{
+    this.fireEventOnParents(Popup.REQUEST_WELCOME_TEXT_EVENT)
+        .then(newWelcomeText => this.welcomeText = newWelcomeText);
   }
   
   public close(): void{
@@ -169,6 +178,13 @@ class Page{
   private popup: Popup
   private showPopup(): void{
     this.popup = new Popup('Welcome!');
+  }
+  
+  @Listener(Popup.REQUEST_WELCOME_TEXT_EVENT)
+  private generateWelcomeText(): Promise<string>{
+    ///...
+    
+    return Promise.resolve('Changed welcome text!');
   }
   
   @Listener(Popup.CLOSE_EVENT)
