@@ -92,11 +92,11 @@ class ComponentImpl extends EventerImpl implements Component{
         else
         this.checkInit(true);
         eventName = (eventName as string).toLowerCase();
-        let parent = fakeParents? fakeParents.pop(): app$.parent;
+        let parent = fakeParents? fakeParents.pop(): app$.v$.$parent._data;
         while(parent){
             if(parent.app$.events[eventName as string])
                 return Promise.resolve(parent.app$.events[eventName as string][0](eventObject, this));
-            parent = fakeParents? fakeParents.pop(): parent.app$.parent;
+            parent = fakeParents? fakeParents.pop(): parent.app$.v$.$parent._data;
         }
         // console.log('No parent listeners for event: '+ eventName);
         return Promise.resolve() as Promise<any>;
@@ -426,12 +426,14 @@ abstract class App{
 
     private genVueMixins(){
         Vue.mixin({
-            created: function(){
-                if(this._data.app$)
-                    this._data.app$.v$ = this;
-            },
+            // created: function(){
+            //     if(this._data.app$)
+            //         this._data.app$.v$ = this;
+            // },
             mounted: function(){
                 //attach callbacks
+                if(this._data.app$)
+                    this._data.app$.v$ = this;
                 let callbacks = this._data.app$? this._data.app$.ac: null;
                 if(callbacks) {
                     this.$nextTick(() => {
@@ -453,7 +455,7 @@ abstract class App{
             },
             destroyed: function(){
                 if(this._data.app$) {
-                    this._data.app$.parent = null
+                    // this._data.app$.parent = null
                     this._data.app$.v$ = null
                 }
                 this._data = null
@@ -492,8 +494,8 @@ abstract class App{
                     return arr;
                 },
                 $convComp: function(component: any) {
-                    if(component.app$.parent != this._data.app$.clazz)
-                        component.app$.parent = this._data.app$.clazz;
+                    // if(component.app$.parent != this._data.app$.clazz)
+                    //     component.app$.parent = this._data.app$.clazz;
                     if(component.app$.pc)
                         delete component.app$.pc;
                     return component;
