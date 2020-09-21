@@ -1,6 +1,6 @@
 ### Component instance
 #### Vue.js
-Declarative approach
+Functional approach
 ```javascript
 Vue.component('PassEditor', {
   data: function () {
@@ -194,4 +194,53 @@ class Page{
   }
 }
 
+```
+
+### Built-in dependency injection
+```typescript
+//...
+@Bean
+private getFirstInstance(): AnyClassOrInterface{
+  return new AnyClassOrInterface();
+}
+
+@Bean
+@Scope('PROTOTYPE') //SINGLETON by default
+private getSecondInstance(): PrototypeClass{
+  return new PrototypeClass();
+}
+//...
+```
+
+```typescript
+class A{
+  @Autowired 
+  private readonly AnyClassOrInterface first;
+  @Autowired 
+  private readonly PrototypeClass second;
+  
+  //...
+}
+```
+
+### Runtime interface implementation check
+```typescript
+interface A{}
+
+interface B extends A{}
+
+class C implements A, B{}
+```
+
+```typescript
+//...
+  let obj = new C();
+  console.log(c instanceof Type<A>()); //true
+  let bType = Type<B>();
+  console.log(c instanceof bType); //true
+  
+  let bType2 = Type<B>();
+  console.log(bType === bType2); //true
+  console.log(bType === Type<A>()); //false
+//...
 ```
