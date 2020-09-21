@@ -234,7 +234,7 @@ class C implements A, B{}
 
 ```typescript
 //...
-  let obj = new C();
+  let c = new C();
   console.log(c instanceof Type<A>()); //true
   let bType = Type<B>();
   console.log(c instanceof bType); //true
