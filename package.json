@@ -1,5 +1,5 @@
 {
-  "name": "plastique",
+  "name": "@plastique/core",
   "version": "1.6.0",
   "description": "Typescript library based on vue.js, typescript and some utility classes",
   "main": "index.js",
@@ -16,10 +16,7 @@
     "abstract-syntax-tree": "2.5.0",
     "uglify-js": "3.7.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codeplastique/plastique.git"
-  },
+  "repository": "git://github.com/codeplastique/plastique.git",
   "author": "Bondarenko Artem",
   "license": "ISC",
   "bugs": {

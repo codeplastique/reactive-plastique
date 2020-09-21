@@ -65,14 +65,14 @@ function Plastique(options){
     const APP_EVENT_TYPE = 'AppEvent';
     const I18N_METHOD = '_app.i18n';
     const TYPE_CLASS_NAME = 'Type';
-    const TYPE_CLASS_PATH = '/plastique/base/Type.ts';
-    const COMPONENT_INTERFACE_PATH = '/plastique/component/Component.ts';
-    const ENTRYPOINT_ANNOTATION_PATH = '/plastique/base/EntryPoint.ts';
-    const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/plastique/component/Marker.ts';
+    const TYPE_CLASS_PATH = '/@plastique/core/base/Type.ts';
+    const COMPONENT_INTERFACE_PATH = '/@plastique/core/component/Component.ts';
+    const ENTRYPOINT_ANNOTATION_PATH = '/@plastique/core/base/EntryPoint.ts';
+    const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/@plastique/core/component/Marker.ts';
     const CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY = 'clazz$';
-    const ENUM_ANNOTATION_PATH = '/plastique/enum/Enum.ts';
+    const ENUM_ANNOTATION_PATH = '/@plastique/core/enum/Enum.ts';
     const ENUMERABLE_CLASS = 'Enumerable';
-    const ENUMERABLE_IDENTIFIER = 'plastique/enum/Enumerable';
+    const ENUMERABLE_IDENTIFIER = '@plastique/core/enum/Enumerable';
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -1662,7 +1662,7 @@ function Plastique(options){
                         &&
                         !f.fileName.startsWith(libPath +'typescript/')
                         &&
-                        !f.fileName.startsWith(libPath +'plastique/')
+                        !f.fileName.startsWith(libPath +'@plastique/')
                     );
                     let vis = function (node) {
                         componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
@@ -1809,7 +1809,7 @@ class CompilePlugin{
                     && statement.declarations[0].init.callee.name == "__webpack_require__"
                 ){
                     let val = statement.declarations[0].init.arguments[0].value;
-                    return val == appModuleIndex || (typeof val == 'string' && val.endsWith('/plastique/base/App.ts'))
+                    return val == appModuleIndex || (typeof val == 'string' && val.endsWith('/@plastique/core/base/App.ts'))
                 }
                 return false;
             })
@@ -1889,7 +1889,7 @@ class CompilePlugin{
         
         compiler.hooks.emit.tap('plastique final compilation of modules', function(compilation){
             const uglifyJS = require("uglify-js");
-            const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/plastique/base/App.ts'));
+            const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/@plastique/core/base/App.ts'));
             if(AppModuleIndex < 0)
                 console.error('App.ts is not found!');
             for(let asset in compilation.assets){
