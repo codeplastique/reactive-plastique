@@ -93,7 +93,7 @@ class ComponentImpl extends EventerImpl implements Component{
         this.checkInit(true);
         eventName = (eventName as string).toLowerCase();
         let parent = fakeParents? fakeParents.pop(): app$.v$.$parent._data;
-        while(parent){
+        while(parent && parent.app$){
             if(parent.app$.events[eventName as string])
                 return Promise.resolve(parent.app$.events[eventName as string][0](eventObject, this));
             parent = fakeParents? fakeParents.pop(): parent.app$.v$.$parent._data;
