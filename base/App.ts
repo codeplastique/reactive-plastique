@@ -12,6 +12,7 @@ import SimpleSet from "../collection/impl/SimpleSet";
 import Marker from "../component/Marker";
 declare const Vue: any;
 declare const _app: any;
+declare const __debugger: any;
 
 class EventerImpl implements Eventer{
     static listeners: {[eventName: string]: Array<(event?: any, caller?: any) => Promise<any>>} = {} 
@@ -368,6 +369,8 @@ abstract class App{
 
 
     protected constructor(element?: HTMLElement, contextPath?: string){
+        if(__debugger)
+            __debugger();
         let $ = this.constructor['$'];
         
         ///@ts-ignore
@@ -560,6 +563,10 @@ declare global {
         set(index: number, value: T): Array<T>;
         includes(searchElement: T, fromIndex?: number): boolean;
         clear(...newElems: T[]): void
+        flat(): Array<T>;
+        move(fromIndex: number, toIndex: number): void
+        replace(from: T, to: T): void
+        removeBy(action: (elem: T, index: number) => boolean): void
     }
 
     interface Event{
@@ -617,6 +624,34 @@ Array.prototype.set = function (index: number, value: any) {
         this[index] = value;
     return this;
 }
+if(!Array.prototype.flat)
+    Array.prototype.flat = function () {
+        return this.concat.apply([], this );
+    };
+Array.prototype.move = function (elementOnIndex: number, toIndex: number) {
+    this.splice(toIndex, 0, this.splice(elementOnIndex, 1)[0]);
+};
+if(!Array.prototype.includes){
+    Array.prototype.includes = function(searchElement: any, fromIndex?: number){
+        for(let i = fromIndex || 0; i < this.length; i++)
+            if(searchElement === this[i] || (isNaN(searchElement) && isNaN(this[i])))
+                return true;
+        return false;
+    }
+}
+Array.prototype.replace = function (from: any, to: any) {
+    let index = this.indexOf(from);
+    if(index >= 0)
+        this.splice(index, 1, to);
+};
+
+Array.prototype.removeBy = function (action: (elem: any, index: number) => boolean) {
+    this.slice().forEach((v: any, i: number) => {
+        if(action(v, i))
+            this.removeValue(v);
+    })
+};
+
 Element.prototype.getClosestComponent = function(types?: Array<Class<Component> | TypeDef<any> | Marker>) {
     return _app.getClosestComponent(this, null, types);
 }

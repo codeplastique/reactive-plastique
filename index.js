@@ -1782,6 +1782,10 @@ function Plastique(options){
 class CompilePlugin{
     apply(compiler){
         const isDevelopmentMode = compiler.options.mode && compiler.options.mode == 'development';
+        if(initDebuggerLibrary){
+            initDebuggerLibrary(isDevelopmentMode)
+        }
+
         // if(isDevelopmentMode)
             // compiler.options.devtool = "inline-source-map"
         compiler.options.devtool = false
@@ -1947,6 +1951,7 @@ function Loader(content) {
     // })
     return content;
 }
+let initDebuggerLibrary = null;
 Loader.Plastique = Plastique,
 Loader.CompilePlugin = CompilePlugin,
 Loader.LibraryPlugin = function(varToLibPath){
@@ -1957,10 +1962,16 @@ Loader.LibraryPlugin = function(varToLibPath){
         if(varToLibPath[lib] == null || varToLibPath[lib] == '')
             varToLibPath[lib] = path.join(__dirname, './compileUtils', 'empty.ts')
     }
-    return new webpack.ProvidePlugin(Object.assign(varToLibPath ,{
+    let libs = Object.assign(varToLibPath ,{
         '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
         '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
-        '__assign': path.join(__dirname, './compileUtils', 'assign.ts')
-    }))
+        '__assign': path.join(__dirname, './compileUtils', 'assign.ts'),
+    });
+    initDebuggerLibrary = function (isInit){
+       libs['__debugger'] = isInit? path.join(__dirname, './compileUtils', 'debugger.ts'): null;
+    }
+    return new webpack.ProvidePlugin(libs)
 }
+
+
 module.exports = Loader;
