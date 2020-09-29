@@ -1782,8 +1782,8 @@ function Plastique(options){
 class CompilePlugin{
     apply(compiler){
         const isDevelopmentMode = compiler.options.mode && compiler.options.mode == 'development';
-        if(initDebuggerLibrary){
-            initDebuggerLibrary(isDevelopmentMode)
+        if(initDebuggerLibrary && isDevelopmentMode){
+            initDebuggerLibrary()
         }
 
         // if(isDevelopmentMode)
@@ -1967,8 +1967,8 @@ Loader.LibraryPlugin = function(varToLibPath){
         '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
         '__assign': path.join(__dirname, './compileUtils', 'assign.ts'),
     });
-    initDebuggerLibrary = function (isInit){
-       libs['__debugger'] = isInit? path.join(__dirname, './compileUtils', 'debugger.ts'): null;
+    initDebuggerLibrary = function (){
+       libs['__debugger'] = path.join(__dirname, './compileUtils', 'debugger.ts');
     }
     return new webpack.ProvidePlugin(libs)
 }

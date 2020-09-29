@@ -369,7 +369,7 @@ abstract class App{
 
 
     protected constructor(element?: HTMLElement, contextPath?: string){
-        if(__debugger)
+        if(typeof __debugger === 'object')
             console.info('Plastique debugging is enabled')
         let $ = this.constructor['$'];
         
