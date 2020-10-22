@@ -14,6 +14,12 @@ declare const Vue: any;
 declare const _app: any;
 declare const __debugger: any;
 
+if(window['_AppLocale']){
+    ///@ts-ignore
+    I18n.locale = _AppLocale.locale;
+    ///@ts-ignore
+    I18n.keyToValue = _AppLocale.values;
+}
 class EventerImpl implements Eventer{
     static listeners: {[eventName: string]: Array<(event?: any, caller?: any) => Promise<any>>} = {} 
     constructor(private $caller){}
@@ -403,12 +409,6 @@ abstract class App{
             App.epName = configurator.name;
             App.ep = this;
         }
-        if(window['_AppLocale']){
-            ///@ts-ignore
-            I18n.locale = _AppLocale.locale;
-            ///@ts-ignore
-            I18n.keyToValue = _AppLocale.values;
-        }
         _app.bean = App.getBean;
         _app.initComp = App.initComponent;
         _app.i18n = I18n.text;
@@ -601,7 +601,7 @@ Array.prototype.remove = function (index: number) {
 Array.prototype.removeValue = function (value: any) {
     for(let i = 0; i < this.length; i++){
         let val = this[i];
-        if(val == value || (val.app$ && value.app$ && val.app$.id == value.app$.id)){
+        if(val == value || (val != null && val.app$ && value.app$ && val.app$.id == value.app$.id)){
             this.remove(i);
             return true;
         }

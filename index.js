@@ -1256,27 +1256,30 @@ function Plastique(options){
     }
 
     function injectAutowired(classNode){
-        // tryBindListeners(classNode);
-
-        for(let member of classNode.members){
-            if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
-                if(member.type.typeName == null)
-                    throw new Error('Field '+ member.name.escapedText +' is not typed!')
-                member.initializer =  ts.createCall(
-                    ts.createPropertyAccess(
-                        ts.createIdentifier('_app'),
-                        ts.createIdentifier('bean')
-                    ),
-                    undefined, // type arguments, e.g. Foo<T>()
-                    [
-                        ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
-                    ]
-                );
-                if(member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
-                    member.initializer.arguments.push(ts.createThis());
+        try {
+            for (let member of classNode.members) {
+                if (isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)) {
+                    if (member.type.typeName == null)
+                        throw new Error('Field ' + member.name.escapedText + ' is not typed!')
+                    member.initializer = ts.createCall(
+                        ts.createPropertyAccess(
+                            ts.createIdentifier('_app'),
+                            ts.createIdentifier('bean')
+                        ),
+                        undefined, // type arguments, e.g. Foo<T>()
+                        [
+                            ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
+                        ]
+                    );
+                    if (member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
+                        member.initializer.arguments.push(ts.createThis());
+                    }
+                    removeDecorator(member, ANNOTATION_AUTOWIRED)
                 }
-                removeDecorator(member, ANNOTATION_AUTOWIRED)
             }
+        }catch (e){
+            console.error(e);
+            throw new Error("Illegal autowired declaration!")
         }
     }
 
@@ -1560,90 +1563,92 @@ function Plastique(options){
 
     var transformer = function (context) {
         var visitor = function (node) {
-            if (node.kind === ts.SyntaxKind.ClassDeclaration) {
-                // let className = node.name.escapedText;
-                // if(className == APP_CLASS_NAME)
-                //     appClassNode = node;
-                // else 
-                if(getParentClassName(node) == 'Array'){
-                    let constructorNode = getOrCreateConstructor(node);
-                    let superNode = getSuperNode(constructorNode);
-                    if(superNode != null){
-                        if(superNode.expression.arguments && superNode.expression.arguments.length > 0){
-                            throw new Error('Super node should be without arguments when you extending array');
+            try {
+                if (node.kind === ts.SyntaxKind.ClassDeclaration) {
+                    // let className = node.name.escapedText;
+                    // if(className == APP_CLASS_NAME)
+                    //     appClassNode = node;
+                    // else
+                    if (getParentClassName(node) == 'Array') {
+                        let constructorNode = getOrCreateConstructor(node);
+                        let superNode = getSuperNode(constructorNode);
+                        if (superNode != null) {
+                            if (superNode.expression.arguments && superNode.expression.arguments.length > 0) {
+                                throw new Error('Super node should be without arguments when you extending array');
+                            }
+                            let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
+                            constructorNode.body.statements.splice(superNodeIndex, 1);
                         }
-                        let superNodeIndex = constructorNode.body.statements.indexOf(superNode);
-                        constructorNode.body.statements.splice(superNodeIndex, 1);
+                    }
+                    // if(isEntryPointNode(node)){
+                    //     // entryPointClassNodes.push(node);
+                    //     configureEntryPointClass(node, context)
+                    // }
+                    if (isComponentNode(node)) {
+                        // components[className] = node;
+                        configureComponent(node, context);
+                    }
+
+                    initAppEvents(node);
+
+                    initInterfacesDef(node, context);
+
+                    tryBindListeners(node);
+
+                    injectAutowired(node);
+
+                    initEnums(node);
+
+
+                    // tryBindListeners(node);
+                    // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
+                    // beans.push(className);
+                } else if (node.kind == ts.SyntaxKind.CallExpression
+                    && node.expression.escapedText == TYPE_CLASS_NAME
+                    && (node.arguments == null || node.arguments.length == 0)) {
+
+                    let typeName = node.typeArguments[0].typeName.escapedText;
+                    let nodePath = getNodePath(node, typeName);
+                    node.arguments = [nodePath ?
+                        ts.createNumericLiteral(String(Interfaces.getId(nodePath)))
+                        :
+                        ts.createIdentifier(typeName)
+                    ];
+                    // }
+                    // else if(node.kind == ts.SyntaxKind.SourceFile){
+                    //     var result = ts.visitEachChild(node, visitor, context);
+                    //     injectAutowiredEverywhere(node, context);
+                    //     return result;
+                } else {
+                    if (node.kind == ts.SyntaxKind.ImportDeclaration && node.importClause.name) {
+                        let name = node.importClause.name.escapedText;
+                        if (
+                            name == ANNOTATION_AUTOWIRED ||
+                            name == ANNOTATION_BEAN ||
+                            name == ANNOTATION_SCOPE ||
+                            name == ANNOTATION_BEANS ||
+                            name == ANNOTATION_ENTRY_POINT_CLASS ||
+                            name == ANNOTATION_ONCHANGE ||
+                            name == ANNOTATION_LISTENER ||
+                            name == ANNOTATION_BEFOREDETACH ||
+                            name == ANNOTATION_AFTERATTACH ||
+                            name == ANNOTATION_ELEMENT ||
+                            name == ANNOTATION_INIT_EVENT ||
+                            name == ANNOTATION_INIT_VIRTUAL_COMPONENT ||
+                            // name == ANNOTATION_TEMPLATE ||
+                            name == ANNOTATION_TO_JSON ||
+                            name == ANNOTATION_JSON_MERGE ||
+                            name == ANNOTATION_REACTIVE_CLASS ||
+                            name == ANNOTATION_REQUEST_MAPPING ||
+                            name == ANNOTATION_ENUM) {
+                            node.kind = -1;
+                            return;
+                        }
                     }
                 }
-                // if(isEntryPointNode(node)){
-                //     // entryPointClassNodes.push(node);
-                //     configureEntryPointClass(node, context)
-                // }
-                if(isComponentNode(node)){
-                    // components[className] = node;
-                    configureComponent(node, context);
-                }
-
-                initAppEvents(node);
-
-                initInterfacesDef(node, context);
-
-                tryBindListeners(node);
-
-                injectAutowired(node);
-
-                initEnums(node);
-
-
-
-
-
-                // tryBindListeners(node);
-                // if(isNodeHasDecorator(node, ANNOTATION_BEAN) && isHasEmptyPublicConscructor(node))
-                // beans.push(className);
-            }else if(node.kind == ts.SyntaxKind.CallExpression
-                 && node.expression.escapedText == TYPE_CLASS_NAME 
-                 && (node.arguments == null || node.arguments.length == 0)){
-                     
-                let typeName = node.typeArguments[0].typeName.escapedText;
-                let nodePath = getNodePath(node, typeName);
-                node.arguments = [nodePath?
-                    ts.createNumericLiteral(String(Interfaces.getId(nodePath)))
-                    :
-                    ts.createIdentifier(typeName)
-                ];
-            // }
-            // else if(node.kind == ts.SyntaxKind.SourceFile){
-            //     var result = ts.visitEachChild(node, visitor, context);
-            //     injectAutowiredEverywhere(node, context);
-            //     return result;
-            }else {
-                if(node.kind == ts.SyntaxKind.ImportDeclaration && node.importClause.name){
-                    let name = node.importClause.name.escapedText;
-                    if(
-                        name == ANNOTATION_AUTOWIRED ||
-                        name == ANNOTATION_BEAN ||
-                        name == ANNOTATION_SCOPE ||
-                        name == ANNOTATION_BEANS ||
-                        name == ANNOTATION_ENTRY_POINT_CLASS ||
-                        name == ANNOTATION_ONCHANGE ||
-                        name == ANNOTATION_LISTENER ||
-                        name == ANNOTATION_BEFOREDETACH ||
-                        name == ANNOTATION_AFTERATTACH ||
-                        name == ANNOTATION_ELEMENT ||
-                        name == ANNOTATION_INIT_EVENT ||
-                        name == ANNOTATION_INIT_VIRTUAL_COMPONENT ||
-                        // name == ANNOTATION_TEMPLATE ||
-                        name == ANNOTATION_TO_JSON ||
-                        name == ANNOTATION_JSON_MERGE ||
-                        name == ANNOTATION_REACTIVE_CLASS ||
-                        name == ANNOTATION_REQUEST_MAPPING ||
-                        name == ANNOTATION_ENUM){
-                        node.kind = -1;
-                        return;
-                    }
-                }
+            }catch (e){
+                console.error(e);
+                throw new Error("Error at file: "+ node.getSourceFile().fileName);
             }
             return ts.visitEachChild(node, visitor, context);
         };
