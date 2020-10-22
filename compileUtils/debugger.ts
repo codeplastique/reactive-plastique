@@ -31,7 +31,8 @@ class BemInspector{
             throw new Error('Element with element ' + invalidElement + ' has no corresponding block!')
         }
 
-        for(let child of elem.children) {
+        let children = Array.prototype.slice.call(elem.children);
+        for(let child of children) {
             this.trace(child, blocksClasses.length == 0? parentBlockClasses: blocksClasses);
         }
     }
@@ -54,4 +55,6 @@ class BemInspector{
 }
 
 const inspector = new BemInspector();
-window['bem_trace'] = inspector.trace.bind(inspector);
+window['bem_trace'] = function (elem?: HTMLElement){
+    inspector.trace(elem || document.body)
+}
