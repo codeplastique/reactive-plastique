@@ -150,7 +150,7 @@ function Plastique(options){
         parents.push.apply(parents, getInterfacesDeep(classNode, context))
         // let parentClass = ts.getClassExtendsHeritageElement(classNode);
         // if(parentClass)
-            // parents.push(getNodePath(classNode, parentClass.expression.escapedText))
+        // parents.push(getNodePath(classNode, parentClass.expression.escapedText))
         return Array.from(new Set(parents).values());
     }
 
@@ -255,7 +255,7 @@ function Plastique(options){
         let rootComponent = rootTag.children[0];
 
         let prefixAttr = Array.from(rootComponent.attributes)
-                .find(a => a.name.startsWith('xmlns:') && a.value == VUE_SCRIPT_DIALECT_URL);
+            .find(a => a.name.startsWith('xmlns:') && a.value == VUE_SCRIPT_DIALECT_URL);
         let prefixAttrName = prefixAttr? prefixAttr.name: null;
 
         let prefix = null;
@@ -283,22 +283,22 @@ function Plastique(options){
             function replaceAnimationElems(root){
                 if(root.children == null)
                     return;
-                    
+
                 let attrName = prefix +':animation';
                 for(let child of root.children){
                     if(child.hasAttribute(attrName)){
                         let val = child.getAttribute(attrName);
                         child.removeAttribute(attrName);
                         let isAnimString = val.trim().match(/^'.+'$/) != null;
-                        let transitionAttr = isAnimString? 
+                        let transitionAttr = isAnimString?
                             `name="${val.trim().slice(1, -1)}"`
-                            : 
+                            :
                             `v-bind:name="${extractExpression(val)}"`;
 
                         child.insertAdjacentHTML('beforebegin',`<transition ${transitionAttr}>${child.outerHTML}</transition>`);
                         let newTag = child.previousSibling;
                         child.remove();
-                        child = newTag; 
+                        child = newTag;
                     }
                     replaceAnimationElems(child);
                 }
@@ -309,7 +309,7 @@ function Plastique(options){
                     root = rootTag.firstElementChild;
                 if(root.children == null)
                     return;
-                    
+
                 if(root.tagName == 'TEMPLATE')
                     root = root.content
                 for(let child of root.children){
@@ -324,7 +324,7 @@ function Plastique(options){
                             newTagTransform(newTag)
 
                         child.remove();
-                        child = newTag; 
+                        child = newTag;
                     }
                     replaceTagElems(replaceFilterAction, raplaceTagName, newTagTransform, child);
                 }
@@ -379,11 +379,11 @@ function Plastique(options){
                 let slotElems = arrayElems.filter(t => t.tagName.startsWith(prefix.toUpperCase() +':SLOT'))
                 if(slotElems.length > 0){
                     slotElems.map(t => {
-                            let slotName = getModifiers(t.tagName)[0]
-                            if(slotName)
-                                t.setAttribute('v-bind:name', slotName)
-                            return t;
-                        })
+                        let slotName = getModifiers(t.tagName)[0]
+                        if(slotName)
+                            t.setAttribute('v-bind:name', slotName)
+                        return t;
+                    })
                         .forEach(t => replaceSpecialTag('slot', t));
                 }
 
@@ -393,18 +393,18 @@ function Plastique(options){
                     tag => tag.removeAttribute('v-hasSlot'))
 
                 replaceAnimationElems(rootTag.firstElementChild);
-                
+
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceComponentElems(arrayElems);
 
-                
+
                 replaceTagElems(tag => tag.tagName == (prefix.toUpperCase() +':BLOCK'), 'template')
             }
 
             let classAppendAttr = rootTag.firstElementChild.getAttribute('v-bind:class');
             let classPrefix = classAppendAttr? `(${classAppendAttr})+' '+`: ''
             rootTag.firstElementChild.setAttribute('v-bind:class', classPrefix + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
-            
+
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
@@ -415,13 +415,18 @@ function Plastique(options){
             }
 
             var parentDefPattern = new RegExp(`_c\\('${prefix}:parent'(,\\{class:(.+?)})?\\)`);
+            var dynamicSlotNamePattern = new RegExp(`key\\s*:"dynamic_slot_name([-\\d]+?)"`);
+            // debugger;
             let withParentTag = false;
             vueCompilerResult.render = vueCompilerResult.render
                 .replace(parentDefPattern, (all, p1, p2) => {
                     withParentTag = true;
                     return `_data.app$.ptg.call(this, null, ${p2 != null? p2: '""'})`
                 })
-                .replace("clazz$", '(css$ != null? css$: clazz$)');
+                .replace(dynamicSlotNamePattern, (all, p1) => {
+                    let expr = hashToString(p1)
+                    return 'key:('+ expr +")";
+                })
 
             return {
                 template: `{r:function(_$, css$){${vueCompilerResult.render}},s:[${staticRenders.join(',')}]}`, //_$ - vue js object,
@@ -460,11 +465,21 @@ function Plastique(options){
             // let modifiers = attrName.split('.').slice(1).join('.');
             return modifiers && modifiers.length != 0? ('.'+ modifiers.join('.')): ''
         }
+        function stringToHash(str){
+            let asciiKeys = [];
+            for (var i = 0; i < str.length; i ++)
+                asciiKeys.push(str[i].charCodeAt(0));
+            return asciiKeys.join('-');
+        }
+        function hashToString(str){
+            let keys = str.split('-');
+            return String.fromCharCode(...keys);
+        }
 
         function handle(prefix, elems){
             if(prefix == null)
                 return true;
-                
+
             for(let i = 0; i < elems.length; i++){
                 let elem = elems[i];
                 if(elem.hasAttributes()){
@@ -496,7 +511,15 @@ function Plastique(options){
                         }else if(modifiers.length == 0 && attr.value.length == 0){
                             throw new Error(`Component ${componentName}. Slot without name!`)
                         }
-                        let slotAttrName = 'v-slot:'+ (modifiers.length > 0? modifiers[0]: '['+ extractExpression(attr.value) +']');
+                        let slotName;
+                        if(modifiers.length > 0){
+                            slotName = modifiers[0];
+                        }else {
+                            let dynamicExpr = extractExpression(attr.value);
+                            slotName = 'dynamic_slot_name'+ stringToHash(dynamicExpr)
+                        }
+                        let slotAttrName = 'v-slot:'+ slotName;
+                        // console.log(slotAttrName)
                         elem.setAttribute(slotAttrName, '');
                         elem.setAttribute('v-hasSlot', '');
                         break;
@@ -539,39 +562,39 @@ function Plastique(options){
                     case 'component':
                         // var componentVar = extractExpression(attr.value);
                         // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
-                            // elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
+                        // elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
                         // }else{
                         return false;
-                            // let componentCast = modifiers[0];
-                            // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                            // elem.insertAdjacentHTML('beforebegin',
-                            //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                            // );
-                            // let clone = elem.previousSibling;
-                            // copyIfUnlessEachAttributesToComponent(elem, clone);
-                            // elem.setAttribute = function(){
-                            //     clone.setAttribute.apply(clone, arguments);
-                            // }
-                            // elem.remove();
-                        // }
-                        // break;
+                    // let componentCast = modifiers[0];
+                    // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                    // elem.insertAdjacentHTML('beforebegin',
+                    //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
+                    // );
+                    // let clone = elem.previousSibling;
+                    // copyIfUnlessEachAttributesToComponent(elem, clone);
+                    // elem.setAttribute = function(){
+                    //     clone.setAttribute.apply(clone, arguments);
+                    // }
+                    // elem.remove();
+                    // }
+                    // break;
                     case 'marker':
                         var componentVar = extractExpression(attr.value);
                         // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
                         elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
                         // }else{
-                            // return false;
-                            // let componentCast = modifiers[0];
-                            // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                            // elem.insertAdjacentHTML('beforebegin',
-                            //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                            // );
-                            // let clone = elem.previousSibling;
-                            // copyIfUnlessEachAttributesToComponent(elem, clone);
-                            // elem.setAttribute = function(){
-                            //     clone.setAttribute.apply(clone, arguments);
-                            // }
-                            // elem.remove();
+                        // return false;
+                        // let componentCast = modifiers[0];
+                        // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
+                        // elem.insertAdjacentHTML('beforebegin',
+                        //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
+                        // );
+                        // let clone = elem.previousSibling;
+                        // copyIfUnlessEachAttributesToComponent(elem, clone);
+                        // elem.setAttribute = function(){
+                        //     clone.setAttribute.apply(clone, arguments);
+                        // }
+                        // elem.remove();
                         // }
                         break;
                     case 'each':
@@ -673,7 +696,7 @@ function Plastique(options){
 
     let beanToId = {};
     let beanCounter = 0;
-    beanToId[EVENTMANAGER_CLASS_NAME] = beanCounter++; 
+    beanToId[EVENTMANAGER_CLASS_NAME] = beanCounter++;
     let entryPointsNames = [];
     let componentsNames = [];
     let eventToIdentifier = [];
@@ -713,7 +736,7 @@ function Plastique(options){
         let relativeModulePath = f
             .moduleSpecifier
             .text
-            
+
         let module = node.getSourceFile().resolvedModules.get(relativeModulePath);
         if(module == null){
             throw new Error(`${relativeModulePath} is not found in ${node.getSourceFile().fileName}`)
@@ -811,7 +834,7 @@ function Plastique(options){
             if(templateArg.kind == ts.SyntaxKind.ArrowFunction || templateArg.kind == ts.SyntaxKind.FunctionExpression){
                 for(let s of templateArg.body.statements){
                     if(
-                        (s.kind == ts.SyntaxKind.ExpressionStatement || s.kind == ts.SyntaxKind.ReturnStatement ) 
+                        (s.kind == ts.SyntaxKind.ExpressionStatement || s.kind == ts.SyntaxKind.ReturnStatement )
                         && s.expression.kind == ts.SyntaxKind.TemplateExpression
                     ){
                         templateArg = s.expression
@@ -845,9 +868,9 @@ function Plastique(options){
             let virtualComponentPath = neededClassPath + '.'+ virtualComponentName;
             if(virtualComponentToId[virtualComponentPath] == null)
                 return virtualComponentToId[virtualComponentPath] = 'vc' + (counter++);
-            else 
+            else
                 return virtualComponentToId[virtualComponentPath];
-        }    
+        }
     }
 
     const MemberInitializator = new function(){
@@ -866,7 +889,7 @@ function Plastique(options){
                 for(let memberPart of memberParts){
                     let fullMemberPartName = memberPathName + '.'+ memberPart.name.escapedText;
                     properies.push(ts.createPropertyAssignment(
-                        memberPart.name.escapedText, 
+                        memberPart.name.escapedText,
                         getInitializer(fullMemberPartName, memberPart, requiredType, idProducer, classNode)
                     ));
                 }
@@ -1106,7 +1129,7 @@ function Plastique(options){
                                         let variableId = namedGroup[1];
                                         if(/^\w[\w\d]*$/.test(variableId) == false)
                                             throw new Error(`Named group "${variableId}" is not valid!`)
-                                        
+
                                         if(methodParameters.includes(variableId)){
                                             let paramPos = methodParameters.indexOf(variableId);
                                             methodParameters.splice(paramPos, 1, void 0);
@@ -1515,13 +1538,13 @@ function Plastique(options){
     function initEnums(node){
         if(node.kind != ts.SyntaxKind.ClassDeclaration || !isNodeHasDecorator(node, ANNOTATION_ENUM))
             return;
-            
+
         let className = node.name.escapedText;
         let parent = ts.getClassExtendsHeritageElement(node);
         let enumerableIdentifier = getRealIdentifier(node.getSourceFile(), ENUMERABLE_IDENTIFIER);
         if(parent == null || parent.expression.escapedText != enumerableIdentifier)
             throw new Error(`Enum ${className} doesn't not extend Enumerable!`)
-        
+
         node.members.push(
             ts.createProperty(
                 [],
@@ -1660,7 +1683,7 @@ function Plastique(options){
                     let host = context.getEmitHost();
                     let basePath = host.getCommonSourceDirectory();
                     let libPath = basePath + 'node_modules/';
-                    let workNodes = host.getSourceFiles().filter(f => 
+                    let workNodes = host.getSourceFiles().filter(f =>
                         !f.hasNoDefaultLib
                         &&
                         !host.isSourceFileFromExternalLibrary(f)
@@ -1671,7 +1694,7 @@ function Plastique(options){
                     );
                     let vis = function (node) {
                         componentExpr: if(node.kind == ts.SyntaxKind.SourceFile){
-                            let interfaceDeclaration = 
+                            let interfaceDeclaration =
                                 node.statements.find(s => s.kind === ts.SyntaxKind.InterfaceDeclaration && isImplementsInterface(context, s, 'Component'));
                             if(interfaceDeclaration == null)
                                 break componentExpr;
@@ -1680,7 +1703,7 @@ function Plastique(options){
                             if(classIndex < 0){
                                 //its just interface, not component
                                 break componentExpr;
-                                
+
                             }
                             //append after class declaration
                             node.statements.splice(classIndex + 1, 0, ts.createCall(
@@ -1792,7 +1815,7 @@ class CompilePlugin{
         }
 
         // if(isDevelopmentMode)
-            // compiler.options.devtool = "inline-source-map"
+        // compiler.options.devtool = "inline-source-map"
         compiler.options.devtool = false
 
         const ast = require('abstract-syntax-tree');
@@ -1813,8 +1836,8 @@ class CompilePlugin{
             let statements = element.body.body[1].expression.callee.object.body.body;
             let appImportDefIndex = statements.findIndex(statement => {
                 if(
-                    statement.type == 'VariableDeclaration' 
-                    && statement.declarations 
+                    statement.type == 'VariableDeclaration'
+                    && statement.declarations
                     && statement.declarations[0].init.callee.name == "__webpack_require__"
                 ){
                     let val = statement.declarations[0].init.arguments[0].value;
@@ -1858,7 +1881,7 @@ class CompilePlugin{
 
         //                 let modulesWrapper = tree.body[0].expression.arguments[0];
         //                 let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
-                            
+
         //                 modules.forEach((element, index) => {
         //                     let modulePath = compilation.modules[index].resource;
         //                     if(workFilesPaths.includes(modulePath)) {
@@ -1866,11 +1889,11 @@ class CompilePlugin{
         //                         replaceDefaultInstanceof(element)
         //                         if(entryPointClassPath == modulePath)
         //                             moveAppImportDefToTop(element, AppModuleIndex)
-        
+
         //                         let template = componentPathToTemplate[modulePath];
         //                         if (template == null)
         //                             return;
-        
+
         //                         let origBody = element.body;
         //                         let fakeWrap = ast.parse('(function(){1}());');
         //                         fakeWrap.body[0].expression.callee.body = origBody;
@@ -1885,7 +1908,7 @@ class CompilePlugin{
         //                         newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"]`, vueTemplateGeneratorFunc);
         //                     else
         //                         newCode = newCode.replace(`$["__vueTemplateGenerator${componentPath}__"],`, vueTemplateGeneratorFunc +'!');
-        
+
         //                 }
         //                 compilation.assets[asset] = new ConcatSource(
         //                     new RawSource(newCode),
@@ -1895,7 +1918,7 @@ class CompilePlugin{
         //         });
         //     })
         // });
-        
+
         compiler.hooks.emit.tap('plastique final compilation of modules', function(compilation){
             const uglifyJS = require("uglify-js");
             const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/@plastique/core/base/App.ts'));
@@ -1907,7 +1930,7 @@ class CompilePlugin{
 
                 let modulesWrapper = tree.body[0].expression.arguments[0];
                 let modules = isDevelopmentMode? modulesWrapper.properties: modulesWrapper.elements;
-                    
+
                 modules.forEach((element, index) => {
                     let modulePath = compilation.modules[index].resource;
                     if(workFilesPaths.includes(modulePath)) {
@@ -1915,11 +1938,11 @@ class CompilePlugin{
                         replaceDefaultInstanceof(element)
                         if(entryPointClassPath == modulePath)
                             moveAppImportDefToTop(element, AppModuleIndex)
-                            if(isDevelopmentMode){
-                                let evalExpr = ast.parse('eval("")').body[0];
-                                evalExpr.expression.arguments[0].value = ast.generate(element.body.body[1]) + `\n//# sourceURL=webpack:///${modulePath}?`; //.replace(/\\/g, '\\\\');
-                                element.body.body[1] = evalExpr;
-                            }
+                        if(isDevelopmentMode){
+                            let evalExpr = ast.parse('eval("")').body[0];
+                            evalExpr.expression.arguments[0].value = ast.generate(element.body.body[1]) + `\n//# sourceURL=webpack:///${modulePath}?`; //.replace(/\\/g, '\\\\');
+                            element.body.body[1] = evalExpr;
+                        }
                         let template = componentPathToTemplate[modulePath];
                         if (template == null)
                             return;
@@ -1943,7 +1966,7 @@ class CompilePlugin{
                 // if(isDevelopmentMode)
                 //     compilation.assets[asset].children[0]._value = newCode
                 // else
-                    compilation.assets[asset]._cachedSource = newCode;
+                compilation.assets[asset]._cachedSource = newCode;
             }
         });
     }
@@ -1958,25 +1981,25 @@ function Loader(content) {
 }
 let initDebuggerLibrary = null;
 Loader.Plastique = Plastique,
-Loader.CompilePlugin = CompilePlugin,
-Loader.LibraryPlugin = function(varToLibPath){
-    const path = require("path");
-    const webpack = require("webpack");
-    varToLibPath = varToLibPath || {};
-    for(let lib in varToLibPath){
-        if(varToLibPath[lib] == null || varToLibPath[lib] == '')
-            varToLibPath[lib] = path.join(__dirname, './compileUtils', 'empty.ts')
+    Loader.CompilePlugin = CompilePlugin,
+    Loader.LibraryPlugin = function(varToLibPath){
+        const path = require("path");
+        const webpack = require("webpack");
+        varToLibPath = varToLibPath || {};
+        for(let lib in varToLibPath){
+            if(varToLibPath[lib] == null || varToLibPath[lib] == '')
+                varToLibPath[lib] = path.join(__dirname, './compileUtils', 'empty.ts')
+        }
+        let libs = Object.assign(varToLibPath ,{
+            '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
+            '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
+            '__assign': path.join(__dirname, './compileUtils', 'assign.ts'),
+        });
+        initDebuggerLibrary = function (){
+            libs['__debugger'] = path.join(__dirname, './compileUtils', 'debugger.ts');
+        }
+        return new webpack.ProvidePlugin(libs)
     }
-    let libs = Object.assign(varToLibPath ,{
-        '__extends': path.join(__dirname, './compileUtils', 'extends.ts'),
-        '__decorate': path.join(__dirname, './compileUtils', 'decorate.ts'),
-        '__assign': path.join(__dirname, './compileUtils', 'assign.ts'),
-    });
-    initDebuggerLibrary = function (){
-       libs['__debugger'] = path.join(__dirname, './compileUtils', 'debugger.ts');
-    }
-    return new webpack.ProvidePlugin(libs)
-}
 
 
 module.exports = Loader;

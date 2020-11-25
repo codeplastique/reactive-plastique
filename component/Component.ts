@@ -21,7 +21,7 @@ interface Component extends Eventer, Hashable{
 
     getElement(): Element;
 
-    whenAttached(callback: Function): void;
+    whenAttached(callback: (elem: Element) => void): void;
     
     whenDetached(callback: Function): void;
 

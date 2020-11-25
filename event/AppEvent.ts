@@ -1,4 +1,5 @@
 /**
- * where A is argument type
+ * where ARG is argument type
+ * @see InitEvent
  */
 export default class AppEvent<ARG>{}

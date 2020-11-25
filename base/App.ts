@@ -10,6 +10,7 @@ import HashMap from "../collection/impl/HashMap";
 import HashSet from "../collection/impl/HashSet";
 import SimpleSet from "../collection/impl/SimpleSet";
 import Marker from "../component/Marker";
+import ReactiveMap from "../collection/ReactiveMap";
 declare const Vue: any;
 declare const _app: any;
 declare const __debugger: any;
@@ -134,7 +135,7 @@ class ComponentImpl extends EventerImpl implements Component{
         return String(this.app$.id)
     }
 
-    public whenAttached(callback: Function): void{
+    public whenAttached(callback: (elem: Element) => void): void{
         this.checkInit();
         ///@ts-ignore
         if(this.app$.v$ == null) {
@@ -142,8 +143,10 @@ class ComponentImpl extends EventerImpl implements Component{
             this.app$.ac = this.app$.ac || [];
             ///@ts-ignore
             this.app$.ac.push(callback);
-        }else
-            callback();
+        }else {
+            ///@ts-ignore
+            callback(this.app$.v$.$el);
+        }
     }
 
     public whenDetached(callback: Function): void{
@@ -567,6 +570,9 @@ declare global {
         move(fromIndex: number, toIndex: number): void
         replace(from: T, to: T): void
         removeBy(action: (elem: T, index: number) => boolean): void
+        toMap<K>(keyGenerator: (elem: T) => K): ReactiveMap<K, T>
+        toMap<K, V>(keyGenerator: (elem: T) => K, valueGenerator: (elem: T) => V): ReactiveMap<K, V>
+        groupBy<K>(keyGenerator: (elem: T) => K): ReactiveMap<K, T[]>
     }
 
     interface Event{
@@ -600,8 +606,8 @@ Array.prototype.remove = function (index: number) {
 }
 Array.prototype.removeValue = function (value: any) {
     for(let i = 0; i < this.length; i++){
-        let val = this[i];
-        if(val == value || (val != null && val.app$ && value.app$ && val.app$.id == value.app$.id)){
+        let elem = this[i];
+        if((elem == null && value == null) || (elem != null && elem.equals(value))){
             this.remove(i);
             return true;
         }
@@ -624,6 +630,12 @@ Array.prototype.set = function (index: number, value: any) {
         this[index] = value;
     return this;
 }
+Array.prototype.toMap = function (keyGenerator: (elem: any) => any, valueGenerator?: (elem: any) => any) {
+    return this.reduce((map: SimpleMap<any, any>, val) => {
+        map.set(keyGenerator(val), valueGenerator? valueGenerator(val): val);
+        return map;
+    }, new SimpleMap<any, any>())
+}
 if(!Array.prototype.flat)
     Array.prototype.flat = function () {
         return this.concat.apply([], this );
@@ -631,14 +643,16 @@ if(!Array.prototype.flat)
 Array.prototype.move = function (elementOnIndex: number, toIndex: number) {
     this.splice(toIndex, 0, this.splice(elementOnIndex, 1)[0]);
 };
-if(!Array.prototype.includes){
-    Array.prototype.includes = function(searchElement: any, fromIndex?: number){
-        for(let i = fromIndex || 0; i < this.length; i++)
-            if(searchElement === this[i] || (isNaN(searchElement) && isNaN(this[i])))
-                return true;
-        return false;
-    }
-}
+// if(!Array.prototype.includes){
+//     Array.prototype.includes = function(searchElement: any, fromIndex?: number){
+//         for(let i = fromIndex || 0; i < this.length; i++) {
+//             let elem = this[i];
+//             if ((searchElement == null && elem == null) || (searchElement != null && searchElement.equals(elem)))
+//                 return true;
+//         }
+//         return false;
+//     }
+// }
 Array.prototype.replace = function (from: any, to: any) {
     let index = this.indexOf(from);
     if(index >= 0)
@@ -651,6 +665,16 @@ Array.prototype.removeBy = function (action: (elem: any, index: number) => boole
             this.removeValue(v);
     })
 };
+Array.prototype.groupBy = function (keyGenerator: (elem: any) => any): ReactiveMap<any, any[]> {
+    return this.reduce((map: SimpleMap<any, any>, val) => {
+        let key = keyGenerator(val);
+        let elements = map.get(key);
+        if(elements == null)
+            map.set(key, elements = []);
+        elements.push(val);
+        return map;
+    }, new SimpleMap<any, any[]>())
+}
 
 Element.prototype.getClosestComponent = function(types?: Array<Class<Component> | TypeDef<any> | Marker>) {
     return _app.getClosestComponent(this, null, types);
