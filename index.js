@@ -69,7 +69,6 @@ function Plastique(options){
     const COMPONENT_INTERFACE_PATH = '/@plastique/core/component/Component.ts';
     const ENTRYPOINT_ANNOTATION_PATH = '/@plastique/core/base/EntryPoint.ts';
     const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/@plastique/core/component/Marker.ts';
-    const CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY = 'clazz$';
     const ENUM_ANNOTATION_PATH = '/@plastique/core/enum/Enum.ts';
     const ENUMERABLE_CLASS = 'Enumerable';
     const ENUMERABLE_IDENTIFIER = '@plastique/core/enum/Enumerable';
@@ -246,12 +245,12 @@ function Plastique(options){
     function getVueTemplateRender(vueTemplate, componentNode, realPrefix){
         vueTemplate = closePlastiqueUnclosedTags(vueTemplate, realPrefix);
 
-        const componentName = componentNode.name.escapedText;
+        const COMPONENT_NAME = componentNode.name.escapedText;
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
         var rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
         if(rootTag.children.length > 1)
-            console.error('Component '+ componentName +' has multiple root tags!')
+            console.error('Component '+ COMPONENT_NAME +' has multiple root tags!')
         let rootComponent = rootTag.children[0];
 
         let prefixAttr = Array.from(rootComponent.attributes)
@@ -267,8 +266,8 @@ function Plastique(options){
         if(prefix != 'v')
             return getVueTemplateRender(vueTemplate, componentNode, prefix);
 
-        rootComponent.setAttribute('data-cn', componentName)
-        if(handle(prefix, elems, componentName)){
+        rootComponent.setAttribute('data-cn', COMPONENT_NAME)
+        if(handle(prefix, elems, COMPONENT_NAME)){
 
 
             function replaceSpecialTag(tagName, tag){
@@ -335,13 +334,21 @@ function Plastique(options){
                     let componentAttr = Array.from(elem.attributes).find(a => a.name.startsWith(prefix+ ':component'));
                     if(componentAttr){
                         let componentExpr = extractExpression(componentAttr.value);
-                        elem.removeAttribute(componentAttr.name)
+                        elem.removeAttribute(componentAttr.name);
+
                         let cloneComponent = replaceSpecialTag('component', elem);
+                        cloneComponent.getAttributeNames().filter(a => a != 'ref' && a != 'data-cn' && !a.startsWith(prefix)).forEach((a) => {
+                            throw new Error('Invalid attribute \''+ a +'="'+ cloneComponent.getAttribute(a) +'"\` in the component tag. Component tag can`t have simple html attributes!');
+                        })
+
+                        // if(cloneComponent.hasAttribute('class') && COMPONENT_NAME == 'M3uaSgpParamsModel'){
+                        //     debugger;
+                        //     cloneComponent.setAttribute('v-bind:class', extractExpression(cloneComponent.getAttribute('class')));
+                        //     cloneComponent.removeAttribute('class');
+                        // }
                         if(cloneComponent.hasChildNodes()){
                             replaceComponentElems(cloneComponent.querySelectorAll('*'))
                         }
-
-                        // let [componentCast] = getModifiers(componentAttr.name);
 
                         let componentVar;
                         let componentName;
@@ -367,8 +374,12 @@ function Plastique(options){
 
                         let classAppendAttr = cloneComponent.getAttribute('v-bind:class');
                         if(classAppendAttr){
-                            cloneComponent.setAttribute('v-bind:c', classAppendAttr);
-                            cloneComponent.removeAttribute('v-bind:class')
+                            if(isExpression(classAppendAttr)){
+                                cloneComponent.setAttribute('v-bind:class', extractExpression(classAppendAttr));
+                            }else{
+                                cloneComponent.setAttribute('class', classAppendAttr.slice(1, -1));
+                                cloneComponent.removeAttribute('v-bind:class');
+                            }
                         }
                     }
                 }
@@ -403,12 +414,12 @@ function Plastique(options){
 
             let classAppendAttr = rootTag.firstElementChild.getAttribute('v-bind:class');
             let classPrefix = classAppendAttr? `(${classAppendAttr})+' '+`: ''
-            rootTag.firstElementChild.setAttribute('v-bind:class', classPrefix + CLASSAPPEND_COMPONENT_SPECIAL_PROPERTY);
+            rootTag.firstElementChild.setAttribute('v-bind:class', classPrefix + '(css$ != null? css$: "")');
 
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
-                throw new Error(`Vue compile error! Template ${componentName}. ` + vueCompilerResult.errors);
+                throw new Error(`Vue compile error! Template ${COMPONENT_NAME}. ` + vueCompilerResult.errors);
             let staticRenders = [];
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
@@ -423,6 +434,7 @@ function Plastique(options){
                     withParentTag = true;
                     return `_data.app$.ptg.call(this, null, ${p2 != null? p2: '""'})`
                 })
+                .replace("clazz$", '(css$ != null? css$: clazz$)')
                 .replace(dynamicSlotNamePattern, (all, p1) => {
                     let expr = hashToString(p1)
                     return 'key:('+ expr +")";
@@ -507,9 +519,9 @@ function Plastique(options){
                         break;
                     case 'slot':
                         if(modifiers.length > 0 && attr.value.length > 0){
-                            throw new Error(`Component ${componentName}. Indefinable slot name: ${attr.name}="${attr.value}"`)
+                            throw new Error(`Component ${COMPONENT_NAME}. Indefinable slot name: ${attr.name}="${attr.value}"`)
                         }else if(modifiers.length == 0 && attr.value.length == 0){
-                            throw new Error(`Component ${componentName}. Slot without name!`)
+                            throw new Error(`Component ${COMPONENT_NAME}. Slot without name!`)
                         }
                         let slotName;
                         if(modifiers.length > 0){
@@ -620,7 +632,7 @@ function Plastique(options){
                 let attrVal = attr.value;
                 if(attrName == 'name' && elem.tagName.startsWith(prefix.toUpperCase() +':SLOT')) {
                     if(elem.tagName.includes('.')) // tag has modifiers
-                        throw new Error(`Component ${componentName}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
+                        throw new Error(`Component ${COMPONENT_NAME}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
                     elem.setAttribute('v-bind:name', extractExpression(attrVal));
                 }else if(attrName.startsWith('on')){
                     elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));

@@ -340,30 +340,20 @@ abstract class App{
     
         let render = obj.app$.tg();
         Vue.component(componentName, {
-            props: ['m', 'c'], //m - main, c - cssClass
+            props: ['m'], //m - main
             data: function(elementProps: string[]){
                 return function () {
                     if(elementProps){ // element props
-                        for(let prop of elementProps)
-                            if(!(prop in this.m))
+                        for(let prop of elementProps) {
+                            if (!(prop in this.m))
                                 Object.defineProperty(this.m, prop, {
                                     enumerable: true,
-                                    get: function(){ 
-                                        return this.app$.v$? this.app$.v$.$refs[prop]: null
+                                    get: function () {
+                                        return this.app$.v$ ? this.app$.v$.$refs[prop] : null
                                     }
                                 })
+                        }
                     }
-                    // if(!('clazz$' in this.m)) {
-                    Object.defineProperty(this.m, 'clazz$', {
-                        enumerable: true,
-                        configurable: true,
-                        get: (function (p) {
-                            return function () {
-                                return p.c || ''
-                            }
-                        })(this)
-                    })
-                    // }
                     return this.m
                 }
             }(configurator.ep),
@@ -515,8 +505,7 @@ abstract class App{
         new Vue({
             el: element,
             data: {c: component},
-            template: 
-            '<component :is="c.app$.cn" :key="c.app$.id" v-bind:m="c"></component>'
+            template: '<component :is="c.app$.cn" :key="c.app$.id" v-bind:m="c"></component>'
         });
     }
 
