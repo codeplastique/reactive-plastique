@@ -1,17 +1,20 @@
 import SimpleMap from "./SimpleMap";
 import Hashable from "../../hash/Hashable";
-import ReactiveMap from "../ReactiveMap";
+import MapEntry from "./MapEntry";
+import ReactiveReadonlyMap from "./ReactiveReadonlyMap";
 
 export default class HashMap<K extends Hashable, V> extends SimpleMap<K, V>{
-   protected hashCodes: string[] = [];
-    constructor(map?: ReactiveMap<K, V>){
+    protected readonly hashCodes: string[] = [];
+    constructor(mapEntries?: MapEntry<K, V>[])
+    constructor(map?: ReactiveReadonlyMap<K, V>)
+    constructor(arg: any){
         super();
-        if(map)
-            this.merge(map);
+        if(arg)
+            this.merge(arg)
     }
     public clear(): void {
         super.clear()
-        this.hashCodes = []
+        this.hashCodes.clear()
     }    
 
     protected deleteIndex(index: number): boolean{

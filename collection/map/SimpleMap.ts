@@ -1,18 +1,23 @@
-import ReactiveMap, { MapEntry } from "../ReactiveMap";
+import MapEntry from "./MapEntry";
+import ReactiveMap from "./ReactiveMap";
+import ReactiveReadonlyMap from "./ReactiveReadonlyMap";
 
 export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
-    protected k: K[] = [];
-    protected v: V[] = [];
-    constructor(map?: ReactiveMap<K, V>){
-        if(map)
-            this.merge(map);
+    protected readonly k: K[] = [];
+    protected readonly v: V[] = [];
+
+    constructor(mapEntries?: MapEntry<K, V>[])
+    constructor(map?: ReactiveReadonlyMap<K, V>)
+    constructor(arg: any){
+        if(arg)
+            this.merge(arg);
     }
     public size(): number{
         return this.k.length;
     }
     public clear(): void {
-        this.v = [];
-        this.k = [];
+        this.v.clear();
+        this.k.clear();
     }    
     public delete(key: K): boolean {
         return this.deleteIndex(this.getKeyIndex(key));
@@ -32,6 +37,12 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         let keyIndex = this.getKeyIndex(key);
         return this.v[keyIndex];
     }
+
+    public getOrDefault(key: K, defaultValue: V): V {
+        let val = this.get(key);
+        return val === void 0? defaultValue: val;
+    }
+
     public has(key: K): boolean {
         return this.getKeyIndex(key) >= 0;
     }
@@ -84,8 +95,13 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         return obj;
     }
 
-    public merge(map: ReactiveMap<K, V>){
-        map.forEach((v, k) => this.set(k, v))
+    public merge(map: ReactiveReadonlyMap<K, V>)
+    public merge(mapEntries: MapEntry<K, V>[])
+    public merge(arg: any){
+        if(Array.isArray(arg))
+            (arg as MapEntry<K, V>[]).forEach(e => this.set(e.key, e.value))
+        else
+            (arg as ReactiveReadonlyMap<K, V>).forEach((v, k) => this.set(k, v))
     }
     
     public static of<K, V>(k1: K, v1: V): SimpleMap<K, V>

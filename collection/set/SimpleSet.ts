@@ -1,9 +1,10 @@
-import ReactiveSet from "../ReactiveSet";
-import SimpleMap from "./SimpleMap";
+import ReactiveSet from "./ReactiveSet";
+import SimpleMap from "../map/SimpleMap";
+import ReactiveReadonlySet from "./ReactiveReadonlySet";
 
 export default class SimpleSet<V> implements ReactiveSet<V>{
     private map: SimpleMap<V, any>;
-    constructor(set?: ReactiveSet<V>){
+    constructor(set?: ReactiveReadonlySet<V>){
         this.map = new SimpleMap();
         if(set)
             this.merge(set);
@@ -40,7 +41,7 @@ export default class SimpleSet<V> implements ReactiveSet<V>{
         return this.map.keys();
     }
 
-    public merge(set: ReactiveSet<V>){
+    public merge(set: ReactiveReadonlySet<V>){
         set.forEach(v => this.add(v))
     }
     

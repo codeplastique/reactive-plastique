@@ -1,8 +1,8 @@
 import SerializeFilter from "./SerializeFilter";
 import SerializeTransformer from "./SerializeTransformer";
 
-class Serializator{
-    protected stack = [];
+export default class Serializator{
+    protected readonly stack = [];
 
     public constructor(
         protected readonly filtrator?: (filter: SerializeFilter) => boolean,
@@ -140,5 +140,3 @@ class Serializator{
         return [fields, fieldNameToAlias, aliasNameToMethodName, mergeFields];
     }
 }
-
-export default Serializator;
