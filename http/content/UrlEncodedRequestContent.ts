@@ -1,10 +1,10 @@
 import HttpRequestContent from "./HttpRequestContent";
-import SimpleMap from "../../collection/impl/SimpleMap";
+import ReactiveReadonlyMap from "../../collection/map/ReactiveReadonlyMap";
 
 class UrlEncodedRequestContent implements HttpRequestContent{
     public contentType = 'application/x-www-form-urlencoded'
     constructor(
-        public data: SimpleMap<string, string>
+        public data: ReactiveReadonlyMap<string, string>
     ){}
 }
 

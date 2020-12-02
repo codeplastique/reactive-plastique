@@ -3,7 +3,7 @@ import HttpResponse from "./HttpResponse";
 import JsonRequestContent from "./content/JsonRequestContent";
 import UrlEncodedRequestContent from "./content/UrlEncodedRequestContent";
 import Serializator from "../hash/Serializator";
-import SimpleMap from "../collection/impl/SimpleMap";
+import ReactiveReadonlyMap from "../collection/map/ReactiveReadonlyMap";
 
 declare let axios;
 
@@ -29,7 +29,7 @@ class RestService{
         return axios(props);
     }
 
-    private encodeMap(attrToVal: SimpleMap<string, string>): string{
+    private encodeMap(attrToVal: ReactiveReadonlyMap<string, string>): string{
         let params = [];
         attrToVal.forEach((val, paramKey) => {
             if(val != null)
@@ -38,7 +38,7 @@ class RestService{
         return params.join('&');
     }
 
-    protected buildQuery(url: string, attrToVal: SimpleMap<string, string>): string{
+    protected buildQuery(url: string, attrToVal: ReactiveReadonlyMap<string, string>): string{
         return url +'?'+ this.encodeMap(attrToVal);
     }
 }
