@@ -71,7 +71,7 @@ class ComponentImpl extends EventerImpl implements Component{
     }
     public isComponentAttached(): boolean{
         //@ts-ignore
-        return this.app$.v$ != null
+        return this.app$ && this.app$.v$ != null
     }
     public getClosestComponent(types?: Array<Class<Component> | TypeDef<any> | Marker>): CapturedComponent {
         this.checkInit();

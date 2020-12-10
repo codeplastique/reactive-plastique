@@ -170,6 +170,9 @@ function Plastique(options){
                 decorators.end = decorators.pos = -1;
                 decorators.transformFlags = null;
                 decorators.splice(i, 1);
+
+                if(decorators.length == 0)
+                    nodeClass.decorators = undefined;
                 return;
             }
         }
@@ -670,8 +673,10 @@ function Plastique(options){
             for(let localeToKeys2 of localeToKeysArr){
                 if(localeToKeys1 !== localeToKeys2){
                     let missed = localeToKeys1.keys.find(k => !localeToKeys2.keys.includes(k))
-                    if(missed)
-                        throw new Error(`There is no bundle key "${missed}" in the ${localeToKeys2.name.toUpperCase()} properties file`)
+                    if(missed) {
+                        console.error(`There is no bundle key "${missed}" in the ${localeToKeys2.name.toUpperCase()} properties file`)
+                        throw new Error(`Bundle properties file error`)
+                    }
                 }
             }
         }
@@ -1318,35 +1323,6 @@ function Plastique(options){
         }
     }
 
-    // function injectAutowiredEverywhere(rootNode, context){
-    //     ts.visitEachChild(rootNode, (node) => {
-    //         if (node.kind === ts.SyntaxKind.ClassDeclaration && node.members) {
-    //             tryBindListeners(node);
-
-    //             for(let member of node.members){
-    //                 if(isNodeHasDecorator(member, ANNOTATION_AUTOWIRED)){
-    //                     if(member.type.typeName == null)
-    //                         console.error('Field '+ member.name.escapedText +' is not typed!')
-    //                     member.initializer =  ts.createCall(
-    //                         ts.createPropertyAccess(
-    //                             ts.createIdentifier('_app'),
-    //                             ts.createIdentifier('bean')
-    //                         ),
-    //                         undefined, // type arguments, e.g. Foo<T>()
-    //                         [
-    //                             ts.createLiteral(getBeanId(member.type.typeName.escapedText)),
-    //                         ]
-    //                     );
-    //                     if(member.type.typeName.escapedText == EVENTMANAGER_CLASS_NAME) {
-    //                         member.initializer.arguments.push(ts.createThis());
-    //                     }
-    //                     removeDecorator(member, ANNOTATION_AUTOWIRED)
-    //                 }
-    //             }
-    //         }
-    //     }, context)
-    // }
-
 
     function tryBindListeners(classNode){
         if (classNode.members) {
@@ -1414,8 +1390,7 @@ function Plastique(options){
             //         ts.createThis()
             //     ]
             // );
-            classNode.members.push(
-                ts.createProperty(
+            let prop = ts.createProperty(
                     [],
                     [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                     ts.createIdentifier('$intf'),
@@ -1425,6 +1400,9 @@ function Plastique(options){
                         interfaceMask.map(id => ts.createNumericLiteral(String(id)))
                     )
                 )
+            prop.decorators = undefined;
+            classNode.members.push(
+                prop
             );
 
             // let constructorNode = getOrCreateConstructor(classNode);
@@ -1467,7 +1445,7 @@ function Plastique(options){
                     removeDecorator(member, ANNOTATION_TO_JSON);
                     removeDecorator(member, ANNOTATION_JSON_MERGE);
                 }
-                if(member.kind == ts.SyntaxKind.MethodDeclaration){
+                else if(member.kind == ts.SyntaxKind.MethodDeclaration){
                     if(member.modifiers && member.modifiers.find(m => m.kind == ts.SyntaxKind.StaticKeyword) == null){
                         if(isNodeHasDecorator(member, ANNOTATION_TO_JSON)){
                             let methodName = member.name.escapedText;
@@ -1528,8 +1506,7 @@ function Plastique(options){
             }
         }
         if(jsonFieldNameToAlias.length > 0 || jsonFields.length > 0 || jsonAliasToMethodName.length > 0 || jsonMethods.length > 0 || jsonMergeFields.length > 0){
-            classNode.members.push(
-                ts.createProperty(
+            let prop = ts.createProperty(
                     [],
                     [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                     ts.createIdentifier('$json'),
@@ -1542,7 +1519,10 @@ function Plastique(options){
                         ts.createPropertyAssignment('am', ts.createObjectLiteral(jsonAliasToMethodName)), //aliasName to fieldName
                         ts.createPropertyAssignment('mf', ts.createArrayLiteral(jsonMergeFields)), //merge fields
                     ])
-                )
+            );
+            prop.decorators = undefined;
+            classNode.members.push(
+                prop
             );
         }
     }
@@ -1557,8 +1537,7 @@ function Plastique(options){
         if(parent == null || parent.expression.escapedText != enumerableIdentifier)
             throw new Error(`Enum ${className} doesn't not extend Enumerable!`)
 
-        node.members.push(
-            ts.createProperty(
+        let prop = ts.createProperty(
                 [],
                 [ts.createModifier(ts.SyntaxKind.StaticKeyword)],
                 ts.createIdentifier('$'),
@@ -1574,7 +1553,10 @@ function Plastique(options){
                         ts.createIdentifier(className),
                     ]
                 )
-            )
+        );
+        prop.decorators = undefined;
+        node.members.push(
+            prop
         );
 
         removeDecorator(node, ANNOTATION_ENUM);
@@ -1735,8 +1717,9 @@ function Plastique(options){
                                 for(let member of node.members){
                                     if(member.kind == ts.SyntaxKind.PropertyDeclaration){
                                         if(isNodeHasDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT)){
-                                            removeDecorator(node, ANNOTATION_INIT_VIRTUAL_COMPONENT);
-                                            let neededModifiers = (member.modifiers || []).filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
+                                            // removeDecorator(member, ANNOTATION_INIT_VIRTUAL_COMPONENT);
+                                            let neededModifiers = (member.modifiers || [])
+                                                .filter(m => (m.kind == ts.SyntaxKind.ReadonlyKeyword) || (m.kind == ts.SyntaxKind.StaticKeyword));
                                             let memberName = member.name.escapedText;
                                             if(neededModifiers.length == 2){
                                                 MemberInitializator.initialize(node, member, VIRTUAL_COMPONENT_CLASS_NAME, VirtualComponents)
