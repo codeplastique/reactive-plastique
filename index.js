@@ -373,7 +373,7 @@ function Plastique(options){
 
                         cloneComponent.setAttribute(':is', componentName);
                         cloneComponent.setAttribute(':key', componentVar +'.app$.id');
-                        cloneComponent.setAttribute('v-bind:m', `$convComp(${componentVar})`);
+                        cloneComponent.setAttribute('v-bind:m', `$cc(${componentVar})`);
 
                         let classAppendAttr = cloneComponent.getAttribute('v-bind:class');
                         if(classAppendAttr){
@@ -437,6 +437,9 @@ function Plastique(options){
                     withParentTag = true;
                     return `_data.app$.ptg.call(this, null, ${p2 != null? p2: '""'})`
                 })
+                .replace(
+                    "with(this){",
+                    "let $cc=this.$cc,$cs=this.$cs,_c=this._c,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
                 .replace("clazz$", '(css$ != null? css$: clazz$)')
                 .replace(dynamicSlotNamePattern, (all, p1) => {
                     let expr = hashToString(p1)
@@ -617,7 +620,7 @@ function Plastique(options){
                         let leftExpr = iterateParts[0].trim();
                         let rightExpr = iterateParts[1].trim();
                         let isWithState = leftExpr.includes(',')? 1: 0;
-                        rightExpr = `$convState(${isWithState},${extractExpression(rightExpr)})`;
+                        rightExpr = `$cs(${isWithState},${extractExpression(rightExpr)})`;
                         if(isWithState){
                             let leftPartVars = leftExpr.split(',');
                             elem.insertAdjacentText('afterBegin',
@@ -638,7 +641,13 @@ function Plastique(options){
                         throw new Error(`Component ${COMPONENT_NAME}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
                     elem.setAttribute('v-bind:name', extractExpression(attrVal));
                 }else if(attrName.startsWith('on')){
-                    elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), extractExpression(attrVal));
+                    let expr = extractExpression(attrVal);
+                    let isOnlyMethodnameWithoutCalling = /^\w+$/.test(expr);
+                    if(isOnlyMethodnameWithoutCalling) {
+                        // console.log(expr)
+                        expr += '($event)';
+                    }
+                    elem.setAttribute('v-on:'+ attrName.substr(2) + addModifiers(modifiers), expr);
                 }else
                     elem.setAttribute('v-bind:'+ attrName, extractExpression(attrVal));
             }

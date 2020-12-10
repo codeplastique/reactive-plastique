@@ -322,19 +322,19 @@ abstract class App{
         if(obj.app$.tg == null || Vue.component(componentName) != null)
             return;
         let configurator = obj.app$.pc;
-        let methodNameToMethod: any = {};
+        // let methodNameToMethod: any = {};
         // let methodNameToComputed: any = {};
         // let computedMethods = configurator.c;
         let memberNameToWatchMethodName: {[methid: string]: string} = configurator.w;
         let memberNameToWatchMethod: {[methid: string]: Function} = {};
-        for(let methodName in obj.constructor.prototype){
+        // for(let methodName in obj.constructor.prototype){
             // if(computedMethods.indexOf(methodName) >= 0)
             //     methodNameToComputed['$s' + methodName] = function(){return this.app$.clazz[methodName].apply(this, arguments)}
-            methodNameToMethod[methodName] = componentMethod(methodName)
-        }
+            // methodNameToMethod[methodName] = componentMethod(methodName)
+        // }
         for(let member in memberNameToWatchMethodName){
             let methodName = memberNameToWatchMethodName[member];
-            memberNameToWatchMethod[member] = methodNameToMethod[methodName];
+            memberNameToWatchMethod[member] = componentMethod(methodName)
         }
 
     
@@ -357,19 +357,36 @@ abstract class App{
                     return this.m
                 }
             }(configurator.ep),
-            methods: methodNameToMethod,
+            // methods: methodNameToMethod,
             watch: memberNameToWatchMethod,
             render: render.r,
             staticRenderFns: render.s,
-            mounted: configurator.ah? methodNameToMethod[configurator.ah]: null,
-            beforeDestroy: configurator.dh? methodNameToMethod[configurator.dh]: null
+            mounted: configurator.ah? componentMethod(configurator.ah): null,
+            beforeDestroy: configurator.dh? componentMethod(configurator.dh): null
         });
     }
 
 
     protected constructor(element?: HTMLElement, contextPath?: string){
         if(typeof __debugger === 'object')
-            console.info('Plastique debugging is enabled')
+            console.info('Plastique debugging is enabled');
+
+        ///@ts-ignore
+        window.ObjectDefineProperty = Object.defineProperty;
+        Object.defineProperty = function(a, b, c){
+            if(a._isVue){
+                if(b[0] != '$' && b[0] != '_' && b[0] != 'm'){
+                    let watch = a.$vnode.componentOptions.Ctor.options.watch || {}
+
+                    // let watch = ((((a.$vnode || {}).componentOptions || {}).Ctor || {}).options || {}).watch || {}
+                    if(!watch[b])
+                        return;
+                }
+            }
+            ///@ts-ignore
+            window.ObjectDefineProperty(a, b, c);
+        }
+
         let $ = this.constructor['$'];
         
         ///@ts-ignore
@@ -449,19 +466,19 @@ abstract class App{
                 }
                 
             },
-            destroyed: function(){
-                if(this._data.app$) {
-                    // this._data.app$.parent = null
-                    this._data.app$.v$ = null
-                }
-                this._data = null
-                this.$vnode.componentOptions.propsData = null
-                this.$children = [];
-                this._props = null;
-                this.$options.propsData = null;
-            },
+            // destroyed: function(){
+            //     if(this._data.app$) {
+            //         // this._data.app$.parent = null
+            //         this._data.app$.v$ = null
+            //     }
+            //     this._data = null
+            //     this.$vnode.componentOptions.propsData = null
+            //     this.$children = [];
+            //     this._props = null;
+            //     this.$options.propsData = null;
+            // },
             methods: {
-                $convState: function (isWithState: number, iterable: object | any[]){
+                $cs: function (isWithState: number, iterable: object | any[]){
                     let arr = [], 
                         size: number, 
                         values: object[];
@@ -489,7 +506,7 @@ abstract class App{
                     }
                     return arr;
                 },
-                $convComp: function(component: any) {
+                $cc: function(component: any) {
                     // if(component.app$.parent != this._data.app$.clazz)
                     //     component.app$.parent = this._data.app$.clazz;
                     if(component.app$.pc)
@@ -504,8 +521,8 @@ abstract class App{
     private attachComponent(element: HTMLElement, component: Component){
         new Vue({
             el: element,
-            data: {c: component},
-            template: '<component :is="c.app$.cn" :key="c.app$.id" v-bind:m="c"></component>'
+            data: {m: component},
+            template: '<component :is="m.app$.cn" :key="m.app$.id" v-bind:m="m"></component>'
         });
     }
 
