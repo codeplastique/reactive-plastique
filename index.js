@@ -435,11 +435,11 @@ function Plastique(options){
             vueCompilerResult.render = vueCompilerResult.render
                 .replace(parentDefPattern, (all, p1, p2) => {
                     withParentTag = true;
-                    return `_data.app$.ptg.call(this, null, ${p2 != null? p2: '""'})`
+                    return `app$.ptg.call(this, null, ${p2 != null? p2: '""'})`
                 })
                 .replace(
                     "with(this){",
-                    "let $cc=this.$cc,$cs=this.$cs,_c=this._c,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
+                    "let $cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
                 .replace("clazz$", '(css$ != null? css$: clazz$)')
                 .replace(dynamicSlotNamePattern, (all, p1) => {
                     let expr = hashToString(p1)
@@ -473,7 +473,7 @@ function Plastique(options){
                 .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
         }
         function isExpression(val){
-            return val.trim().search(/\$\{(.+?)\}/i) == 0;
+            return val.trim().search(/\$\{(.+?)\}/is) == 0;
         }
 
         function getModifiers(attrNameOrTagName){
@@ -575,7 +575,12 @@ function Plastique(options){
                         }
                         break;
                     case 'classappend':
+                        let isComponent = elem.hasAttribute(prefix +':component');
+                        if(!isComponent)
                         elem.setAttribute('v-bind:class', extractExpression(attr.value));
+                        else
+                            elem.setAttribute('v-bind:class', attr.value);
+
                         break;
                     case 'component':
                         // var componentVar = extractExpression(attr.value);
