@@ -29,7 +29,7 @@ function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
     const VUE_TEMPLATES_DIR = options.vueTemplatesDir || 'templates';
     const VUE_TEMPLATES_JS_FILE_NAME = options.vueTemplatesOutputFileName || 'templates';
-    const I18N_DIR = options.i18nDir || 'i18n';
+    const I18N_DIRS = Array.isArray(options.i18nDir)? options.i18nDir : [options.i18nDir || 'i18n'];
     const I18N_JS_FILE_NAME = options.i18nOutputFileName || 'app.locale';
 
     //---------------------------------------------------------------------------------------------------------------------
@@ -698,19 +698,26 @@ function Plastique(options){
 
     function buildLocales(){
         let langToPropertiesReader = {};
-        let regexp = new RegExp('"([^(\")"]+)":', 'g');
-        glob(I18N_DIR +'/**/*.properties', {sync: true}).forEach(function(filePath) {
-            let fileName = getFileNameWithoutExt(filePath);
-            let [bundle, locale] = fileName.split('_');
-            if(langToPropertiesReader[locale] == null)
-                langToPropertiesReader[locale] = new PropertiesReader();
-            langToPropertiesReader[locale].append(filePath);
-        });
+        for(let i18nDir of I18N_DIRS) {
+            let handledFiles = [];
+            glob(i18nDir + '/**/*.properties', {sync: true}).forEach(function (filePath) {
+                let fileName = getFileNameWithoutExt(filePath);
+                if(handledFiles.includes(filePath))
+                    break;
+
+                handledFiles.push(filePath);
+                let [bundle, locale] = fileName.split('_');
+                if (langToPropertiesReader[locale] == null)
+                    langToPropertiesReader[locale] = new PropertiesReader();
+                langToPropertiesReader[locale].append(filePath);
+            });
+        }
 
         let langToProperties = Object.entries(langToPropertiesReader);
         langToProperties.forEach(it => it[1] = it[1]._properties);
 
         requireIdenticalLocales(langToProperties);
+        let regexp = new RegExp('"([^(\")"]+)":', 'g');
         for(let localeToProps of langToProperties){
             let [locale, props] = localeToProps;
             let i18nObj = JSON.stringify(props).replace(regexp,"$1:");

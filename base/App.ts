@@ -625,9 +625,12 @@ Array.prototype.removeValues = function (values: any[]) {
     }
 }
 Array.prototype.clear = function () {
-    this.splice(0, this.length);
-    if(arguments.length > 0)
-        this.push.apply(this, arguments)
+    if(arguments.length > 0) {
+        let args = [0, this.length];
+        args.push.apply(args, arguments);
+        this.splice.apply(this, args);
+    }else
+        this.splice(0, this.length);
 }
 Array.prototype.set = function (index: number, value: any) {
     if("__ob__" in this)

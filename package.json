@@ -1,6 +1,6 @@
 {
   "name": "@plastique/core",
-  "version": "1.6.13",
+  "version": "1.6.14",
   "description": "Typescript library based on vue.js, typescript and some utility classes",
   "main": "index.js",
   "scripts": {
