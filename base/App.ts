@@ -340,7 +340,7 @@ abstract class App{
     
         let render = obj.app$.tg();
         Vue.component(componentName, {
-            props: ['m'], //m - main
+            props: ['m', 'p'], //m - main, p - props
             data: function(elementProps: string[]){
                 return function () {
                     if(elementProps){ // element props
@@ -375,7 +375,7 @@ abstract class App{
         window.ObjectDefineProperty = Object.defineProperty;
         Object.defineProperty = function(a, b, c){
             if(a._isVue){
-                if(b[0] != '$' && b[0] != '_' && b[0] != 'm'){
+                if(b[0] != '$' && b[0] != '_' && b != 'm'){
                     let watch = a.$vnode.componentOptions.Ctor.options.watch || {}
 
                     // let watch = ((((a.$vnode || {}).componentOptions || {}).Ctor || {}).options || {}).watch || {}

@@ -72,6 +72,7 @@ function Plastique(options){
     const ENUM_ANNOTATION_PATH = '/@plastique/core/enum/Enum.ts';
     const ENUMERABLE_CLASS = 'Enumerable';
     const ENUMERABLE_IDENTIFIER = '@plastique/core/enum/Enumerable';
+    const VUE_TEMPLATE_PROPS_VAR_NAME = "$pr";
 
     // --------------------------------------------------------------------------------------------------------------------
 
@@ -245,7 +246,7 @@ function Plastique(options){
             .replace(new RegExp(`<${tagPrefix}:slot\\s*\/>`), `<${tagPrefix}:slot></${tagPrefix}:slot>`);
     }
 
-    function getVueTemplateRender(vueTemplate, componentNode, realPrefix){
+    function getVueTemplateRender(vueTemplate, componentNode, templatePropVarName, realPrefix){
         vueTemplate = closePlastiqueUnclosedTags(vueTemplate, realPrefix);
 
         const COMPONENT_NAME = componentNode.name.escapedText;
@@ -267,7 +268,7 @@ function Plastique(options){
         }
 
         if(prefix != 'v')
-            return getVueTemplateRender(vueTemplate, componentNode, prefix);
+            return getVueTemplateRender(vueTemplate, componentNode, templatePropVarName, prefix);
 
         rootComponent.setAttribute('data-cn', COMPONENT_NAME)
         if(handle(prefix, elems, COMPONENT_NAME)){
@@ -375,6 +376,19 @@ function Plastique(options){
                         cloneComponent.setAttribute(':key', componentVar +'.app$.id');
                         cloneComponent.setAttribute('v-bind:m', `$cc(${componentVar})`);
 
+                        let propsAttrsNames = cloneComponent.getAttributeNames().filter(a => a.startsWith(prefix +":props."));
+                        if(propsAttrsNames.length > 0){
+                            let propsArray = [];
+                            for(let attrName of propsAttrsNames){
+                                let attrVal = cloneComponent.getAttribute(attrName);
+                                let propName = attrName.substr(attrName.lastIndexOf('.') + 1);
+                                propsArray.push(propName +":"+ extractExpression(attrVal));
+                                cloneComponent.removeAttribute(attrName);
+                            }
+                            let propsObjResult = "{"+ propsArray.join(',') +"}";
+                            cloneComponent.setAttribute('v-bind:p', propsObjResult);
+                        }
+
                         let classAppendAttr = cloneComponent.getAttribute('v-bind:class');
                         if(classAppendAttr){
                             if(isExpression(classAppendAttr)){
@@ -428,8 +442,8 @@ function Plastique(options){
                 staticRenders.push(`function(){${staticRender}}`);
             }
 
-            var parentDefPattern = new RegExp(`_c\\('${prefix}:parent'(,\\{class:(.+?)})?\\)`);
-            var dynamicSlotNamePattern = new RegExp(`key\\s*:"dynamic_slot_name([-\\d]+?)"`);
+            let parentDefPattern = new RegExp(`_c\\('${prefix}:parent'(,\\{class:(.+?)})?\\)`);
+            let dynamicSlotNamePattern = new RegExp(`key\\s*:"dynamic_slot_name([-\\d]+?)"`);
             // debugger;
             let withParentTag = false;
             vueCompilerResult.render = vueCompilerResult.render
@@ -439,7 +453,7 @@ function Plastique(options){
                 })
                 .replace(
                     "with(this){",
-                    "let $cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
+                    "let "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p,$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
                 .replace("clazz$", '(css$ != null? css$: clazz$)')
                 .replace(dynamicSlotNamePattern, (all, p1) => {
                     let expr = hashToString(p1)
@@ -460,9 +474,14 @@ function Plastique(options){
             if(exprMatch == null)
                 return val;
             let isWithBrackets = exprMatch.length > 1;
+
+            if(templatePropVarName) {
+                let pattern = new RegExp("(?<!\w)" + templatePropVarName +"\.", 'g')
+                val = val.replace(pattern, VUE_TEMPLATE_PROPS_VAR_NAME +'.')
+            }
             return val.replace(/(?<!\w)this\./g, '')
                 .replace(/^#{(\$\{.+?\}|[\w_.]+)(?:\((\$\{.+\}|[\w_.]+)\))?}/g, function(text, first, second){
-                    var result = I18N_METHOD+ '('
+                    let result = I18N_METHOD+ '('
                     result += first.startsWith('${')? extractExpression(first): ("'"+ first +"'");
                     if(second) {
                         result += ',';
@@ -574,52 +593,36 @@ function Plastique(options){
                             }
                         }
                         break;
-                    case 'classappend':
-                        let isComponent = elem.hasAttribute(prefix +':component');
-                        if(!isComponent)
-                        elem.setAttribute('v-bind:class', extractExpression(attr.value));
+                    case 'classappend': {
+                        let isComponent = elem.hasAttribute(prefix + ':component');
+                        if (!isComponent)
+                            elem.setAttribute('v-bind:class', extractExpression(attr.value));
                         else
                             elem.setAttribute('v-bind:class', attr.value);
 
                         break;
-                    case 'component':
-                        // var componentVar = extractExpression(attr.value);
-                        // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
-                        // elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                        // }else{
+                    }
+                    case 'props': {
+                        let isComponent = elem.hasAttribute(prefix + ':component');
+                        if (!isComponent)
+                            throw new Error(`Component ${COMPONENT_NAME}. The "props" attribute applies to the component tags only!`)
+                        else if(modifiers.length === 0)
+                            throw new Error(`Component ${COMPONENT_NAME}. The "props" attribute is set with the property name modifier only!`)
+
+                        let hasThisKeyword = /(?<!\w)this\./.test(attr.value);
+                        if(hasThisKeyword)
+                            throw new Error(`Component ${COMPONENT_NAME}. The "props" attribute should contains constants values only! ${attr.name}="${attr.value}"`)
+
                         return false;
-                    // let componentCast = modifiers[0];
-                    // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                    // elem.insertAdjacentHTML('beforebegin',
-                    //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                    // );
-                    // let clone = elem.previousSibling;
-                    // copyIfUnlessEachAttributesToComponent(elem, clone);
-                    // elem.setAttribute = function(){
-                    //     clone.setAttribute.apply(clone, arguments);
-                    // }
-                    // elem.remove();
-                    // }
-                    // break;
+                    }
+                    case 'component':
+                        return false;
+
                     case 'marker':
-                        var componentVar = extractExpression(attr.value);
-                        // if(VirtualComponents.isVirtualComponentName(componentVar, componentNode)){
+                        let componentVar = extractExpression(attr.value);
                         elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                        // }else{
-                        // return false;
-                        // let componentCast = modifiers[0];
-                        // let componentName = componentCast != null? `'${componentCast.toUpperCase()}'`: (componentVar + '.app$.cn');
-                        // elem.insertAdjacentHTML('beforebegin',
-                        //     `<component :is="${componentName}" :key="${componentVar}.app$.id" v-bind:m="$convComp(${componentVar})">${elem.innerHTML}</component>`
-                        // );
-                        // let clone = elem.previousSibling;
-                        // copyIfUnlessEachAttributesToComponent(elem, clone);
-                        // elem.setAttribute = function(){
-                        //     clone.setAttribute.apply(clone, arguments);
-                        // }
-                        // elem.remove();
-                        // }
                         break;
+
                     case 'each':
                         let iterateParts = attr.value.split(':');
                         let leftExpr = iterateParts[0].trim();
@@ -633,6 +636,7 @@ function Plastique(options){
                         }
                         elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
                         break;
+
                     default:
                         handleUnknownAttr(elem, attrName, modifiers, attr);
                 }
@@ -700,10 +704,11 @@ function Plastique(options){
         let langToPropertiesReader = {};
         for(let i18nDir of I18N_DIRS) {
             let handledFiles = [];
-            glob(i18nDir + '/**/*.properties', {sync: true}).forEach(function (filePath) {
+            let pattern = i18nDir + (i18nDir.endsWith("/")? '': '/') + '**/*.properties';
+            glob(pattern, {sync: true}).forEach(function (filePath) {
                 let fileName = getFileNameWithoutExt(filePath);
                 if(handledFiles.includes(filePath))
-                    break;
+                    return;
 
                 handledFiles.push(filePath);
                 let [bundle, locale] = fileName.split('_');
@@ -865,11 +870,21 @@ function Plastique(options){
             && (s.expression.expression.kind == ts.SyntaxKind.SuperKeyword))[0]
     }
 
-    function getComponentTemplate(componentNode) {
+    function getComponentTemplateAndPropsVar(componentNode) {
         let reactiveArgs = getDecoratorArguments(componentNode, ANNOTATION_REACTIVE_CLASS);
         let templateArg = reactiveArgs? reactiveArgs[0]: null;
         if(templateArg){
             if(templateArg.kind == ts.SyntaxKind.ArrowFunction || templateArg.kind == ts.SyntaxKind.FunctionExpression){
+                let params = templateArg.parameters;
+                let propsVarName;
+                if(params.length > 0){
+                    if(params[0].name.escapedText === 'this'){
+                        if(params.length > 1)
+                            propsVarName = params[1].name.escapedText;
+                    }else
+                        propsVarName = params[0].name.escapedText;
+                }
+
                 for(let s of templateArg.body.statements){
                     if(
                         (s.kind == ts.SyntaxKind.ExpressionStatement || s.kind == ts.SyntaxKind.ReturnStatement )
@@ -880,11 +895,15 @@ function Plastique(options){
                 }
                 if(templateArg == null)
                     throw new Error('Template is not found! Component: '+ componentNode.name.escapedText)
-            }else if(templateArg.kind != ts.SyntaxKind.TemplateExpression && templateArg.kind != ts.SyntaxKind.FirstTemplateToken){
+                let templString = templateArg.getFullText().slice(1, -1);// remove quote(`) chars
+                if(propsVarName)
+                    return [templString, propsVarName];
+                else
+                    return [templString];
+            }else
                 throw new Error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
-            }
-            return templateArg.getFullText().slice(1, -1);// remove quote(`) chars
-        }
+        }else
+            return [];
     }
 
     let VirtualComponents = new function() {
@@ -946,7 +965,7 @@ function Plastique(options){
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
-        let template = getComponentTemplate(componentNode);
+        let [template, templatePropVarName] = getComponentTemplateAndPropsVar(componentNode);
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
         // if(parent)
@@ -1047,7 +1066,7 @@ function Plastique(options){
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
             let templateRender
             try {
-                let templateRenderResult = getVueTemplateRender(template, componentNode);
+                let templateRenderResult = getVueTemplateRender(template, componentNode, templatePropVarName);
                 templateRender = templateRenderResult.template
                 withParentTag = templateRenderResult.withParentTag;
             }catch (e) {
