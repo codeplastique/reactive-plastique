@@ -1,9 +1,10 @@
 /**
  * @argument Template (optional)
- * @example @Reactive(function(this: Example)){
- *              `<div>template</div>`
- *          }
- *          class Example{...}
+ * @example
+ * \@Reactive(function(this: Example)){
+ *     `<div>template</div>`
+ * }
+ * class Example{...}
  */
 
 declare const Reactive: Function;

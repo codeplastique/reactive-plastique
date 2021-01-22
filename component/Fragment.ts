@@ -3,15 +3,20 @@
  * Fragment function have to end with a 'Fragment' suffix
  * Fragment function should be used in templates only!
  *
- * @example function HeaderFragment(prop: string): Fragment{`
- *              <div xmlns:v="http://github.com/codeplastique/plastique" v:text="${prop}"></div>
- *          `}
- *          ...
- *          @Reactive(function (this: A){`
- *              <div xmlns:v="http://github.com/codeplastique/plastique">
- *                  <div v:include="${HeaderFragment('hello')}"></div>
- *              </div>
- *          `})
- *          class A{}
+ * @example
+ * function HeaderFragment(prop: string): Fragment{`
+ *     <header
+ *          xmlns:v="http://github.com/codeplastique/plastique"
+ *          v:text="${prop}">
+ *     </header>
+ * `}
+ * ...
+ * \@Reactive(function (this: A){`
+ *     <div xmlns:v="http://github.com/codeplastique/plastique">
+ *         <div v:include="${HeaderFragment('hello')}"></div>
+ *     </div>
+ * `})
+ * class A{}
  */
-export type Fragment = void;
+type Fragment = void
+export default Fragment

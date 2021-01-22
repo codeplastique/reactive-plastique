@@ -366,7 +366,7 @@ abstract class App{
         });
     }
 
-    private initFragments(fragmentNameToRenderTemplate: object): void{
+    private static initFragments(fragmentNameToRenderTemplate: object): void{
         for(let fragmentName in fragmentNameToRenderTemplate) {
             let renderTemplate = fragmentNameToRenderTemplate[fragmentName]();
             Vue.component(fragmentName, {
@@ -528,7 +528,7 @@ abstract class App{
         });
     }
 
-    private attachComponent(element: HTMLElement, component: Component){
+    private static attachComponent(element: HTMLElement, component: Component){
         new Vue({
             el: element,
             data: {m: component},
