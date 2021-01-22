@@ -340,7 +340,7 @@ abstract class App{
     
         let render = obj.app$.tg();
         Vue.component(componentName, {
-            props: ['m', 'p'], //m - main, p - props
+            props: ['m', 'p'], //m - data, p - props
             data: function(elementProps: string[]){
                 return function () {
                     if(elementProps){ // element props
@@ -366,6 +366,16 @@ abstract class App{
         });
     }
 
+    private initFragments(fragmentNameToRenderTemplate: object): void{
+        for(let fragmentName in fragmentNameToRenderTemplate) {
+            let renderTemplate = fragmentNameToRenderTemplate[fragmentName]();
+            Vue.component(fragmentName, {
+                props: ['p'], //p - props
+                render: renderTemplate.r,
+                staticRenderFns: renderTemplate.s
+            });
+        }
+    }
 
     protected constructor(element?: HTMLElement, contextPath?: string){
         if(typeof __debugger === 'object')

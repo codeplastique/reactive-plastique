@@ -20,7 +20,8 @@
     <attribute-processor name="ref"  />
     <attribute-processor name="slot"  />
     <attribute-processor name="animation"  />
-    <attribute-processor name="props"  />
+    <attribute-processor name="prop"  />
+    <attribute-processor name="include"  />
 
 	<element-processor name="block"/>
 	<element-processor name="slot"/>

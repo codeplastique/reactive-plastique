@@ -24,6 +24,49 @@ let Interfaces = new function(){
         return mask;
     }
 }
+const FragmentSet = new class{
+    constructor() {
+        this.counter = 0;
+        this.keyToFragment = new Map();
+    }
+
+    getFragmentName(key){
+        if(!this.keyToFragment.has(key))
+            throw new Error('Fragment is not found! Key: '+ key);
+        return this.keyToFragment.get(key).name;
+    }
+
+    getFragmentPropValue(key, attributes){
+        let frag = this.keyToFragment.get(key);
+        if(frag == null)
+            throw new Error('Fragment is not found! Key: '+ key);
+
+        let propsArray = [];
+        for(let i = 0; i < frag.propsNames.length && i < attributes.length; i++){
+            let propName = frag.propsNames[i];
+            let propValue = attributes[i];
+            propsArray.push(propName +":"+ propValue);
+        }
+        return  "{"+ propsArray.join(',') +"}";
+    }
+
+    addFragment(key, templateRender, propsNames){
+        this.keyToFragment.set(key, {
+            name: 'FR-'+ this.counter++,
+            templateRender: templateRender,
+            propsNames: propsNames
+        })
+    }
+    getFragmentsResultObject(){
+        if(this.keyToFragment.size() == 0)
+            return;
+        let fragments = this.keyToFragment.values().map(f => {
+            return f.name +":function(){return "+ f.templateRender +"}";
+        });
+        return "{"+ fragments.join(',') +"}"
+    }
+}
+
 let entryPointClassPath;
 function Plastique(options){
     let OUTPUT_DIR = options.outputDir; //__dirname + "/target";
@@ -69,6 +112,7 @@ function Plastique(options){
     const COMPONENT_INTERFACE_PATH = '/@plastique/core/component/Component.ts';
     const ENTRYPOINT_ANNOTATION_PATH = '/@plastique/core/base/EntryPoint.ts';
     const VIRTUAL_COMPONENT_ANNOTATION_PATH = '/@plastique/core/component/Marker.ts';
+    const FRAGMENT_TYPE_PATH = '/@plastique/core/component/Fragment.ts';
     const ENUM_ANNOTATION_PATH = '/@plastique/core/enum/Enum.ts';
     const ENUMERABLE_CLASS = 'Enumerable';
     const ENUMERABLE_IDENTIFIER = '@plastique/core/enum/Enumerable';
@@ -246,15 +290,23 @@ function Plastique(options){
             .replace(new RegExp(`<${tagPrefix}:slot\\s*\/>`), `<${tagPrefix}:slot></${tagPrefix}:slot>`);
     }
 
-    function getVueTemplateRender(vueTemplate, componentNode, templatePropVarName, realPrefix){
+    function getFragmentTemplateRender(vueTemplate, node, templatePropVarNames){
+        return getVueTemplateRender(vueTemplate, node, templatePropVarNames, null, true);
+    }
+
+    function getComponentTemplateRender(vueTemplate, node, templatePropVarName){
+        return getVueTemplateRender(vueTemplate, node, templatePropVarName? [templatePropVarName]: null);
+    }
+
+    function getVueTemplateRender(vueTemplate, componentNode, templatePropVarNames, realPrefix, isFragment){
         vueTemplate = closePlastiqueUnclosedTags(vueTemplate, realPrefix);
 
-        const COMPONENT_NAME = componentNode.name.escapedText;
+        const TEMPLATE_NAME = componentNode.name.escapedText;
         let dom = new JSDOM('<html><body><template>'+ vueTemplate +'</template></body></html>');
-        var rootTag = dom.window.document.body.firstElementChild.content;
+        let rootTag = dom.window.document.body.firstElementChild.content;
         let elems = rootTag.querySelectorAll('*');
         if(rootTag.children.length > 1)
-            console.error('Component '+ COMPONENT_NAME +' has multiple root tags!')
+            console.error('Template '+ TEMPLATE_NAME +' has multiple root tags!')
         let rootComponent = rootTag.children[0];
 
         let prefixAttr = Array.from(rootComponent.attributes)
@@ -268,14 +320,14 @@ function Plastique(options){
         }
 
         if(prefix != 'v')
-            return getVueTemplateRender(vueTemplate, componentNode, templatePropVarName, prefix);
+            return getVueTemplateRender(vueTemplate, componentNode, templatePropVarNames, prefix, isFragment);
 
-        rootComponent.setAttribute('data-cn', COMPONENT_NAME)
-        if(handle(prefix, elems, COMPONENT_NAME)){
+        if(!isFragment)
+            rootComponent.setAttribute('data-cn', TEMPLATE_NAME);
 
-
+        if(handle(prefix, elems)){
             function replaceSpecialTag(tagName, tag){
-                tag.insertAdjacentHTML('beforebegin',`<${tagName}>${tag.innerHTML}</${tagName}>`);
+                tag.insertAdjacentHTML('beforebegin', `<${tagName}>${tag.innerHTML}</${tagName}>`);
                 let specialTag = tag.previousSibling;
                 for(attr of tag.attributes)
                     specialTag.setAttribute(attr.name, attr.value);
@@ -345,11 +397,6 @@ function Plastique(options){
                             throw new Error('Invalid attribute \''+ a +'="'+ cloneComponent.getAttribute(a) +'"\` in the component tag. Component tag can`t have simple html attributes!');
                         })
 
-                        // if(cloneComponent.hasAttribute('class') && COMPONENT_NAME == 'M3uaSgpParamsModel'){
-                        //     debugger;
-                        //     cloneComponent.setAttribute('v-bind:class', extractExpression(cloneComponent.getAttribute('class')));
-                        //     cloneComponent.removeAttribute('class');
-                        // }
                         if(cloneComponent.hasChildNodes()){
                             replaceComponentElems(cloneComponent.querySelectorAll('*'))
                         }
@@ -376,7 +423,7 @@ function Plastique(options){
                         cloneComponent.setAttribute(':key', componentVar +'.app$.id');
                         cloneComponent.setAttribute('v-bind:m', `$cc(${componentVar})`);
 
-                        let propsAttrsNames = cloneComponent.getAttributeNames().filter(a => a.startsWith(prefix +":props."));
+                        let propsAttrsNames = cloneComponent.getAttributeNames().filter(a => a.startsWith(prefix +":prop."));
                         if(propsAttrsNames.length > 0){
                             let propsArray = [];
                             for(let attrName of propsAttrsNames){
@@ -425,6 +472,34 @@ function Plastique(options){
                 arrayElems = Array.from(rootTag.querySelectorAll('*'))
                 replaceComponentElems(arrayElems);
 
+                arrayElems = Array.from(rootTag.querySelectorAll('*'));
+                let fragmentsElems = arrayElems.filter(t => t.getAttribute(prefix +':include'))
+                if(fragmentsElems.length > 0){
+                    fragmentsElems.forEach(e => {
+                        let attrVal = e.getAttribute(prefix +':include');
+                        let expr = extractExpression(attrVal);
+                        let match = expr.match(/^(\w+)(?:\((.*)\))?$/);
+                        let fragmentKey = match[1];
+                        let fragmentArgs = (match[2] || "").split(",").map(a => a.trim());
+
+                        if(fragmentArgs.length > 0) {
+                            let attrValue = FragmentSet.getFragmentPropValue(fragmentKey, fragmentArgs);
+                            e.setAttribute('v-bind:p', attrValue)
+                        }
+
+                        let classAppendAttr = e.getAttribute('v-bind:class');
+                        if(classAppendAttr){
+                            if(isExpression(classAppendAttr)){
+                                e.setAttribute('v-bind:class', extractExpression(classAppendAttr));
+                            }else{
+                                e.setAttribute('class', classAppendAttr.slice(1, -1));
+                                e.removeAttribute('v-bind:class');
+                            }
+                        }
+
+                        replaceSpecialTag(FragmentSet.getFragmentName(fragmentKey), e);
+                    });
+                }
 
                 replaceTagElems(tag => tag.tagName == (prefix.toUpperCase() +':BLOCK'), 'template')
             }
@@ -436,7 +511,7 @@ function Plastique(options){
             let completeVueTemplate = rootTag.firstElementChild.outerHTML.replace(/___:([a-zA-Z\d]+?)___:/g, 'v-on:[$1]').replace(/__:([a-zA-Z\d]+?)__:/g, 'v-bind:[$1]');
             let vueCompilerResult = vueCompiler.compile(completeVueTemplate);
             if(vueCompilerResult.errors.length != 0)
-                throw new Error(`Vue compile error! Template ${COMPONENT_NAME}. ` + vueCompilerResult.errors);
+                throw new Error(`Vue compile error! Template ${TEMPLATE_NAME}. ` + vueCompilerResult.errors);
             let staticRenders = [];
             for(let staticRender of vueCompilerResult.staticRenderFns){
                 staticRenders.push(`function(){${staticRender}}`);
@@ -453,7 +528,7 @@ function Plastique(options){
                 })
                 .replace(
                     "with(this){",
-                    "let "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p,$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
+                    "let "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{},$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){")
                 .replace("clazz$", '(css$ != null? css$: clazz$)')
                 .replace(dynamicSlotNamePattern, (all, p1) => {
                     let expr = hashToString(p1)
@@ -475,9 +550,16 @@ function Plastique(options){
                 return val;
             let isWithBrackets = exprMatch.length > 1;
 
-            if(templatePropVarName) {
-                let pattern = new RegExp("(?<!\w)" + templatePropVarName +"\.", 'g')
-                val = val.replace(pattern, VUE_TEMPLATE_PROPS_VAR_NAME +'.')
+            if(templatePropVarNames && templatePropVarNames.length > 0) {
+                for(let templatePropVarName of templatePropVarNames) {
+                    if(isFragment) {
+                        let pattern = new RegExp("(?<!\w)("+ templatePropVarName +"\\.?)", 'g')
+                        val = val.replace(pattern, VUE_TEMPLATE_PROPS_VAR_NAME +'.$1');
+                    }else {
+                        let pattern = new RegExp("(?<!\w)" + templatePropVarName + "\.", 'g')
+                        val = val.replace(pattern, VUE_TEMPLATE_PROPS_VAR_NAME + '.')
+                    }
+                }
             }
             return val.replace(/(?<!\w)this\./g, '')
                 .replace(/^#{(\$\{.+?\}|[\w_.]+)(?:\((\$\{.+\}|[\w_.]+)\))?}/g, function(text, first, second){
@@ -492,7 +574,7 @@ function Plastique(options){
                 .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
         }
         function isExpression(val){
-            return val.trim().search(/\$\{(.+?)\}/is) == 0;
+            return val.trim().search(/\$\{(.+?)\}/is) === 0;
         }
 
         function getModifiers(attrNameOrTagName){
@@ -535,7 +617,7 @@ function Plastique(options){
             function handleAttr(elem, attr){
                 if(!attr.name.startsWith(prefix +':'))
                     return;
-                var attrName = attr.name.substr(prefix.length + 1);// +1 - ':'
+                let attrName = attr.name.substr(prefix.length + 1);// +1 - ':'
                 let modifiers = getModifiers(attrName);
                 attrName = attrName.split('.')[0]
                 switch(attrName){
@@ -544,9 +626,9 @@ function Plastique(options){
                         break;
                     case 'slot':
                         if(modifiers.length > 0 && attr.value.length > 0){
-                            throw new Error(`Component ${COMPONENT_NAME}. Indefinable slot name: ${attr.name}="${attr.value}"`)
+                            throw new Error(`Template ${TEMPLATE_NAME}. Indefinable slot name: ${attr.name}="${attr.value}"`)
                         }else if(modifiers.length == 0 && attr.value.length == 0){
-                            throw new Error(`Component ${COMPONENT_NAME}. Slot without name!`)
+                            throw new Error(`Template ${TEMPLATE_NAME}. Slot without name!`)
                         }
                         let slotName;
                         if(modifiers.length > 0){
@@ -573,6 +655,11 @@ function Plastique(options){
                     case 'unless':
                         elem.setAttribute('v-if', '!('+ extractExpression(attr.value) +')');
                         break;
+                    case 'include':
+                        if(isFragment)
+                            throw new Error('Inner fragments is not realized!')
+                        return false;
+
                     case 'animation':
                         return false;
 
@@ -594,24 +681,23 @@ function Plastique(options){
                         }
                         break;
                     case 'classappend': {
-                        let isComponent = elem.hasAttribute(prefix + ':component');
-                        if (!isComponent)
-                            elem.setAttribute('v-bind:class', extractExpression(attr.value));
-                        else
+                        let isComponentOrFragment = elem.hasAttribute(prefix + ':component') || elem.hasAttribute(prefix + ':include');
+                        if (isComponentOrFragment)
                             elem.setAttribute('v-bind:class', attr.value);
-
+                        else
+                            elem.setAttribute('v-bind:class', extractExpression(attr.value));
                         break;
                     }
-                    case 'props': {
+                    case 'prop': {
                         let isComponent = elem.hasAttribute(prefix + ':component');
                         if (!isComponent)
-                            throw new Error(`Component ${COMPONENT_NAME}. The "props" attribute applies to the component tags only!`)
+                            throw new Error(`Template ${TEMPLATE_NAME}. The "prop" attribute applies to the component tags only!`)
                         else if(modifiers.length === 0)
-                            throw new Error(`Component ${COMPONENT_NAME}. The "props" attribute is set with the property name modifier only!`)
+                            throw new Error(`Template ${TEMPLATE_NAME}. The "prop" attribute is set with the property name modifier only!`)
 
                         let hasThisKeyword = /(?<!\w)this\./.test(attr.value);
                         if(hasThisKeyword)
-                            throw new Error(`Component ${COMPONENT_NAME}. The "props" attribute should contains constants values only! ${attr.name}="${attr.value}"`)
+                            throw new Error(`Template ${TEMPLATE_NAME}. The "prop" attribute should contains constants values only! ${attr.name}="${attr.value}"`)
 
                         return false;
                     }
@@ -647,7 +733,7 @@ function Plastique(options){
                 let attrVal = attr.value;
                 if(attrName == 'name' && elem.tagName.startsWith(prefix.toUpperCase() +':SLOT')) {
                     if(elem.tagName.includes('.')) // tag has modifiers
-                        throw new Error(`Component ${COMPONENT_NAME}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
+                        throw new Error(`Template ${TEMPLATE_NAME}. Indefinable slot name: <${elem.tagName.toLowerCase()} ${prefix}:name="...">`)
                     elem.setAttribute('v-bind:name', extractExpression(attrVal));
                 }else if(attrName.startsWith('on')){
                     let expr = extractExpression(attrVal);
@@ -870,41 +956,46 @@ function Plastique(options){
             && (s.expression.expression.kind == ts.SyntaxKind.SuperKeyword))[0]
     }
 
+    function getFragmentTemplateAndProps(func){
+        let params = func.parameters;
+        let propsVars = [];
+        if(params.length > 0){
+            if(params[0].name.escapedText === 'this'){
+                params = params.slice(1);
+            }
+            propsVars = params.map(p => p.name.escapedText);
+        }
+
+        for(let s of func.body.statements){
+            if(
+                (s.kind == ts.SyntaxKind.ExpressionStatement || s.kind == ts.SyntaxKind.ReturnStatement )
+                && s.expression.kind == ts.SyntaxKind.TemplateExpression
+            ){
+                func = s.expression
+            }
+        }
+        if(func == null)
+            throw new Error('Template is not found! Component: '+ componentNode.name.escapedText)
+        let templString = func.getFullText().slice(1, -1);// remove quote(`) chars
+
+        return  {
+            template: templString,
+            props: propsVars
+        }
+    }
+
     function getComponentTemplateAndPropsVar(componentNode) {
         let reactiveArgs = getDecoratorArguments(componentNode, ANNOTATION_REACTIVE_CLASS);
         let templateArg = reactiveArgs? reactiveArgs[0]: null;
         if(templateArg){
             if(templateArg.kind == ts.SyntaxKind.ArrowFunction || templateArg.kind == ts.SyntaxKind.FunctionExpression){
-                let params = templateArg.parameters;
-                let propsVarName;
-                if(params.length > 0){
-                    if(params[0].name.escapedText === 'this'){
-                        if(params.length > 1)
-                            propsVarName = params[1].name.escapedText;
-                    }else
-                        propsVarName = params[0].name.escapedText;
-                }
-
-                for(let s of templateArg.body.statements){
-                    if(
-                        (s.kind == ts.SyntaxKind.ExpressionStatement || s.kind == ts.SyntaxKind.ReturnStatement )
-                        && s.expression.kind == ts.SyntaxKind.TemplateExpression
-                    ){
-                        templateArg = s.expression
-                    }
-                }
-                if(templateArg == null)
-                    throw new Error('Template is not found! Component: '+ componentNode.name.escapedText)
-                let templString = templateArg.getFullText().slice(1, -1);// remove quote(`) chars
-                if(propsVarName)
-                    return [templString, propsVarName];
-                else
-                    return [templString];
+                return getFragmentTemplateAndProps(templateArg);
             }else
                 throw new Error('Template is not valid type! StringTemplate is required! Component: '+ componentNode.name.escapedText)
         }else
-            return [];
+            return null;
     }
+
 
     let VirtualComponents = new function() {
         let virtualComponentToId = {};
@@ -965,7 +1056,7 @@ function Plastique(options){
 
     function configureComponent(componentNode, context){
         let componentName = componentNode.name.escapedText;
-        let [template, templatePropVarName] = getComponentTemplateAndPropsVar(componentNode);
+        let template = getComponentTemplateAndPropsVar(componentNode);
         let componentRoot = getAllRootComponentsData(componentNode, context);
         // let parent = getParentClass(componentNode, context);
         // if(parent)
@@ -984,10 +1075,20 @@ function Plastique(options){
                 ts.createExpressionStatement(
                     ts.createCall(
                         ts.createPropertyAccess(
-                            ts.createThis(),
+                            ts.createSuper(),
                             "attachComponent"),
                         null,
                         [elementArgument, ts.createThis()]
+                    )
+                )
+            )
+            constructorNode.body.statements.push(
+                ts.createExpressionStatement(
+                    ts.createCall(
+                        ts.createPropertyAccess(
+                            ts.createSuper(),
+                            "initFragments"),
+                        null
                     )
                 )
             )
@@ -1066,7 +1167,7 @@ function Plastique(options){
             renderObj = ts.createIdentifier(VUE_TEMPLATE_FUNC_NAME);
             let templateRender
             try {
-                let templateRenderResult = getVueTemplateRender(template, componentNode, templatePropVarName);
+                let templateRenderResult = getComponentTemplateRender(template.template, componentNode, template.props[0]);
                 templateRender = templateRenderResult.template
                 withParentTag = templateRenderResult.withParentTag;
             }catch (e) {
@@ -1615,6 +1716,50 @@ function Plastique(options){
     }
 
 
+    function handleFragmentNode(node){
+        let fragmentVarName = new Node(node).getImportVarName(FRAGMENT_TYPE_PATH, true);
+        for(let statement of node.statements){
+            if(statement.kind = ts.SyntaxKind.FunctionDeclaration && statement.type && statement.type.typeName.escapedText == fragmentVarName){
+                let name = statement.name.escapedText;
+                if(!name.endsWith('Fragment'))
+                    throw new Error('Fragment "'+ name +'" should be end with "Fragment" suffix')
+
+                let template = getFragmentTemplateAndProps(statement);
+                let render = getFragmentTemplateRender(template.template, node, template.props);
+                FragmentSet.addFragment(name, render.template, template.props);
+            }
+        }
+    }
+
+    class Node{
+        constructor(node) {
+            this.node = node;
+        }
+
+        getImportVarName(path, endsWith){
+            let node = this.node;
+            if(node.resolvedModules == null)
+                return null;
+
+            let module = Array.from(node.resolvedModules.entries())
+                .find(m => {
+                    let filePath = m[1].originalFileName;
+                    return endsWith? filePath.endsWith(path): filePath === path;
+                });
+            if(module == null)
+                return null;
+
+            let moduleRelative = module[0];
+            for(let st of node.statements){
+                if(st.kind === ts.SyntaxKind.ImportDeclaration && st.moduleSpecifier.text === moduleRelative){
+                    return st.importClause.name.escapedText;
+                }
+            }
+            throw new Error('Import declaration is not found for path: '+ path)
+        }
+    }
+
+
     let files = [];
     let isInitialized;
 
@@ -1717,7 +1862,7 @@ function Plastique(options){
                     let host = context.getEmitHost();
                     let basePath = host.getCommonSourceDirectory();
                     let libPath = basePath + 'node_modules/';
-                    let workNodes = host.getSourceFiles().filter(f =>
+                    const workNodes = host.getSourceFiles().filter(f =>
                         !f.hasNoDefaultLib
                         &&
                         !host.isSourceFileFromExternalLibrary(f)
@@ -1801,11 +1946,8 @@ function Plastique(options){
                     workFilesPaths = workNodes.map(n => n.fileName);
                     for(let node of workNodes){
                         if(node.resolvedModules){
-                            let importModules = Array.from(node.resolvedModules.values())
-                                .filter(m => m != void 0); //remove remove modules
-                            let hasTypeUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(TYPE_CLASS_PATH));
-                            let hasComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(COMPONENT_INTERFACE_PATH));
-                            let hasVirtualComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(VIRTUAL_COMPONENT_ANNOTATION_PATH));
+                            let importModules = Array.from(node.resolvedModules.values()).filter(m => m != void 0); //remove invalid modules
+
                             let hasEntryPoint = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(ENTRYPOINT_ANNOTATION_PATH));
                             if(hasEntryPoint){
                                 let entryPoint = node.statements.find(s => s.kind == ts.SyntaxKind.ClassDeclaration && isEntryPointNode(s));
@@ -1817,6 +1959,13 @@ function Plastique(options){
                                 }
                             }
 
+                            const isFragmentUsed = importModules.some(m => m.isExternalLibraryImport && m.originalFileName.endsWith(FRAGMENT_TYPE_PATH));
+                            if(isFragmentUsed)
+                                handleFragmentNode(node);
+
+                            let hasTypeUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(TYPE_CLASS_PATH));
+                            let hasComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(COMPONENT_INTERFACE_PATH));
+                            let hasVirtualComponentUsage = importModules.find(m => m.isExternalLibraryImport && m.originalFileName.endsWith(VIRTUAL_COMPONENT_ANNOTATION_PATH));
                             if(hasTypeUsage || hasComponentUsage || hasVirtualComponentUsage){
                                 ts.visitNode(node, vis);
                             }
@@ -1867,6 +2016,25 @@ class CompilePlugin{
                 }
             })
         }
+
+        function injectFragmentsToEntryPoint(element){
+            ast.replace(element, {
+                enter (node) {
+                    if (node.type === 'ExpressionStatement'
+                        && node.expression === "CallExpression"
+                        && node.expression.callee.object
+                        && node.expression.callee.object.type === "SuperExpression"
+                        && node.expression.callee.property.name === "initFragments"
+                    ) {
+                        let fragmentsObj = ast.parse(FragmentSet.getFragmentsResultObject());
+                        node.arguments = [fragmentsObj];
+                        return node;
+                    }
+                    return node
+                }
+            })
+        }
+
         function moveAppImportDefToTop(element, appModuleIndex){
             let statements = element.body.body[1].expression.callee.object.body.body;
             let appImportDefIndex = statements.findIndex(statement => {
@@ -1959,6 +2127,7 @@ class CompilePlugin{
             const AppModuleIndex = compilation.modules.findIndex(m => m.resource.endsWith('/@plastique/core/base/App.ts'));
             if(AppModuleIndex < 0)
                 console.error('App.ts is not found!');
+
             for(let asset in compilation.assets){
                 let source = compilation.assets[asset].source();
                 let tree = new ast(source);
@@ -1971,8 +2140,10 @@ class CompilePlugin{
                     if(workFilesPaths.includes(modulePath)) {
                         element = isDevelopmentMode ? element.value : element;
                         replaceDefaultInstanceof(element)
-                        if(entryPointClassPath == modulePath)
+                        if(entryPointClassPath == modulePath) {
                             moveAppImportDefToTop(element, AppModuleIndex)
+                            injectFragmentsToEntryPoint(element);
+                        }
                         if(isDevelopmentMode){
                             let evalExpr = ast.parse('eval("")').body[0];
                             evalExpr.expression.arguments[0].value = ast.generate(element.body.body[1]) + `\n//# sourceURL=webpack:///${modulePath}?`; //.replace(/\\/g, '\\\\');
@@ -1989,7 +2160,11 @@ class CompilePlugin{
                         element.body = {body: fakeWrap.body, type: "BlockStatement"}
                     }
                 });
-                let newCode = isDevelopmentMode? ast.generate(tree): uglifyJS.minify(ast.generate(tree, {comments: true})).code;
+                let newCode = isDevelopmentMode?
+                    ast.generate(tree)
+                    :
+                    uglifyJS.minify(ast.generate(tree, {comments: true})).code;
+
                 for(let componentPath in componentPathToTemplate){
                     let vueTemplateGeneratorFunc = `function ${VUE_TEMPLATE_FUNC_NAME}(){return ${componentPathToTemplate[componentPath]}}`;
                     if(isDevelopmentMode)
