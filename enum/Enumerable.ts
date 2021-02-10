@@ -25,7 +25,7 @@ export default abstract class Enumerable{
         return this.$[name];
     }
 
-    private static init(enumClass: any){
+    private static $init(enumClass: any){
         let keyToVal = {};
         for(let e in enumClass){
             if(typeof enumClass[e] === 'object'){

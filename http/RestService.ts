@@ -4,11 +4,12 @@ import JsonRequestContent from "./content/JsonRequestContent";
 import UrlEncodedRequestContent from "./content/UrlEncodedRequestContent";
 import Serializator from "../hash/Serializator";
 import ReactiveReadonlyMap from "../collection/map/ReactiveReadonlyMap";
+import JsonParser from "../hash/JsonParser";
 
 declare let axios;
 
 class RestService{
-    protected call<T>(req: HttpRequest): Promise<HttpResponse<T>>{
+    protected call<T>(req: HttpRequest, resultMapper?: Class<T>): Promise<HttpResponse<T>>{
         let props: any = {
             url: req.url,
             method: req.method == null? 'GET': req.method
@@ -26,7 +27,10 @@ class RestService{
                 'content-type': req.content.contentType
             }
         }
-        return axios(props);
+        let resp = axios(props);
+        if(resultMapper)
+            resp.data = JsonParser.convert(resp.data, resultMapper);
+        return resp;
     }
 
     private encodeMap(attrToVal: ReactiveReadonlyMap<string, string>): string{
