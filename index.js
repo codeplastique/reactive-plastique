@@ -110,6 +110,7 @@ function Plastique(options){
     const ANNOTATION_ELEMENT = 'Inject';
     const ANNOTATION_INIT_EVENT = 'InitEvent';
     const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitMarker';
+    const ANNOTATION_IGNORE_FIELD_INIT = 'IgnoreInit';
     const ANNOTATION_TO_JSON = 'ToJson';
     const ANNOTATION_JSON_MERGE = 'JsonMerge';
     const ANNOTATION_ENUM = 'Enum';
@@ -1154,7 +1155,10 @@ function Plastique(options){
                         elementProps.push(memberName);
                         removeDecorator(member, ANNOTATION_ELEMENT);
                     }else{
-                        if(member.initializer == null
+                        if(isNodeHasDecorator(member, ANNOTATION_IGNORE_FIELD_INIT)){
+                            removeDecorator(member, ANNOTATION_IGNORE_FIELD_INIT);
+
+                        }else if(member.initializer == null
                             && !componentRoot.members.includes(memberName)
                             && !hasPropertyAssignmentInConstructor(constructorNode, member)
                         ){
