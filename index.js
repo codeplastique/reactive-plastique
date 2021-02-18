@@ -1891,6 +1891,7 @@ function Plastique(options){
                             name == ANNOTATION_JSON_MERGE ||
                             name == ANNOTATION_REACTIVE_CLASS ||
                             name == ANNOTATION_REQUEST_MAPPING ||
+                            name == ANNOTATION_IGNORE_FIELD_INIT ||
                             name == ANNOTATION_ENUM) {
                             node.kind = -1;
                             return;
