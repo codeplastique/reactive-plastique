@@ -821,6 +821,17 @@ function Plastique(options){
         }
     }
 
+    function convertEscapedAsciiToUtf8(str){
+        return  JSON.parse(`"${str}"`)
+    }
+
+    function normalizePropertiesValues(obj){
+        for(let key in obj){
+            obj[key] = convertEscapedAsciiToUtf8(obj[key])
+        }
+    }
+
+
     function buildLocales(){
         let langToPropertiesReader = {};
         for(let i18nDir of I18N_DIRS) {
@@ -841,6 +852,7 @@ function Plastique(options){
 
         let langToProperties = Object.entries(langToPropertiesReader);
         langToProperties.forEach(it => it[1] = it[1]._properties);
+        langToProperties.forEach(it => normalizePropertiesValues(it[1]));
 
         requireIdenticalLocales(langToProperties);
         let regexp = new RegExp('"([^(\")"]+)":', 'g');
