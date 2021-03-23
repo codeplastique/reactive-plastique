@@ -95,6 +95,12 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         return obj;
     }
 
+    public mapValues<V2>(action: (value: V) => V2): ReactiveMap<K, V2> {
+        let newMap: SimpleMap<K, V2> = new SimpleMap();
+        this.forEach((v, k) => newMap.set(k, action(v)));
+        return newMap;
+    }
+
     public merge(map: ReactiveReadonlyMap<K, V>)
     public merge(mapEntries: MapEntry<K, V>[])
     public merge(arg: any){

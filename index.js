@@ -692,8 +692,17 @@ function Plastique(options){
                         break;
                     case 'include':
                         if(isFragment)
-                            throw new Error('Inner fragments is not realized!')
+                            throw new Error(`Template ${TEMPLATE_NAME}. Inner fragments is not realized!`)
                         return false;
+
+                    case 'mod':
+                        if(modifiers.length == 0)
+                            throw new Error(`Template ${TEMPLATE_NAME}. 'Mod' attribute must contain a directive modifier`)
+                        if(modifiers.length > 1)
+                            throw new Error(`Template ${TEMPLATE_NAME}. 'Mod' attribute must contain an only one directive modifier`)
+                        elem.setAttribute('v-'+ modifiers[0], extractExpression(attr.value));
+
+                        break;
 
                     case 'animation':
                         return false;

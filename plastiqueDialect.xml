@@ -22,6 +22,7 @@
     <attribute-processor name="animation"  />
     <attribute-processor name="prop"  />
     <attribute-processor name="include"  />
+    <attribute-processor name="mod"  />
 
 	<element-processor name="block"/>
 	<element-processor name="slot"/>
