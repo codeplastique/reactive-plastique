@@ -198,6 +198,9 @@ class Page{
 
 ### Built-in dependency injection
 ```typescript
+import Bean from "@plastique/core/base/Bean";
+import Scope from "@plastique/core/base/Scope";
+
 //...
 @Bean
 private getFirstInstance(): AnyClassOrInterface{
@@ -213,6 +216,8 @@ private getSecondInstance(): PrototypeClass{
 ```
 
 ```typescript
+import Autowired from "@plastique/core/base/Autowired";
+
 class A{
   @Autowired 
   private readonly AnyClassOrInterface first;
@@ -233,20 +238,30 @@ class C implements A, B{}
 ```
 
 ```typescript
+import Type from "@plastique/core/base/Type";
+import Types from "@plastique/core/base/Types";
+
 //...
   let c = new C();
   console.log(c instanceof Type<A>()); //true
   let bType = Type<B>();
   console.log(c instanceof bType); //true
+  console.log(Types.isObject(c)); //true
+  console.log(Types.is(c, btype)); //true
   
   let bType2 = Type<B>();
   console.log(bType === bType2); //true
   console.log(bType === Type<A>()); //false
+
 //...
 ```
 
 ### Built-in reaction collections
 ```typescript
+import ReactiveMap from "@plastique/core/collection/ReactiveMap";
+import SimpleMap from "@plastique/core/collection/SimpleMap";
+import SimpleSet from "@plastique/core/collection/SimpleSet";
+
 let mapCollection: ReactiveMap = SimpleMap.of(
   'key1', 'value1',
   'key2', 'value2',
@@ -261,6 +276,9 @@ console.log(setCollection.values().join(',')); // value1,value2,value3
 
 ### Progressive enum realisation
 ```typescript
+import Enum from "@plastique/core/enum/Enum";
+import Enumerable from "@plastique/core/enum/Enumerable";
+
 @Enum
 class Color extends Enumerable{
   public static readonly RED = new Color('ff0000');
@@ -280,4 +298,64 @@ console.log(Color.RED.name()); // RED
 console.log(Color.BLACK.getHex()); // #000000
 console.log(Color.values().length); // 3
 console.log(Color.valueOf('BLUE').getHex()); // #0000ff
+```
+
+### Powerful JSON ORM
+```typescript
+import ToJson from "@plastique/core/hash/ToJson";
+import JsonMerge from "@plastique/core/hash/JsonMerge";
+
+class SymbolEditor {
+  @ToJson 
+  private a: string = 'a';
+  @ToJson('b') 
+  private uglyB: string = 'b';
+  private c: string = 'c';
+  private d: string = 'd';
+  @ToJson
+  private numbers: NumberEditor = new NumberEditor();
+  @JsonMerge
+  private punctuation: PunctuationMarksEditor = new PunctuationMarksEditor();
+  
+  @ToJson
+  public getCd(): string{
+    return this.c + this.d;
+  }
+}
+
+class NumberEditor{
+  private negative: number = -1;
+  @ToJson 
+  private one: number = 1;
+  @ToJson 
+  private two: number = 2;
+}
+
+class PunctuationMarksEditor{
+  @ToJson 
+  private dot: string = '.';
+  @ToJson 
+  private comma: string = ',';
+}
+```
+
+```typescript
+import Serializator from "@plastique/core/hash/Serializator";
+
+let editor = new SymbolEditor();
+let json = new Serializator().toJson(editor);
+console.log(json); 
+/*
+{
+  "a": "a",
+  "b": "b",
+  "numbers": {
+    "one": 1,
+    "two": 2
+  },
+  "dot": ".",
+  "comma": ",",
+  "cd": "cd"
+}
+*/
 ```
