@@ -244,3 +244,40 @@ class C implements A, B{}
   console.log(bType === Type<A>()); //false
 //...
 ```
+
+### Built-in reaction collections
+```typescript
+let mapCollection: ReactiveMap = SimpleMap.of(
+  'key1', 'value1',
+  'key2', 'value2',
+  'key3', 'value1'
+);
+console.log(mapCollection.keys().join(',')); // key1,key2,key3
+
+let setCollection = SimpleSet.of(...mapCollection.values());
+setCollection.add('value3');
+console.log(setCollection.values().join(',')); // value1,value2,value3
+```
+
+### Progressive enum realisation
+```typescript
+@Enum
+class Color extends Enumerable{
+  public static readonly RED = new Color('ff0000');
+  public static readonly BLUE = new Color('0000ff');
+  public static readonly BLACK = new Color('000000');
+  
+  private constructor(private readonly hex: string){}
+  
+  public getHex(): string{
+    return '#'+ this.hex;
+  }
+}
+```
+
+```typescript
+console.log(Color.RED.name()); // RED
+console.log(Color.BLACK.getHex()); // #000000
+console.log(Color.values().length); // 3
+console.log(Color.valueOf('BLUE').getHex()); // #0000ff
+```
