@@ -51,7 +51,7 @@ class PassEditor{
 ```
 
 
-### Component Inheritance
+#### Component Inheritance
 
 ```typescript
 @Reactive(function(this: A){
@@ -90,7 +90,7 @@ class C extends A{
 }
 ```
 
-### Nested components
+#### Nested components
 ```typescript
 @Reactive(function(this: Popup){
 `<div xmlns:v="http://github.com/codeplastique/plastique">
@@ -113,6 +113,8 @@ class Popup{
   <button v:onclick="${this.showPopup}">Show popup</button>
   
   <div v:if="${this.popup != null}" class="popup-block">
+  
+    <!-- DIV or any tag name, not even real -->
     <div v:component="${this.popup}"></div>
     
     <button v:onclick="${this.changePopupText}">Change popup text</button>
@@ -137,7 +139,7 @@ class Page{
 
 ```
 
-### Events
+#### Events
 ```typescript
 @Reactive(function(this: Popup){
 `<div xmlns:v="http://github.com/codeplastique/plastique">
@@ -196,7 +198,7 @@ class Page{
 
 ```
 
-### Built-in dependency injection
+#### Built-in dependency injection
 ```typescript
 import Bean from "@plastique/core/base/Bean";
 import Scope from "@plastique/core/base/Scope";
@@ -228,7 +230,7 @@ class A{
 }
 ```
 
-### Runtime interface implementation check
+#### Runtime interface implementation check
 ```typescript
 interface A{}
 
@@ -256,7 +258,7 @@ import Types from "@plastique/core/base/Types";
 //...
 ```
 
-### Built-in reaction collections
+#### Built-in reaction collections
 ```typescript
 import ReactiveMap from "@plastique/core/collection/ReactiveMap";
 import SimpleMap from "@plastique/core/collection/SimpleMap";
@@ -274,7 +276,7 @@ setCollection.add('value3');
 console.log(setCollection.values().join(',')); // value1,value2,value3
 ```
 
-### Progressive enum realisation
+#### Progressive enum realisation
 ```typescript
 import Enum from "@plastique/core/enum/Enum";
 import Enumerable from "@plastique/core/enum/Enumerable";
@@ -300,7 +302,7 @@ console.log(Color.values().length); // 3
 console.log(Color.valueOf('BLUE').getHex()); // #0000ff
 ```
 
-### Powerful JSON ORM
+#### Powerful JSON ORM
 ```typescript
 import ToJson from "@plastique/core/hash/ToJson";
 import JsonMerge from "@plastique/core/hash/JsonMerge";
@@ -358,4 +360,71 @@ console.log(json);
   "cd": "cd"
 }
 */
+```
+
+### Vue analogues
+#### Slots
+##### Vue slots
+```html
+<div class="container">
+  <header>
+    <slot name="header"></slot>
+  </header>
+  <main>
+    <!-- default slot -->
+    <slot></slot>
+  </main>
+  <footer>
+    <slot name="footer"></slot>
+  </footer>
+</div>
+...
+<base-layout>
+  <template v-slot:header>
+    <h1>Title</h1>
+  </template>
+
+  <p>For default slot</p>
+  <p>For default slot</p>
+
+  <template v-slot:footer>
+    <p>Footer</p>
+  </template>
+</base-layout>
+```
+
+##### Plastique slots
+```html
+<div xmlns:v="http://github.com/codeplastique/plastique" class="container">
+  <header>
+    <v:slot v:name.header></v:slot>
+    <!-- or -->
+    <!-- <v:slot v:name="'header'"></v:slot> -->
+  </header>
+  <main>
+    <!-- default slot -->
+    <v:slot></v:slot>
+  </main>
+  <footer>
+    <v:slot v:name="${this.footerSlotName}"></v:slot>
+    <!-- where footerSlotName is 'footer' -->
+  </footer>
+</div>
+...
+<div xmlns:v="http://github.com/codeplastique/plastique" v:component="...">
+  <!-- DIV or any tag name, not even real -->
+  <div v:slot.header>
+    <!-- or -->
+    <!-- <div v:slot="'header'"> -->
+    ...
+  </div>
+  <any-tag-name v:slot>
+    <!-- default slot -->
+    ...
+  </any-tag-name>
+  <any-tag-name v:slot="${this.footerSlotName}">
+    <!-- where footerSlotName is 'footer' -->
+    ...
+  </any-tag-name>
+</div>
 ```
