@@ -51,7 +51,7 @@ class PassEditor{
 ```
 
 
-#### Component Inheritance
+#### Component inheritance
 
 ```typescript
 @Reactive(function(this: A){
@@ -136,6 +136,59 @@ class Page{
     this.popup = null;
   }
 }
+
+```
+
+#### Template inheritance
+```typescript
+import Reactive from "@plastique/core/component/Reactive";
+
+@Reactive(function(this: A){
+`<div xmlns:v="http://github.com/codeplastique/plastique">
+  <div>Template of A object</div>
+  <div v:text="${this.getNumber()}"></div>
+  <div v:text="${this.getName()}"></div>
+</div>
+`})
+abstract class A{
+  protected getNumber(): number{
+    return 1;
+  }
+  
+  abstract protected getName(): string;
+}
+
+// Template of an A class will be inherited
+class B extends A{
+  // override 
+  protected getNumber(): number{
+    return 2;
+  }
+  
+  protected getName(): string{
+    return 'B name';
+  }
+}
+
+// Override the class A template
+@Reactive(function(this: A){
+`<div xmlns:v="http://github.com/codeplastique/plastique">
+  <span>Template of C object</span>
+  <span v:text="${this.getCount()}"></span>
+  <span v:text="${this.getName()}"></span>
+</div>
+`})
+class C extends A{
+  // override 
+  protected getNumber(): number{
+    return 3;
+  }
+  
+  protected getName(): string{
+    return 'C name';
+  }
+}
+
 
 ```
 
