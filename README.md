@@ -171,7 +171,7 @@ class B extends A{
 }
 
 // Override the class A template
-@Reactive(function(this: A){
+@Reactive(function(this: C){
 `<div xmlns:v="http://github.com/codeplastique/plastique">
   <span>Template of C object</span>
   <span v:text="${this.getCount()}"></span>
