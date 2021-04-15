@@ -5,4 +5,5 @@ export default interface ReactiveMap<K, V> extends ReactiveReadonlyMap<K, V>{
     set(key: K, value: V): this
     merge(map: ReactiveMap<K, V>): void
     mapValues <V2>(action: (value: V) => V2): ReactiveMap<K, V2>
+    map <T>(action: (key: K, value: V) => T): T[]
 }
