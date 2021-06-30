@@ -418,7 +418,7 @@ function Plastique(options){
                         let componentVar;
                         let componentName;
                         if(componentExpr.includes(' as ')){
-                            componentName = componentExpr.replace(/([\w\d]+)\s+as\s+([\w\d]+)/g, (_, varName, cast) => {
+                            componentName = componentExpr.replace(/([\w\d\.]+)\s+as\s+([\w\d]+)/g, (_, varName, cast) => {
                                 if(componentVar && componentVar != varName)
                                     throw new Error(`Invalid casting in ${componentAttr.value}`)
                                 componentVar = varName;
