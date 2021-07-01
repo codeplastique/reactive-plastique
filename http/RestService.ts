@@ -29,16 +29,23 @@ class RestService{
         return axios(props);
     }
 
-    private encodeMap(attrToVal: ReactiveReadonlyMap<string, string>): string{
+    private encodeMap(attrToVal: ReactiveReadonlyMap<string, any>): string{
         let params = [];
-        attrToVal.forEach((val, paramKey) => {
-            if(val != null)
-                params.push(paramKey +'='+ encodeURIComponent(val));
+        attrToVal.forEach((val, key) => {
+            if(val != null) {
+                let arrValString: string[] = Array.isArray(val)? val.map(it => it.toString()): [val.toString()]
+                arrValString.forEach(val => {
+                    params.push(key +'='+ encodeURIComponent(val));
+                })
+            }
         });
         return params.join('&');
     }
 
-    protected buildQuery(url: string, attrToVal: ReactiveReadonlyMap<string, string>): string{
+    protected buildQuery(
+        url: string,
+        attrToVal: ReactiveReadonlyMap<string, number | string | boolean | number[] | string[] | boolean[]>
+    ): string{
         return url +'?'+ this.encodeMap(attrToVal);
     }
 }
