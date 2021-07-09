@@ -581,6 +581,7 @@ declare global {
         removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
         includes(searchElement: T, fromIndex?: number): boolean;
+        has(searchElement: T): boolean;
         clear(...newElems: T[]): void
         flat(): Array<T>;
         move(fromIndex: number, toIndex: number): void
@@ -662,16 +663,13 @@ if(!Array.prototype.flat)
 Array.prototype.move = function (elementOnIndex: number, toIndex: number) {
     this.splice(toIndex, 0, this.splice(elementOnIndex, 1)[0]);
 };
-// if(!Array.prototype.includes){
-//     Array.prototype.includes = function(searchElement: any, fromIndex?: number){
-//         for(let i = fromIndex || 0; i < this.length; i++) {
-//             let elem = this[i];
-//             if ((searchElement == null && elem == null) || (searchElement != null && searchElement.equals(elem)))
-//                 return true;
-//         }
-//         return false;
-//     }
-// }
+Array.prototype.has = function(searchElement: any){
+    for(let elem of this){
+        if(searchElement == null? elem == null: searchElement.equals(elem))
+            return true;
+    }
+    return false;
+}
 Array.prototype.replace = function (from: any, to: any) {
     let index = this.indexOf(from);
     if(index >= 0)
