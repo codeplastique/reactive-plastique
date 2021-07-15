@@ -1,8 +1,14 @@
+import Type from "./Type";
+
 export default class ExpressionNode{
     constructor(protected readonly node){}
 
     public static createNull(): ExpressionNode{
         return new ExpressionNode(ts.createNull())
+    }
+
+    public static createThis(): ExpressionNode{
+        return new ExpressionNode(ts.createThis())
     }
 
     public static createString(str: string): ExpressionNode{
@@ -68,5 +74,9 @@ export default class ExpressionNode{
 
     getRaw(): any{
         return this.node;
+    }
+
+    getType(): Type | null{
+
     }
 }

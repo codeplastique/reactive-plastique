@@ -6,6 +6,7 @@ import Decoratable from "./Decoratable";
 import DecoratorNode from "./DecoratorNode";
 import ClassMethodNode from "./ClassMethodNode";
 import TsFile from "./TsFile";
+import TsFileRef from "./TsFileRef";
 
 export default class ClassNode extends NameableNode implements Decoratable{
     constructor(node){
@@ -30,7 +31,7 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return new ConstructorNode(constructorNode)
     }
 
-    getNonConstructorFields(): ClassPropertyNode[]{
+    getFields(): ClassPropertyNode[]{
         return (this.node.members || [])
             .filter(n => n.kind == TsType.CLASS_PROPERTY.getId())
             .map(p => new ClassPropertyNode(p));
@@ -46,6 +47,12 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return (this.node.decorators || []).map(d => new DecoratorNode(d));
     }
 
+
+    hasDecorator(name: string): boolean{
+        return this.getDecorators().some(d => d.getName() == name)
+    }
+
+
     getFile(): TsFile{
         return new TsFile(this.node.getSourceFile());
     }
@@ -58,17 +65,28 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return this.getFile().getImportClass(parentClassName);
     }
 
-    getAllParent(): ClassNode[]{
+    getAllParents(): ClassNode[]{
         let parents = [];
         let parent = this.getParent();
         let i = 0;
         while(parent != null){
             parents.push(parent);
+            parent = parent.getParent();
             i++;
             if(i > 1000)
                 throw new Error('More than 1000(???) parents on '+ this.getName());
         }
         return parents;
+    }
+
+    hasParent(filePath: TsFileRef): boolean{
+        let parent = this.getParent();
+        while(parent != null){
+            if(parent.getFile().getPath() == filePath.getPath())
+                return true;
+            parent = parent.getParent();
+        }
+        return false
     }
 
     getMethods(withParentMethods?: boolean): ClassMethodNode[]{

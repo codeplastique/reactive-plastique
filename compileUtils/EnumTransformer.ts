@@ -1,6 +1,7 @@
 import ClassNode from "./node/ClassNode";
 import ClassPropertyNode from "./node/ClassPropertyNode";
 import TsModifier from "./node/TsModifier";
+import TsFileRef from "./node/TsFileRef";
 
 export default class EnumTransformer{
     private static readonly ANNOTATION_ENUM = 'Enum';
@@ -8,7 +9,7 @@ export default class EnumTransformer{
 
     public static transform(clazz: ClassNode): void{
         if(!this.isEnum(clazz))
-            return
+            return;
 
         let classIdentity = clazz.getIdentifier();
         let enumSpecialField = ClassPropertyNode.create(
@@ -22,13 +23,8 @@ export default class EnumTransformer{
 
     public static isEnum(clazz: ClassNode): boolean{
         if(clazz.getDecorators().some(d => d.getName() == EnumTransformer.ANNOTATION_ENUM)){
-            let parent = clazz.getParent();
-            while (parent != null) {
-                if (parent.getFile().getPath().endsWith(EnumTransformer.ENUMERABLE_IDENTIFIER_PATH))
-                    return true
-                parent = parent.getParentЯ ();
-            }
-            throw new Error(`Class ${clazz.getName()} has an Enum decorator, but no Enumerable parent!`)
+            if(!clazz.hasParent(new TsFileRef(this.ENUMERABLE_IDENTIFIER_PATH)))
+                throw new Error(`Class ${clazz.getName()} has an Enum decorator, but no Enumerable parent!`)
         }
         return false;
     }

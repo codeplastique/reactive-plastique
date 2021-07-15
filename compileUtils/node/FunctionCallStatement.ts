@@ -15,24 +15,24 @@ export default class FunctionCallStatement implements StatementNode{
         return new FunctionCallStatement(node);
     }
 
-    public static from(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
+    static from(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
         return this.create(null, ts.createIdentifier(functionName), args);
     }
 
-    public static of(identifier: IdentifierNode, functionName: string, args?: any[]): FunctionCallStatement{
+    static of(identifier: IdentifierNode, functionName: string, args?: any[]): FunctionCallStatement{
         let argsNodes = args.map(a => ExpressionNode.of(a));
         return this.create(identifier.getRaw(), ts.createIdentifier(functionName), argsNodes);
     }
 
-    public static ofThis(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
+    static ofThis(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
         return this.create(ts.createThis(), ts.createIdentifier(functionName), args);
     }
 
-    public static ofSuper(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
+    static ofSuper(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
         return this.create(ts.createSuper(), ts.createIdentifier(functionName), args);
     }
 
-    public getArguments(): ExpressionNode[]{
+    getArguments(): ExpressionNode[]{
         return [];
     }
 

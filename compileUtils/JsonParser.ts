@@ -68,7 +68,7 @@ class JsonParser{
     }
 
     public handleToJsonFields(){
-        let nonStaticFields = this.clazz.getNonConstructorFields()
+        let nonStaticFields = this.clazz.getFields()
             .filter(f => !f.isStatic());
 
         for(let field of nonStaticFields){
@@ -111,7 +111,7 @@ class JsonParser{
                 this.fromJsonConstructorFields = params.map(p => this.handleNode(p))
             }
         }
-        this.fromJsonFields = this.clazz.getNonConstructorFields()
+        this.fromJsonFields = this.clazz.getFields()
             .filter(f => !f.isStatic())
             .map(f => this.handleNode(f));
     }

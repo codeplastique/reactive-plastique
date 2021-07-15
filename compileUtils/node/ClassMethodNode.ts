@@ -3,8 +3,9 @@ import FunctionParameterNode from "./FunctionParameterNode";
 import StatementNode from "./statement/StatementNode";
 import TsModifier from "./TsModifier";
 import DecoratorNode from "./DecoratorNode";
+import Decoratable from "./Decoratable";
 
-export default class ClassMethodNode extends NameableNode{
+export default class ClassMethodNode extends NameableNode implements Decoratable{
     constructor(node){
         super(node);
     }
@@ -21,8 +22,16 @@ export default class ClassMethodNode extends NameableNode{
         this.node.body.statements.push(statement.getRaw());
     }
 
-    public getDecorators(): DecoratorNode[]{
+    getDecorators(): DecoratorNode[]{
         return (this.node.decorators || []).map(d => new DecoratorNode(d));
+    }
+
+    getDecorator(name: string): DecoratorNode | null{
+        return this.getDecorators().find(d => d.getName() == name)
+    }
+
+    hasDecorator(name: string): boolean{
+        return this.getDecorators().some(d => d.getName() == name)
     }
 
     protected hasModifier(type: TsModifier): boolean{
@@ -47,4 +56,7 @@ export default class ClassMethodNode extends NameableNode{
         return this.hasModifier(TsModifier.PROTECTED)
     }
 
+    removeDecorator(name: string) {
+
+    }
 }
