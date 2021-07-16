@@ -556,7 +556,7 @@ function Plastique(options){
             }else {
                 vueCompilerResult.render = vueCompilerResult.render.replace(
                     "with(this){",
-                    "var "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{},$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);if(){};with(this.m){"
+                    "var "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{},$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){"
                 )
             }
             vueCompilerResult.render = vueCompilerResult.render
