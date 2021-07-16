@@ -379,7 +379,7 @@ abstract class App{
 
     protected constructor(element?: HTMLElement, contextPath?: string){
         if(typeof __debugger === 'object')
-            console.info('Plastique debugging is enabled');
+            console.info('Plastique debugging is enabled. Use \'Plastique.help()\' to show help');
 
         ///@ts-ignore
         window.ObjectDefineProperty = Object.defineProperty;
