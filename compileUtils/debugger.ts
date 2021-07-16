@@ -144,7 +144,7 @@ const ComponentInspector = new class ComponentInspector{
             let elem = event.target;
             ///@ts-ignore
             let closestComponent = elem.__vue__? elem: elem.closest('[data-cn]')
-            if(closestComponent != this.activeElem){
+            if(closestComponent != null && closestComponent != this.activeElem){
                 this.moveLight(closestComponent)
             }
         };
@@ -173,7 +173,8 @@ const ComponentInspector = new class ComponentInspector{
     }
 
     private moveLight(elem: HTMLElement): void{
-        this.unligthElem();
+        if(this.activeElem)
+            this.unligthElem();
         this.activeElem = elem;
         this.lightElem()
     }
