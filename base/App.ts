@@ -232,7 +232,7 @@ abstract class App{
         return App.getBean(beanName);
     }   
     
-    private static addListeners(methodNameToEventsIds: {[method: string]: string[]}, obj: any){
+    static addListeners(methodNameToEventsIds: {[method: string]: string[]}, obj: any){
         for(let methodName in methodNameToEventsIds){
             let eventsIds = methodNameToEventsIds[methodName];
             let method = obj[methodName].bind(obj);
@@ -290,7 +290,7 @@ abstract class App{
         }
     }
 
-    private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator?: Function, initParentTG?: boolean){
+    static initComponent(componentName: string, configuration: string, obj: any, templateGenerator?: Function, initParentTG?: boolean){
         let config = JSON.parse(configuration);
         // let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
@@ -430,9 +430,6 @@ abstract class App{
             App.ep = this;
         }
         _app.bean = App.getBean;
-        _app.initComp = App.initComponent;
-        _app.i18n = I18n.text;
-        _app.listeners = App.addListeners;
         _app.routing = App.initRouting;
         _app.getClosestComponent = App.getClosestComponent;
 
@@ -732,6 +729,9 @@ window['_app'] = {
         Object.defineProperty(clazz.prototype, 'fireEvent', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEvent'));
         Object.defineProperty(clazz.prototype, 'fireEventParallel', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEventParallel'));
     },
+    initComp: App.initComponent,
+    i18n: I18n.text,
+    listeners: App.addListeners,
 }
 
 export default App;
