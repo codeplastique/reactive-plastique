@@ -583,7 +583,7 @@ function Plastique(options){
             let exprMatch = val.match(/[$#]\{(.+?)\}/g);
             if(exprMatch == null)
                 return val;
-            let isWithBrackets = exprMatch.length > 1;
+            let isWithBrackets = exprMatch.length > 1 || (exprMatch.length == 1 && (val.startsWith("'") ||  val.endsWith("'"))) ;
 
             if(templatePropVarNames && templatePropVarNames.length > 0) {
                 for(let templatePropVarName of templatePropVarNames) {
@@ -608,8 +608,10 @@ function Plastique(options){
                 })
                 .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
         }
-        function isExpression(val){
-            return val.trim().search(/\$\{(.+?)\}/is) === 0;
+        function isExpression(value){
+            //TODO remove strings before matching
+            let val = value.trim();
+            return val.search(/\$\{(.+?)\}/is) >= 0 || val.includes('+');
         }
 
         function getModifiers(attrNameOrTagName){
