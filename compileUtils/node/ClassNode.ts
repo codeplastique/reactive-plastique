@@ -57,7 +57,7 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return new TsFile(this.node.getSourceFile());
     }
 
-    getParent(): ClassNode{
+    getParent(): ClassNode | null{
         let parentNode = ts.getClassExtendsHeritageElement(this.node);
         if(parentNode == null)
             return null;
