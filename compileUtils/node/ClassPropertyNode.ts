@@ -5,6 +5,7 @@ import Decoratable from "./Decoratable";
 import ExpressionNode from "./ExpressionNode";
 import TsModifier from "./TsModifier";
 import StatementNode from "./statement/StatementNode";
+import Type from "./Type";
 
 export default class ClassPropertyNode extends NameableNode implements Decoratable{
     constructor(node){
@@ -13,6 +14,10 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
 
     public getDecorators(): DecoratorNode[]{
         return (this.node.decorators || []).map(d => new DecoratorNode(d));
+    }
+
+    hasDecorator(name: string): boolean{
+        return this.getDecorators().some(d => d.getName() == name)
     }
 
     protected hasModifier(type: TsModifier): boolean{
@@ -53,12 +58,10 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
         return this.hasModifier(TsModifier.PROTECTED)
     }
 
-    getType(){
+    getType(): Type | null{
 
     }
 
-    setValue(arg: string): void
-    setValue(arg: object): void
     setValue(arg: any): void{
         this.node.initializer = this.handleValue(arg);
     }
@@ -81,5 +84,9 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
             return ts.createObjectLiteral(props)
         }else
             throw new Error(arg);
+    }
+
+    removeDecorator(name: string) {
+
     }
 }

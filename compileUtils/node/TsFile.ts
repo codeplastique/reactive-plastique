@@ -1,12 +1,11 @@
 import TsType from "./TsType";
 import ClassNode from "./ClassNode";
 import Context from "./Context";
+import TsFileRef from "./TsFileRef";
 
-export default class TsFile {
-    constructor(protected readonly node) {}
-
-    getPath(): string{
-        return this.node.fileName
+export default class TsFile extends TsFileRef{
+    constructor(protected readonly node) {
+        super(node.fileName)
     }
 
     getImportClass(className: string): ClassNode{
