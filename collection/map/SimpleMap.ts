@@ -8,9 +8,9 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
 
     constructor(mapEntries?: MapEntry<K, V>[])
     constructor(map?: ReactiveReadonlyMap<K, V>)
-    constructor(arg: any){
+    constructor(arg?: MapEntry<K, V>[] | ReactiveReadonlyMap<K, V>){
         if(arg)
-            this.merge(arg);
+            this.merge(arg as any);
     }
     public size(): number{
         return this.k.length;
@@ -95,9 +95,31 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         return obj;
     }
 
+    public mapValues<V2>(action: (value: V) => V2): ReactiveMap<K, V2> {
+        let newMap: SimpleMap<K, V2> = new SimpleMap();
+        this.forEach((v, k) => newMap.set(k, action(v)));
+        ///@ts-ignore
+        return newMap;
+    }
+
+    filter(action: (key: K, value: V) => boolean): ReactiveMap<K, V> {
+        let newMap: SimpleMap<K, V> = new SimpleMap();
+        this.forEach((v, k) => {
+            if(action(k, v))
+                newMap.set(k, v)
+        });
+        return newMap;
+    }
+
+    public map<T>(action: (key: K, value: V) => T): T[] {
+        let result = [];
+        this.forEach((v, k) => result.push(action(k, v)))
+        return result;
+    }
+
     public merge(map: ReactiveReadonlyMap<K, V>)
     public merge(mapEntries: MapEntry<K, V>[])
-    public merge(arg: any){
+    public merge(arg: ReactiveReadonlyMap<K, V> | MapEntry<K, V>[]){
         if(Array.isArray(arg))
             (arg as MapEntry<K, V>[]).forEach(e => this.set(e.key, e.value))
         else

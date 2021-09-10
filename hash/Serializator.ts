@@ -25,7 +25,7 @@ export default class Serializator{
     }
 
     private modify(object: Object | Array<any>, propertyNameOrIndex: string | number, value: any): SerializeTransformer {
-        if(value != null && value.toJSON)
+        while(value != null && value.toJSON)
             value = value.toJSON();
 
         ///@ts-ignore

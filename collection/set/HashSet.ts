@@ -44,6 +44,10 @@ export default class HashSet<V extends Hashable> implements ReactiveSet<V>{
         return Object.keys(hashToVal).map(hash => hashToVal[hash]);
     }
 
+    public map<V2 extends Hashable>(action: (value: V) => V2): HashSet<V2> {
+        return HashSet.of(...this.values().map(action));
+    }
+
     /**
      * @override
      */

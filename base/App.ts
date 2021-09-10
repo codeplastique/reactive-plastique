@@ -232,7 +232,7 @@ abstract class App{
         return App.getBean(beanName);
     }   
     
-    private static addListeners(methodNameToEventsIds: {[method: string]: string[]}, obj: any){
+    static addListeners(methodNameToEventsIds: {[method: string]: string[]}, obj: any){
         for(let methodName in methodNameToEventsIds){
             let eventsIds = methodNameToEventsIds[methodName];
             let method = obj[methodName].bind(obj);
@@ -290,7 +290,7 @@ abstract class App{
         }
     }
 
-    private static initComponent(componentName: string, configuration: string, obj: any, templateGenerator?: Function, initParentTG?: boolean){
+    static initComponent(componentName: string, configuration: string, obj: any, templateGenerator?: Function, initParentTG?: boolean){
         let config = JSON.parse(configuration);
         // let teplateName = config.tn || componentName;
         let componentMethod = function(methodName: string){
@@ -379,7 +379,7 @@ abstract class App{
 
     protected constructor(element?: HTMLElement, contextPath?: string){
         if(typeof __debugger === 'object')
-            console.info('Plastique debugging is enabled');
+            console.info('Plastique debugging is enabled. Use \'Plastique.help()\' to show help');
 
         ///@ts-ignore
         window.ObjectDefineProperty = Object.defineProperty;
@@ -430,9 +430,6 @@ abstract class App{
             App.ep = this;
         }
         _app.bean = App.getBean;
-        _app.initComp = App.initComponent;
-        _app.i18n = I18n.text;
-        _app.listeners = App.addListeners;
         _app.routing = App.initRouting;
         _app.getClosestComponent = App.getClosestComponent;
 
@@ -581,6 +578,7 @@ declare global {
         removeValues(value: T[]): void;
         set(index: number, value: T): Array<T>;
         includes(searchElement: T, fromIndex?: number): boolean;
+        has(searchElement: T): boolean;
         clear(...newElems: T[]): void
         flat(): Array<T>;
         move(fromIndex: number, toIndex: number): void
@@ -662,16 +660,13 @@ if(!Array.prototype.flat)
 Array.prototype.move = function (elementOnIndex: number, toIndex: number) {
     this.splice(toIndex, 0, this.splice(elementOnIndex, 1)[0]);
 };
-// if(!Array.prototype.includes){
-//     Array.prototype.includes = function(searchElement: any, fromIndex?: number){
-//         for(let i = fromIndex || 0; i < this.length; i++) {
-//             let elem = this[i];
-//             if ((searchElement == null && elem == null) || (searchElement != null && searchElement.equals(elem)))
-//                 return true;
-//         }
-//         return false;
-//     }
-// }
+Array.prototype.has = function(searchElement: any){
+    for(let elem of this){
+        if(searchElement == null? elem == null: searchElement.equals(elem))
+            return true;
+    }
+    return false;
+}
 Array.prototype.replace = function (from: any, to: any) {
     let index = this.indexOf(from);
     if(index >= 0)
@@ -734,6 +729,9 @@ window['_app'] = {
         Object.defineProperty(clazz.prototype, 'fireEvent', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEvent'));
         Object.defineProperty(clazz.prototype, 'fireEventParallel', Object.getOwnPropertyDescriptor(EventerImpl.prototype, 'fireEventParallel'));
     },
+    initComp: App.initComponent,
+    i18n: I18n.text,
+    listeners: App.addListeners,
 }
 
 export default App;

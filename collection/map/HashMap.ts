@@ -7,10 +7,8 @@ export default class HashMap<K extends Hashable, V> extends SimpleMap<K, V>{
     protected readonly hashCodes: string[] = [];
     constructor(mapEntries?: MapEntry<K, V>[])
     constructor(map?: ReactiveReadonlyMap<K, V>)
-    constructor(arg: any){
-        super();
-        if(arg)
-            this.merge(arg)
+    constructor(arg: MapEntry<K, V>[] | ReactiveReadonlyMap<K, V>){
+        super(arg as any);
     }
     public clear(): void {
         super.clear()

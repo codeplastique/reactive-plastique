@@ -110,6 +110,7 @@ function Plastique(options){
     const ANNOTATION_ELEMENT = 'Inject';
     const ANNOTATION_INIT_EVENT = 'InitEvent';
     const ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitMarker';
+    const ANNOTATION_IGNORE_FIELD_INIT = 'IgnoreInit';
     const ANNOTATION_TO_JSON = 'ToJson';
     const ANNOTATION_JSON_MERGE = 'JsonMerge';
     const ANNOTATION_ENUM = 'Enum';
@@ -417,7 +418,7 @@ function Plastique(options){
                         let componentVar;
                         let componentName;
                         if(componentExpr.includes(' as ')){
-                            componentName = componentExpr.replace(/([\w\d]+)\s+as\s+([\w\d]+)/g, (_, varName, cast) => {
+                            componentName = componentExpr.replace(/([\w\d\.]+)\s+as\s+([\w\d]+)/g, (_, varName, cast) => {
                                 if(componentVar && componentVar != varName)
                                     throw new Error(`Invalid casting in ${componentAttr.value}`)
                                 componentVar = varName;
@@ -550,12 +551,12 @@ function Plastique(options){
             if(isFragment){
                 vueCompilerResult.render = vueCompilerResult.render.replace(
                     "with(this){",
-                    "let "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{};with(this){"
+                    "var "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{};with(this){"
                 )
             }else {
                 vueCompilerResult.render = vueCompilerResult.render.replace(
                     "with(this){",
-                    "let "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{},$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){"
+                    "var "+VUE_TEMPLATE_PROPS_VAR_NAME+"=this.p||{},$cc=this.$cc,$cs=this.$cs,_c=this._c,_q=this._q,_k=this._k,_u=this._u,_e=this._e,_l=this._l,_t=this._t.bind(this),_s=this._s,_v=this._v,_m=this._m.bind(this);with(this.m){"
                 )
             }
             vueCompilerResult.render = vueCompilerResult.render
@@ -582,7 +583,7 @@ function Plastique(options){
             let exprMatch = val.match(/[$#]\{(.+?)\}/g);
             if(exprMatch == null)
                 return val;
-            let isWithBrackets = exprMatch.length > 1;
+            let isWithBrackets = exprMatch.length > 1 || (exprMatch.length == 1 && (val.startsWith("'") ||  val.endsWith("'"))) ;
 
             if(templatePropVarNames && templatePropVarNames.length > 0) {
                 for(let templatePropVarName of templatePropVarNames) {
@@ -607,8 +608,10 @@ function Plastique(options){
                 })
                 .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
         }
-        function isExpression(val){
-            return val.trim().search(/\$\{(.+?)\}/is) === 0;
+        function isExpression(value){
+            //TODO remove strings before matching
+            let val = value.trim();
+            return val.search(/\$\{(.+?)\}/is) >= 0 || val.includes('+');
         }
 
         function getModifiers(attrNameOrTagName){
@@ -666,6 +669,9 @@ function Plastique(options){
                         }
                         let slotName;
                         if(modifiers.length > 0){
+                            if(modifiers.length != 1)
+                                throw new Error(`Template ${TEMPLATE_NAME}. Slot attribute must have only one modifier!`)
+
                             slotName = modifiers[0];
                         }else {
                             let dynamicExpr = extractExpression(attr.value);
@@ -691,8 +697,17 @@ function Plastique(options){
                         break;
                     case 'include':
                         if(isFragment)
-                            throw new Error('Inner fragments is not realized!')
+                            throw new Error(`Template ${TEMPLATE_NAME}. Inner fragments is not realized!`)
                         return false;
+
+                    case 'mod':
+                        if(modifiers.length == 0)
+                            throw new Error(`Template ${TEMPLATE_NAME}. 'Mod' attribute must contain a directive modifier`)
+                        if(modifiers.length > 1)
+                            throw new Error(`Template ${TEMPLATE_NAME}. 'Mod' attribute must contain an only one directive modifier`)
+                        elem.setAttribute('v-'+ modifiers[0], extractExpression(attr.value));
+
+                        break;
 
                     case 'animation':
                         return false;
@@ -820,6 +835,17 @@ function Plastique(options){
         }
     }
 
+    function convertEscapedAsciiToUtf8(str){
+        return  JSON.parse(`"${str}"`)
+    }
+
+    function normalizePropertiesValues(obj){
+        for(let key in obj){
+            obj[key] = convertEscapedAsciiToUtf8(obj[key])
+        }
+    }
+
+
     function buildLocales(){
         let langToPropertiesReader = {};
         for(let i18nDir of I18N_DIRS) {
@@ -840,6 +866,7 @@ function Plastique(options){
 
         let langToProperties = Object.entries(langToPropertiesReader);
         langToProperties.forEach(it => it[1] = it[1]._properties);
+        langToProperties.forEach(it => normalizePropertiesValues(it[1]));
 
         requireIdenticalLocales(langToProperties);
         let regexp = new RegExp('"([^(\")"]+)":', 'g');
@@ -1154,7 +1181,10 @@ function Plastique(options){
                         elementProps.push(memberName);
                         removeDecorator(member, ANNOTATION_ELEMENT);
                     }else{
-                        if(member.initializer == null
+                        if(isNodeHasDecorator(member, ANNOTATION_IGNORE_FIELD_INIT)){
+                            removeDecorator(member, ANNOTATION_IGNORE_FIELD_INIT);
+
+                        }else if(member.initializer == null
                             && !componentRoot.members.includes(memberName)
                             && !hasPropertyAssignmentInConstructor(constructorNode, member)
                         ){
@@ -1887,6 +1917,7 @@ function Plastique(options){
                             name == ANNOTATION_JSON_MERGE ||
                             name == ANNOTATION_REACTIVE_CLASS ||
                             name == ANNOTATION_REQUEST_MAPPING ||
+                            name == ANNOTATION_IGNORE_FIELD_INIT ||
                             name == ANNOTATION_ENUM) {
                             node.kind = -1;
                             return;
