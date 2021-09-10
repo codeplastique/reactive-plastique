@@ -10,6 +10,7 @@ export default interface ReactiveReadonlyMap<K, V> extends ReactiveCollection<V>
     keys(): K[]
     map <T>(action: (key: K, value: V) => T): T[]
     mapValues <V2>(action: (value: V) => V2): ReactiveMap<K, V2>
+    filter(action: (key: K, value: V) => boolean): ReactiveMap<K, V>
     entries(): MapEntry<K, V>[]
 }
 

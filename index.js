@@ -669,6 +669,9 @@ function Plastique(options){
                         }
                         let slotName;
                         if(modifiers.length > 0){
+                            if(modifiers.length != 1)
+                                throw new Error(`Template ${TEMPLATE_NAME}. Slot attribute must have only one modifier!`)
+
                             slotName = modifiers[0];
                         }else {
                             let dynamicExpr = extractExpression(attr.value);

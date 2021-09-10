@@ -102,6 +102,15 @@ export default class SimpleMap<K, V> implements ReactiveMap<K, V>{
         return newMap;
     }
 
+    filter(action: (key: K, value: V) => boolean): ReactiveMap<K, V> {
+        let newMap: SimpleMap<K, V> = new SimpleMap();
+        this.forEach((v, k) => {
+            if(action(k, v))
+                newMap.set(k, v)
+        });
+        return newMap;
+    }
+
     public map<T>(action: (key: K, value: V) => T): T[] {
         let result = [];
         this.forEach((v, k) => result.push(action(k, v)))
