@@ -15,10 +15,11 @@ export default class SyntheticEnumTransformer {
         let enumSpecialField = ClassPropertyNode.create(
             TsModifier.STATIC,
             '$',
-            classIdentity.createFunctionCallStatement('$init', [classIdentity]));
+            classIdentity.createFunctionCallStatement('$init', [classIdentity])
+        );
 
         clazz.addField(enumSpecialField);
-        removeDecorator(node, ANNOTATION_ENUM);
+        clazz.removeDecorator(SyntheticEnumTransformer.ANNOTATION_ENUM);
     }
 
     public static isEnum(clazz: ClassNode): boolean{

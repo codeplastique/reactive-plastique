@@ -53,6 +53,24 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return this.getDecorators().some(d => d.getName() == name)
     }
 
+    //TODO
+    removeDecorator(name: string): void {
+        let decorators = this.node.decorators != null? this.node.decorators: [];
+        for(let i = 0; i < decorators.length; i++){
+            let decorator = decorators[i];
+            let expr = decorator.expression;//.expression.escapedText
+            let dName = expr.expression? expr.expression.escapedText: expr.escapedText;
+            if(dName == name){
+                decorators.end = decorators.pos = -1;
+                decorators.transformFlags = null;
+                decorators.splice(i, 1);
+
+                if(decorators.length == 0)
+                    this.node.decorators = undefined;
+                return;
+            }
+        }
+    }
 
     getFile(): TsFile{
         return new TsFile(this.node.getSourceFile());
@@ -105,4 +123,5 @@ export default class ClassNode extends NameableNode implements Decoratable{
     toString(): string {
         return this.getFile().toString();
     }
+
 }
