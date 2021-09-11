@@ -7,6 +7,7 @@ import DecoratorNode from "./DecoratorNode";
 import ClassMethodNode from "./ClassMethodNode";
 import TsFile from "./TsFile";
 import TsFileRef from "./TsFileRef";
+import SyntheticEnumTransformer from "../SyntheticEnumTransformer";
 
 export default class ClassNode extends NameableNode implements Decoratable{
     constructor(node){
@@ -96,5 +97,12 @@ export default class ClassNode extends NameableNode implements Decoratable{
             .map(m => new ClassMethodNode(m));
     }
 
+    isSyntheticEnum(): boolean{
+        return SyntheticEnumTransformer.isEnum(this)
+    }
 
+
+    toString(): string {
+        return this.getFile().toString();
+    }
 }

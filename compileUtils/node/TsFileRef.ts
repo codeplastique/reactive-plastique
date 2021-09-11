@@ -6,4 +6,8 @@ export default class TsFileRef {
     getPath(): string{
         return this.path
     }
+
+    toString(): string{
+        return this.getPath()
+    }
 }
