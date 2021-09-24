@@ -41,7 +41,7 @@ Object-oriented approach
 `})
 class PassEditor{
   private password: string;
-  constructor(privare readonly login: string){
+  constructor(private readonly login: string){
   }
   
   public save(): void{
@@ -73,7 +73,7 @@ class B extends A{
   }
 }
 
-///Overwrites the А template
+///Overwrites the А template and getText()
 @Reactive(function(this: C){
 `<section xmlns:v="http://github.com/codeplastique/plastique">
   <div v:text="${this.getText()}"></div>
@@ -81,6 +81,7 @@ class B extends A{
 </section>
 `})
 class C extends A{
+  //override
   public getText(): string{
     return supet.getText() +' and text from C'
   }
@@ -88,6 +89,22 @@ class C extends A{
     return 'Second text from C'
   }
 }
+
+///Wrap the А template and overwrite getText()
+@Reactive(function(this: D){
+`<section xmlns:v="http://github.com/codeplastique/plastique">
+  <div class="wrap-block">
+    <v:parent/>
+  </div>
+</section>
+`})
+class D extends A{
+  //override
+  public getText(): string{
+    return supet.getText() +' and text from D'
+  }
+}
+
 ```
 
 #### Nested components
