@@ -1,4 +1,5 @@
 import Type from "./Type";
+import TsType from "./TsType";
 
 export default class ExpressionNode{
     constructor(protected readonly node){}
@@ -13,6 +14,10 @@ export default class ExpressionNode{
 
     public static createString(str: string): ExpressionNode{
         return new ExpressionNode(ts.createLiteral(str));
+    }
+
+    public static createRegExp(numb: number): ExpressionNode{
+        return new ExpressionNode(ts.create(String(numb)))
     }
 
     public static createNumber(numb: number): ExpressionNode{
@@ -56,6 +61,8 @@ export default class ExpressionNode{
             return this.createNumber(arg);
         else if(typeof arg === 'object'){
             return this.createObject(arg);
+        }else if(arg.kind != null){
+            return new ExpressionNode(arg)
         }else
             throw new Error(arg);
     }
@@ -74,6 +81,10 @@ export default class ExpressionNode{
 
     getRaw(): any{
         return this.node;
+    }
+
+    isRegExp(): boolean{
+        return this.node.kind == TsType.REGEXP.getId()
     }
 
     getType(): Type | null{

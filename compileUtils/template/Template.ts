@@ -1,38 +1,49 @@
 import ClassNode from "../node/ClassNode";
 import { JSDOM } from "jsdom";
+import I18nEngine from "../I18nEngine";
 
 export default class Template{
-    static readonly DEFAULT_PREFIX = 'v';
-    static readonly VUE_SCRIPT_DIALECT_URL = 'http://github.com/codeplastique/plastique';
-    private readonly PREFIX_PATTERN = / xmlns:(\w+)="http:\/\/github\.com\/codeplastique\/plastique"( |>)/gm
+    private static readonly PREFIX_PATTERN = / xmlns:(\w+)="http:\/\/github\.com\/codeplastique\/plastique"( |>)/gm
+    private static readonly BREAK_LINE_PATTERN = /\s*\n\s*/gm
+    private static readonly THYMELEAF_EXPRESSION_PATTERN = /[$#]\{(.+?)}/g
+    private static readonly THIS_PREFIX_PATTERN = /(?<!\w)this\./g
+    private static readonly I18N_EXPRESSION_PATTERN = /^#{(\$\{.+?\}|[\w_.]+)(?:\((\$\{.+\}|[\w_.]+)\))?}/g
+
     private static readonly VUE_TEMPLATE_PROPS_VAR_NAME = "$pr";
 
     private readonly prefix: string | null;
     private readonly root: HTMLElement
+    private readonly templatePropPattern: RegExp
 
     constructor(
         private readonly component: ClassNode,
-        template: string
+        template: string,
+        private readonly isFragment: boolean,
+        templatePropName: string
     ) {
         try {
             if(template.trim().length == 0)
                 throw new Error(`Template is empty`)
-            this.prefix = this.getPrefix(template);
 
+            this.prefix = this.getPrefix(template);
             if(this.prefix) {
-                template = template.replace(this.PREFIX_PATTERN, ' ');
+                template = template.replace(Template.PREFIX_PATTERN, ' ');
                 template = this.closePlastiqueUnclosedTags(template);
             }
+
+            this.templatePropPattern = new RegExp("(?<![\.\w\$])" + templatePropName + "\.", 'g')
 
             let dom = new JSDOM(`<html><body><template>${template}</template></body></html>`);
             let rootTag = dom.window.document.body.firstElementChild.content;
             if(rootTag.children.length > 1)
                 throw new Error(`Template has multiple root tags!`)
-
             this.root = rootTag.children[0];
-            if(this.prefix){
-                this.handle()
 
+            if(!isFragment)
+                this.root.setAttribute('data-cn', template);
+
+            if(this.prefix){
+                this.handleElems()
             }
         }catch (error){
             let e = error as Error;
@@ -41,7 +52,7 @@ export default class Template{
     }
 
     private getPrefix(template: string): string | null{
-        let results = template.match(this.PREFIX_PATTERN)
+        let results = template.match(Template.PREFIX_PATTERN)
         return results == null? null: results[0]
     }
 
@@ -55,27 +66,105 @@ export default class Template{
     }
 
 
-    private handle(){
+    private handleElems(){
         let elems = this.root.querySelectorAll('*');
-
-        for(let i = 0; i < elems.length; i++){
-            let elem = elems[i];
+        for (let elem of Array.from(elems)){
             if(elem.hasAttributes()){
                 let attributesForDelete = [];
-                for(var attr of elem.attributes){
-                    if(this.handleAttr(elem, attr))
+                for(let attr of Array.from(elem.attributes)){
+                    let isAttrHandled = this.handleAttr(elem, attr)
+                    if(isAttrHandled)
                         attributesForDelete.push(attr.name);
                 }
-                for(var attr of attributesForDelete){
-                    elem.removeAttribute(attr);
-                }
+                attributesForDelete.forEach(it => elem.removeAttribute(it))
             }
         }
         return true;
 
     }
 
-    private handleUnknownAttr(elem: HTMLElement, attrName: string, modifiers: string[], attrVal: string){
+    private replaceTagName(elem: HTMLElement, newTagName: string): HTMLElement{
+        elem.insertAdjacentHTML('beforebegin', `<${newTagName}>${elem.innerHTML}</${newTagName}>`);
+        let newElem: HTMLElement = elem.previousSibling as HTMLElement;
+        for(let attr of Array.from(elem.attributes))
+            newElem.setAttribute(attr.name, attr.value);
+        elem.remove();
+        return newElem;
+    }
+
+    private isValidAttrForComponentElem(attrName: string): boolean{
+        return attrName == 'ref' || attrName == 'data-cn' || attrName.startsWith(this.prefix +':')
+    }
+
+    private replaceComponentElemIfExist(elem: HTMLElement){
+        let componentAttr = Array.from(elem.attributes).find(a => a.name.startsWith(this.prefix +':component'));
+        return this.replaceComponentElem(elem, componentAttr)
+    }
+
+    private replaceComponentElem(elem: HTMLElement, componentAttr: Attr){
+        let illegalAttrName = elem.getAttributeNames().find(it => !this.isValidAttrForComponentElem(it))
+        if(illegalAttrName)
+            throw new Error(`Invalid attribute ${illegalAttrName} in the component tag. Component tag cant have simple html attributes!`);
+
+        let attrName = componentAttr.name
+        let attrVal = componentAttr.value
+
+        let componentExpr = this.extractExpression(attrVal);
+        elem.removeAttribute(attrName);
+
+        let cloneComponent = this.replaceTagName(elem, 'component');
+        if(cloneComponent.hasChildNodes()){
+            cloneComponent.querySelectorAll('*')
+                .forEach(it => this.replaceComponentElemIfExist(it as HTMLElement))
+        }
+
+        let componentVar;
+        let componentName;
+        if(componentExpr.includes(' as ')){
+            componentName = componentExpr.replace(/([\w\d\.]+)\s+as\s+([\w\d]+)/g, (_, varName, cast) => {
+                if(componentVar && componentVar != varName)
+                    throw new Error(`Invalid casting in ${componentAttr.value}`)
+                componentVar = varName;
+                return `'${cast.toUpperCase()}'`
+            })
+
+            let regexp = new RegExp(`(?<=[?:]\\s*)${componentVar}`, 'g');
+            componentName = componentName.replace(regexp, componentVar + '.app$.cn')
+
+        }else{
+            componentVar = componentExpr;
+            componentName = componentVar + '.app$.cn';
+        }
+
+        cloneComponent.setAttribute(':is', componentName);
+        cloneComponent.setAttribute(':key', componentVar +'.app$.id');
+        cloneComponent.setAttribute('v-bind:m', `$cc(${componentVar})`);
+
+        let propsAttrsNames = cloneComponent.getAttributeNames().filter(a => a.startsWith(prefix +":prop."));
+        if(propsAttrsNames.length > 0){
+            let propsArray = [];
+            for(let attrName of propsAttrsNames){
+                let attrVal = cloneComponent.getAttribute(attrName);
+                let propName = attrName.substr(attrName.lastIndexOf('.') + 1);
+                propsArray.push(propName +":"+ this.extractExpression(attrVal));
+                cloneComponent.removeAttribute(attrName);
+            }
+            let propsObjResult = "{"+ propsArray.join(',') +"}";
+            cloneComponent.setAttribute('v-bind:p', propsObjResult);
+        }
+
+        let classAppendAttr = cloneComponent.getAttribute('v-bind:class');
+        if(classAppendAttr){
+            if(this.isExpression(classAppendAttr)){
+                cloneComponent.setAttribute('v-bind:class', this.extractExpression(classAppendAttr));
+            }else{
+                cloneComponent.setAttribute('class', classAppendAttr.slice(1, -1));
+                cloneComponent.removeAttribute('v-bind:class');
+            }
+        }
+    }
+
+    private handleUnknownAttr(elem: HTMLElement, attrName: string, modifiers: string[], attrVal: string): void{
         let prefix = this.prefix
 
         if(attrName == 'name' && elem.tagName.startsWith(prefix.toUpperCase() +':SLOT')) {
@@ -96,9 +185,12 @@ export default class Template{
             elem.setAttribute('v-bind:'+ attrName, this.extractExpression(attrVal));
     }
 
-    private handleAttr(elem: HTMLElement, attr: Attr){
+    /**
+     * @return true if attribute is handled, false otherwise
+     */
+    private handleAttr(elem: HTMLElement, attr: Attr): boolean{
         if(!attr.name.startsWith(this.prefix +':'))
-            return;
+            return false;
 
         let modifiers = this.getModifiers(attr);
         let fullAttrName = attr.name.substr(this.prefix.length + 1);// +1 - ':'
@@ -108,7 +200,8 @@ export default class Template{
         switch(attrName){
             case 'ref':
                 elem.setAttribute('ref', this.extractExpression(attrVal));
-                break;
+                return true;
+
             case 'slot':
                 if(modifiers.length > 0 && attrVal.length > 0){
                     throw new Error(`Indefinable slot name: ${fullAttrName}="${attrVal}"`)
@@ -128,23 +221,28 @@ export default class Template{
                 let slotAttrName = 'v-slot:'+ slotName;
                 elem.setAttribute(slotAttrName, '');
                 elem.setAttribute('v-hasSlot', '');
-                break;
+                return true;
+
             case 'model':
                 let modifiersString = modifiers.length == 0? '': ('.'+ modifiers.join('.'))
                 elem.setAttribute(`v-model`+ modifiersString, this.extractExpression(attrVal));
-                break;
+                return true;
+
             case 'text':
                 let expression = this.extractExpression(attrVal)
                 elem.textContent = '{{'+ expression +'}}';
-                break;
+                return true;
+
             case 'if':
                 elem.setAttribute('v-if', this.extractExpression(attrVal));
-                break;
+                return true;
+
             case 'unless':
                 elem.setAttribute('v-if', '!('+ this.extractExpression(attrVal) +')');
-                break;
+                return true;
+
             case 'include':
-                if(isFragment)
+                if(this.isFragment)
                     throw new Error(`Inner fragments is not realized!`)
                 return false;
 
@@ -155,7 +253,7 @@ export default class Template{
                     throw new Error(`'Mod' attribute must contain an only one directive modifier`)
                 elem.setAttribute('v-'+ modifiers[0], this.extractExpression(attrVal));
 
-                break;
+                return true;
             case 'animation':
                 return false;
 
@@ -176,7 +274,8 @@ export default class Template{
                 //     }
                 // }
                 throw new Error("TODO")
-                break;
+                // break;
+
             case 'classappend':
                 let isComponentOrFragment = elem.hasAttribute(this.prefix + ':component')
                     || elem.hasAttribute(this.prefix + ':include');
@@ -184,7 +283,7 @@ export default class Template{
                     elem.setAttribute('v-bind:class', attrVal);
                 else
                     elem.setAttribute('v-bind:class', this.extractExpression(attrVal));
-                break;
+                return true;
 
             case 'prop': {
                 let isComponent = elem.hasAttribute(this.prefix + ':component');
@@ -205,7 +304,7 @@ export default class Template{
             case 'marker':
                 let componentVar = this.extractExpression(attrVal);
                 elem.setAttribute('data-vcn', VirtualComponents.getId(componentVar, componentNode));
-                break;
+                return true;
 
             case 'each':
                 let iterateParts = attrVal.split(':');
@@ -220,43 +319,37 @@ export default class Template{
                         `{{void(${leftPartVars[1]}=${leftPartVars[0]}.s,${leftPartVars[0]}=${leftPartVars[0]}.v)}}`);
                 }
                 elem.setAttribute('v-for', leftExpr +' in '+ rightExpr);
-                break;
+                return true;
 
             default:
-                this.handleUnknownAttr(elem, attrName, modifiers, attr);
+                this.handleUnknownAttr(elem, attrName, modifiers, attrVal);
+                return true;
         }
-        return true;
     }
 
-    private extractExpression(val){
-        val = val.trim().replace(/\s*\n\s*/g, ' ') //remove all break lines
-        let exprMatch = val.match(/[$#]\{(.+?)\}/g);
+    private extractExpression(rawVal: string): string{
+        let val = rawVal.replace(Template.BREAK_LINE_PATTERN, ' ')
+        let exprMatch = val.match(Template.THYMELEAF_EXPRESSION_PATTERN);
         if(exprMatch == null)
             return val;
         let isWithBrackets = exprMatch.length > 1 || (exprMatch.length == 1 && (val.startsWith("'") ||  val.endsWith("'"))) ;
 
-        if(templatePropVarNames && templatePropVarNames.length > 0) {
-            for(let templatePropVarName of templatePropVarNames) {
-                if(isFragment) {
-                    let pattern = new RegExp("(?<!\w)("+ templatePropVarName +"\\.?)", 'g')
-                    val = val.replace(pattern, VUE_TEMPLATE_PROPS_VAR_NAME +'.$1');
-                }else {
-                    let pattern = new RegExp("(?<!\w)" + templatePropVarName + "\.", 'g')
-                    val = val.replace(pattern, VUE_TEMPLATE_PROPS_VAR_NAME + '.')
-                }
-            }
+        if(this.templatePropPattern){
+            // if(isFragment) {
+            //     let pattern = new RegExp("(?<!\w)("+ templatePropVarName +"\\.?)", 'g')
+            //     val = val.replace(pattern, Template.VUE_TEMPLATE_PROPS_VAR_NAME +'.$1');
+            // }else {
+                val = val.replace(this.templatePropPattern, Template.VUE_TEMPLATE_PROPS_VAR_NAME + '.')
+            // }
         }
-        return val.replace(/(?<!\w)this\./g, '')
-            .replace(/^#{(\$\{.+?\}|[\w_.]+)(?:\((\$\{.+\}|[\w_.]+)\))?}/g, function(text, first, second){
-                let result = I18N_METHOD+ '('
-                result += first.startsWith('${')? extractExpression(first): ("'"+ first +"'");
-                if(second) {
-                    result += ',';
-                    result += second.startsWith('${') ? extractExpression(second) : ("'" + second + "'");
-                }
-                return result + ")";
+        return val
+            .replace(Template.THIS_PREFIX_PATTERN, '')
+            .replace(Template.I18N_EXPRESSION_PATTERN, (text, first, second) => {
+                let bundleKey = first.startsWith('${')? this.extractExpression(first): `'${first}'`;
+                let args = second? [this.extractExpression(second)]: []
+                return I18nEngine.buildGlobalCallExpression(bundleKey, args);
             })
-            .replace(/\$\{(.+?)\}/g, (isWithBrackets? '($1)': '$1'))
+            .replace(Template.THYMELEAF_EXPRESSION_PATTERN, isWithBrackets? '($1)': '$1')
     }
 
     private isExpression(value){
@@ -269,16 +362,16 @@ export default class Template{
         return attr.name.split('.').slice(1);
     }
 
-    private stringToHash(str){
-        let asciiKeys = [];
-        for (var i = 0; i < str.length; i ++)
-            asciiKeys.push(str[i].charCodeAt(0));
-        return asciiKeys.join('-');
-    }
-    private hashToString(str){
-        let keys = str.split('-');
-        return String.fromCharCode(...keys);
-    }
+    // private stringToHash(str){
+    //     let asciiKeys = [];
+    //     for (var i = 0; i < str.length; i ++)
+    //         asciiKeys.push(str[i].charCodeAt(0));
+    //     return asciiKeys.join('-');
+    // }
+    // private hashToString(str){
+    //     let keys = str.split('-');
+    //     return String.fromCharCode(...keys);
+    // }
 
     toString(): string{
         return `Template of component ${this.component}`

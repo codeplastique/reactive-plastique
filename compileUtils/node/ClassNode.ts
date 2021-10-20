@@ -53,6 +53,10 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return this.getDecorators().some(d => d.getName() == name)
     }
 
+    findDecorator(name: string): DecoratorNode | null{
+        return this.getDecorators().find(d => d.getName() == name)
+    }
+
     //TODO
     removeDecorator(name: string): void {
         let decorators = this.node.decorators != null? this.node.decorators: [];

@@ -18,6 +18,9 @@ export default class TsType{
     public static readonly SUPER_KEYWORD = new TsType(ts.SyntaxKind.SuperKeyword)
     public static readonly IMPORT_STATEMENT = new TsType(ts.SyntaxKind.ImportDeclaration)
 
+    public static readonly REGEXP = new TsType(ts.SyntaxKind.RegularExpressionLiteral)
+    public static readonly STRING_LITERAL = new TsType(ts.SyntaxKind.StringKeyword)
+
     protected readonly id: number;
 
     constructor(id: number) {

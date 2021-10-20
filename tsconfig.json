@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "experimentalDecorators": true,
+    "target": "ES2015",
+    "lib": [
+      "dom",
+      "esnext"
+    ],
+    "removeComments": true,
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "jsx": "react-native"
+  },
+  "include": [
+    "compileUtils/**/*"
+  ]
+}

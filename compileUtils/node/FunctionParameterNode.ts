@@ -15,6 +15,10 @@ export default class FunctionParameterNode extends NameableNode implements Decor
 
     }
 
+    getRaw(): any{
+        return this.node
+    }
+
     public getDecorators(): DecoratorNode[]{
         return (this.node.decorators || []).map(d => new DecoratorNode(d));
     }
