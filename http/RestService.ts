@@ -10,6 +10,7 @@ declare let axios;
 class RestService{
     protected call<T>(req: HttpRequest): Promise<HttpResponse<T>>{
         let props: any = {
+            headers: {},
             url: req.url,
             method: req.method == null? 'GET': req.method
         };
@@ -22,10 +23,10 @@ class RestService{
             else // FormDataRequestContent
                 props.data = data;
         
-            props.headers = {
-                'content-type': req.content.contentType
-            }
+            props.headers['content-type'] = req.content.contentType
         }
+        if(req.headers)
+            Object.assign(props.headers, req.headers.toJSON())
         return axios(props);
     }
 
