@@ -1,6 +1,5 @@
 import EventTransformer from "./EventTransformer";
 import ClassNode from "./node/ClassNode";
-import FunctionCallStatement from "./node/FunctionCallStatement";
 import IdentifierNode from "./node/statement/IdentifierNode";
 import ExpressionNode from "./node/ExpressionNode";
 
@@ -29,10 +28,9 @@ export default class ListenerTransformer {
 
         let isStaticInit = clazz.hasDecorator('EntryPoint') //TODO
         let initCall = isStaticInit?
-            FunctionCallStatement.ofSuper('addListeners', [ExpressionNode.of(methodNameToEventId), ExpressionNode.createThis()])
+            IdentifierNode.createSuper().createFunctionCallStatement('addListeners', [ExpressionNode.of(methodNameToEventId), ExpressionNode.createThis()])
             :
-            FunctionCallStatement.of(IdentifierNode.of('_app'), 'listeners', [ExpressionNode.of(methodNameToEventId), ExpressionNode.createThis()])
-
+            IdentifierNode.of('_app').createFunctionCallStatement('listeners', [ExpressionNode.of(methodNameToEventId), ExpressionNode.createThis()])
 
         clazz.getOrCreateConstructor().addStatementToBottom(initCall)
     }

@@ -10,4 +10,8 @@ export default class NameableNode{
     public getIdentifier(): IdentifierNode{
         return IdentifierNode.of(this.getName());
     }
+
+    toString(): string{
+        return this.getName()
+    }
 }

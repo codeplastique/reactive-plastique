@@ -112,8 +112,10 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return false
     }
 
-    getMethods(withParentMethods?: boolean): ClassMethodNode[]{
-        if(withParentMethods)
+    getMethods(withParentMethods: boolean = false): ClassMethodNode[]{
+        if(withParentMethods){
+            //TODO
+        }
         return (this.node.members || [])
             .filter(m => m.kind == TsType.CLASS_METHOD.getId())
             .map(m => new ClassMethodNode(m));

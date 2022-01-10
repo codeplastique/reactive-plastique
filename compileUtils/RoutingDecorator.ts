@@ -34,6 +34,11 @@ export default class RoutingDecorator{
         })
     }
 
+    getRoutes(): any[]{
+        //TODO
+        return []
+    }
+
     private requireStringParameters(params: FunctionParameterNode[]): void{
         let illegalParam = params.find(p =>
             p.isVarArg()

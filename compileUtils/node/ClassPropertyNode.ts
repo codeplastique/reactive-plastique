@@ -6,6 +6,7 @@ import ExpressionNode from "./ExpressionNode";
 import TsModifier from "./TsModifier";
 import StatementNode from "./statement/StatementNode";
 import Type from "./Type";
+import FunctionCallStatement from "./FunctionCallStatement";
 
 export default class ClassPropertyNode extends NameableNode implements Decoratable{
     constructor(node){
@@ -73,6 +74,8 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
     protected handleValue(arg: any): any{
         if(arg === null)
             return ts.createNull();
+        else if(arg instanceof ExpressionNode || arg instanceof FunctionCallStatement)
+            return arg.getRaw()
         else if(typeof arg === 'string')
             return ts.createStringLiteral(arg);
         else if(arg != null && typeof arg === 'object'){

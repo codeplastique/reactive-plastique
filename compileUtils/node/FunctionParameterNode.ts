@@ -22,4 +22,8 @@ export default class FunctionParameterNode extends NameableNode implements Decor
     public getDecorators(): DecoratorNode[]{
         return (this.node.decorators || []).map(d => new DecoratorNode(d));
     }
+
+    hasDecorator(name: string): boolean {
+        return this.getDecorators().some(d => d.getName() == name)
+    }
 }

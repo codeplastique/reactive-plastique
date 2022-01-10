@@ -4,6 +4,7 @@ import StatementNode from "./statement/StatementNode";
 import TsModifier from "./TsModifier";
 import DecoratorNode from "./DecoratorNode";
 import Decoratable from "./Decoratable";
+import Type from "./Type";
 
 export default class ClassMethodNode extends NameableNode implements Decoratable{
     constructor(node){
@@ -58,5 +59,9 @@ export default class ClassMethodNode extends NameableNode implements Decoratable
 
     removeDecorator(name: string) {
 
+    }
+
+    getReturnType(): Type | null{
+        return this.node.type? new Type(this.node.type): null
     }
 }

@@ -24,13 +24,13 @@ export default class FunctionCallStatement implements StatementNode{
         return this.create(identifier.getRaw(), ts.createIdentifier(functionName), argsNodes);
     }
 
-    static ofThis(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
-        return this.create(ts.createThis(), ts.createIdentifier(functionName), args);
-    }
-
-    static ofSuper(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
-        return this.create(ts.createSuper(), ts.createIdentifier(functionName), args);
-    }
+    // static ofThis(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
+    //     return this.create(ts.createThis(), ts.createIdentifier(functionName), args);
+    // }
+    //
+    // static ofSuper(functionName: string, args?: ExpressionNode[]): FunctionCallStatement{
+    //     return this.create(ts.createSuper(), ts.createIdentifier(functionName), args);
+    // }
 
     getArguments(): ExpressionNode[]{
         return [];

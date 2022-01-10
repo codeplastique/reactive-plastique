@@ -1,6 +1,6 @@
 import glob from 'glob';
 import PropertiesReader from'properties-reader'
-import './Extension'
+import './MapExtension'
 import fs from 'fs';
 
 export default class I18nEngine{
