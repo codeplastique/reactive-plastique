@@ -448,7 +448,7 @@ methods: {
 
 ##### Plastique refs
 ```html
-<base-input v:ref="usernameInput"></base-input>
+<base-input v:ref="${this.usernameInput}"></base-input>
 ```
 ```typescript
 import Inject from "@plastique/core/component/Inject";
