@@ -5,8 +5,9 @@ import ExpressionNode from "./node/ExpressionNode";
 import IdentifierNode from "./node/statement/IdentifierNode";
 import RoutingDecorator from "./RoutingDecorator";
 import ClassDecorator from "./ClassDecorator";
+import ComponentDecorator from "./ComponentDecorator";
 
-export default class EntryPointDecorator extends ClassDecorator{
+export default class EntryPointDecorator extends ComponentDecorator{
     private static readonly ANNOTATION_BEANS = 'Beans';
     private static readonly ANNOTATION_ENTRY_POINT_CLASS = 'EntryPoint';
 
@@ -14,6 +15,30 @@ export default class EntryPointDecorator extends ClassDecorator{
         super(node)
         if(!node.hasDecorator(EntryPointDecorator.ANNOTATION_ENTRY_POINT_CLASS))
             throw new Error(`Node ${node} is not entry point!`)
+
+        const constructor = node.getConstructor()
+        let domElemArg = constructor.getSuperCall().getArguments().shift();
+        constructor.addStatementToBottom(
+            IdentifierNode.of("_super").createFunctionCallStatement(
+                "attachComponent",
+                [domElemArg, ExpressionNode.createThis()]
+            )
+        )
+
+        // if(!FragmentSet.isEmpty()) {
+        //     constructorNode.body.statements.push(
+        //         ts.createExpressionStatement(
+        //             ts.createCall(
+        //                 ts.createPropertyAccess(
+        //                     ts.createIdentifier('_super'),
+        //                     ts.createIdentifier("initFragments")
+        //                 ),
+        //                 null,
+        //                 [ts.createIdentifier(VUE_FRAGMENTS_OBJ_NAME)]
+        //             )
+        //         )
+        //     )
+        // }
 
         let entryPointName = node.getName()
         let beans = node.findDecorator(EntryPointDecorator.ANNOTATION_BEANS)
@@ -29,7 +54,7 @@ export default class EntryPointDecorator extends ClassDecorator{
             .getPropertyIdentifier(entryPointName)
             .createAssignmentStatement(IdentifierNode.of(entryPointName))
 
-        node.getOrCreateConstructor().addStatementToBottom(makeEntryPointGlobalStatement)
+        constructor.addStatementToBottom(makeEntryPointGlobalStatement)
 
         let configurator = {
             name: entryPointName,
@@ -49,7 +74,7 @@ export default class EntryPointDecorator extends ClassDecorator{
                 ExpressionNode.createArray(routes)
             ))
 
-            node.getOrCreateConstructor().addStatementToBottom(
+            constructor.addStatementToBottom(
                 IdentifierNode.of('_app').createFunctionCallStatement(
                     "routing",
                     [[ExpressionNode.createThis()]]

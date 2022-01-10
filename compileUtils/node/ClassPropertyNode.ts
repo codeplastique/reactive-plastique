@@ -92,4 +92,8 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
     removeDecorator(name: string) {
 
     }
+
+    equals(field: ClassPropertyNode): boolean {
+        return field.node == this.node;
+    }
 }
