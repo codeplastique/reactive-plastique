@@ -433,6 +433,34 @@ console.log(json);
 ```
 
 ### Vue analogues
+#### References 
+##### Vue refs
+```html
+<base-input ref="usernameInput"></base-input>
+```
+```javascript
+methods: {
+  any: function () {
+    this.$refs.usernameInput
+  }
+}
+```
+
+##### Plastique refs
+```html
+<base-input v:ref="usernameInput"></base-input>
+```
+```typescript
+import Inject from "@plastique/core/component/Inject";
+...
+@Inject
+private usernameInput: HTMLElement;
+...
+public any() {
+  this.usernameInput
+}
+```
+
 #### Slots
 ##### Vue slots
 ```html
