@@ -13,12 +13,24 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
         super(node);
     }
 
-    public getDecorators(): DecoratorNode[]{
+    getDecorators(): DecoratorNode[]{
         return (this.node.decorators || []).map(d => new DecoratorNode(d));
+    }
+
+    findDecorator(name: string): DecoratorNode | null{
+        return this.getDecorators().find(d => d.getName() == name)
     }
 
     hasDecorator(name: string): boolean{
         return this.getDecorators().some(d => d.getName() == name)
+    }
+
+    retrieveDecorator(name: string): DecoratorNode | null{
+        let d = this.findDecorator(name)
+        if(d){
+            this.removeDecorator(name)
+        }
+        return d;
     }
 
     protected hasModifier(type: TsModifier): boolean{

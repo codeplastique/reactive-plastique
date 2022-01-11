@@ -68,7 +68,7 @@ export default class ExpressionNode{
     }
 
     asString(): string{
-        return '';
+        return this.node.text;
     }
 
     asNumber(): number{

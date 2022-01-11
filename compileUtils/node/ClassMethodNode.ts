@@ -35,6 +35,18 @@ export default class ClassMethodNode extends NameableNode implements Decoratable
         return this.getDecorators().some(d => d.getName() == name)
     }
 
+    findDecorator(name: string): DecoratorNode | null{
+        return this.getDecorators().find(d => d.getName() == name)
+    }
+
+    retrieveDecorator(name: string): DecoratorNode | null{
+        let d = this.findDecorator(name)
+        if(d){
+            this.removeDecorator(name)
+        }
+        return d;
+    }
+
     protected hasModifier(type: TsModifier): boolean{
         return (this.node.modifiers || []).some(m => m.kind == type.getId())
     }
