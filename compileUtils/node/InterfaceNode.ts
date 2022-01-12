@@ -2,9 +2,9 @@ import NameableNode from "./NameableNode";
 import TsType from "./TsType";
 import ClassPropertyNode from "./ClassPropertyNode";
 import TsFile from "./TsFile";
-import TsFileRef from "./TsFileRef";
 import ClassMethodNode from "./ClassMethodNode";
-import SyntheticEnumTransformer from "../SyntheticEnumTransformer";
+import "./ArrayExtension";
+import "./MapExtension>";
 
 export default class InterfaceNode extends NameableNode{
     constructor(node){
@@ -23,18 +23,22 @@ export default class InterfaceNode extends NameableNode{
     }
 
 
-    getAllParents(): Array<InterfaceNode>{
-
+    getParents(): ReadonlyArray<InterfaceNode>{
+        if(this.node.heritageClauses && this.node.heritageClauses[0] && this.node.heritageClauses[0].types)
+            return this.node.heritageClauses[0].types.map(i => new InterfaceNode(i))
+        return []
     }
 
-    hasParent(filePath: TsFileRef): boolean{
-        let parent = this.getParent();
-        while(parent != null){
-            if(parent.getFile().getPath() == filePath.getPath())
-                return true;
-            parent = parent.getParent();
-        }
-        return false
+
+    /**
+     * deep
+     */
+    getAllParents(): ReadonlyArray<InterfaceNode>{
+        let oneLevel = this.getParents()
+        return oneLevel.concat(
+            oneLevel.flatMap(i => i.getAllParents())
+        ).toMap<string, InterfaceNode>(i => i.getFile().getPath())
+        .valuesArray()
     }
 
     getMethods(withParentMethods: boolean = false): ClassMethodNode[]{
@@ -45,11 +49,6 @@ export default class InterfaceNode extends NameableNode{
             .filter(m => m.kind == TsType.CLASS_METHOD.getId())
             .map(m => new ClassMethodNode(m));
     }
-
-    isSyntheticEnum(): boolean{
-        return SyntheticEnumTransformer.isEnum(this)
-    }
-
 
     toString(): string {
         return this.getFile().toString();

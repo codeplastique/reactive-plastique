@@ -28,7 +28,7 @@ export default class IocContainer{
 
     static initializeBeans(node: ClassNode){
         node.getMethods().forEach(m => {
-            if(!m.hasDecorator(IocContainer.ANNOTATION_BEAN))
+            if(m.retrieveDecorator(IocContainer.ANNOTATION_BEAN) == null)
                 return;
 
             if(m.getReturnType() == null)
@@ -38,12 +38,11 @@ export default class IocContainer{
 
             const returnTypePath = node.getFile().getPath()
 
-            let scope = m.getDecorator(IocContainer.ANNOTATION_SCOPE)
+            let scope = m.retrieveDecorator(IocContainer.ANNOTATION_SCOPE)
             let isPrototype = false
             if(scope){
                 check(scope.getArguments().length == 1, `Scope of method ${node}.${m} must have only 1 argument`)
                 isPrototype = scope.getArguments()[0].asString() == 'PROTOTYPE'
-                m.removeDecorator(IocContainer.ANNOTATION_SCOPE)
             }
 
             if(this.beanToId[returnTypePath] !== undefined)
@@ -54,8 +53,6 @@ export default class IocContainer{
             // let beanKey = beanId +';'+ typeName + (isPrototype? ';1': '');
             // beansDeclarations[beanKey] = member.name.escapedText;
             // cleanMemberCache(member);
-
-            m.removeDecorator(IocContainer.ANNOTATION_BEAN)
         })
     }
 

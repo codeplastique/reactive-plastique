@@ -3,6 +3,7 @@ interface Map<K, V>{
     mapKeys <K2>(keyAction: (K) => K2): Map<K2, V>
     mapValues <V2>(valueAction: (V) => V2): Map<K, V2>
     toObject(): object
+    valuesArray(): V[]
 }
 Map.prototype.map = function(keyAction: Function, valueAction: Function): Map<any, any>{
     let m = new Map();
@@ -27,4 +28,8 @@ Map.prototype.toObject = function(): object{
     //     obj[key] = map.get(key);
     // }
     // return obj;
+}
+
+Map.prototype.valuesArray = function (): any[]{
+    return Array.from(this.values())
 }

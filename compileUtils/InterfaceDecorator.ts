@@ -14,12 +14,27 @@ export default class InterfaceDecorator{
         let counter = this.interfacePathToId.get(path)
         if(counter)
             return counter
-        else{
-            counter = this.counter++
-            this.interfacePathToId.set(path, counter)
-        }
-        return counter;
+        else
+            throw new Error(`No id for interface ${i}`)
+        // else{
+        //     counter = this.counter++
+        //     this.interfacePathToId.set(path, counter)
+        // }
+        // return counter;
     }
+
+    getIdsIfExists(interfaces: ReadonlyArray<InterfaceNode>): number[]{
+        let result = []
+        for (let i of interfaces){
+            let path = i.getFile().getPath()
+            let counter = this.interfacePathToId.get(path)
+            if(counter)
+                result.push(counter)
+        }
+        return result
+    }
+
+
     // getNameById(id){
     //     return Object.keys(interfaceNameToId).find(key => interfaceNameToId[key] === id);
     // }

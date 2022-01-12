@@ -1,9 +1,12 @@
 import ExpressionNode from "./ExpressionNode";
 import StatementNode from "./statement/StatementNode";
 import IdentifierNode from "./statement/IdentifierNode";
+import NameableNode from "./NameableNode";
 
-export default class FunctionCallStatement implements StatementNode{
-    constructor(protected readonly node){}
+export default class FunctionCallStatement extends NameableNode implements StatementNode{
+    constructor(node){
+        super(node)
+    }
 
     protected static create(tsIdentifier: any, tsFunctionIdentifier: any, args?: ExpressionNode[]): FunctionCallStatement{
         let node = ts.createExpressionStatement(
@@ -34,6 +37,10 @@ export default class FunctionCallStatement implements StatementNode{
 
     getArguments(): ExpressionNode[]{
         return [];
+    }
+
+    getGenericTypes(): ReadonlyArray<>{
+
     }
 
     getRaw(): any {

@@ -8,6 +8,9 @@ import ClassMethodNode from "./ClassMethodNode";
 import TsFile from "./TsFile";
 import TsFileRef from "./TsFileRef";
 import SyntheticEnumTransformer from "../SyntheticEnumTransformer";
+import InterfaceNode from "./InterfaceNode";
+import "./ArrayExtension";
+import "./MapExtension";
 
 export default class ClassNode extends NameableNode implements Decoratable{
     constructor(node){
@@ -128,6 +131,22 @@ export default class ClassNode extends NameableNode implements Decoratable{
 
     toString(): string {
         return this.getFile().toString();
+    }
+
+    getInterfaces(): ReadonlyArray<InterfaceNode>{
+        return (ts.getClassImplementsHeritageClauseElements(this.node) || []).map(i => new InterfaceNode(i))
+    }
+
+    /**
+     * deep
+     */
+    getAllInterfaces(): ReadonlyArray<InterfaceNode> {
+        let firstLevelInterfaces = this.getInterfaces().concat(
+            this.getAllParents().map(p => p.getInterfaces()) as any
+        )
+        return firstLevelInterfaces.flatMap(i => i.getAllParents()).toMap<string, InterfaceNode>(
+            i => i.getFile().getPath()
+        ).valuesArray()
     }
 
 }
