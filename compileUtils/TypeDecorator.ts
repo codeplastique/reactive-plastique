@@ -1,31 +1,26 @@
 import FunctionCallStatement from "./node/FunctionCallStatement";
+import InterfaceDecorator from "./InterfaceDecorator";
+import {check} from "./checkFunc";
+import ExpressionNode from "./node/ExpressionNode";
+import ClassNode from "./node/ClassNode";
+import InterfaceNode from "./node/InterfaceNode";
 
 export default class TypeDecorator{
     private static readonly TYPE_FUNCTION = "Type"
-    constructor(node: FunctionCallStatement){
-        // super(node);
+    static interfaceDecorator: InterfaceDecorator;
+
+    constructor(clazz: ClassNode, node: FunctionCallStatement){
         if(node.getName() == TypeDecorator.TYPE_FUNCTION){
             if(node.getArguments().length == 0){
+                let types = node.getGenericTypes()
+                check(types.length == 1, "Function Type required generic type or argument")
 
+                let i = clazz.getFile().getImportClass(types[0].getName()) as InterfaceNode
+                let counter = TypeDecorator.interfaceDecorator.add(i)
+                node.getArguments().push(
+                    ExpressionNode.of(counter)
+                )
             }
         }
-
-
-        // else if (node.kind == ts.SyntaxKind.CallExpression
-        //     && node.expression.escapedText == TYPE_CLASS_NAME
-        //     && (node.arguments == null || node.arguments.length == 0)) {
-        //
-        //     let typeName = node.typeArguments[0].typeName.escapedText;
-        //     let nodePath = getNodePath(node, typeName);
-        //     node.arguments = [nodePath ?
-        //         ts.createNumericLiteral(String(Interfaces.getId(nodePath)))
-        //         :
-        //         ts.createIdentifier(typeName)
-        //     ];
-        //     // }
-        //     // else if(node.kind == ts.SyntaxKind.SourceFile){
-        //     //     var result = ts.visitEachChild(node, visitor, context);
-        //     //     injectAutowiredEverywhere(node, context);
-        // }
     }
 }

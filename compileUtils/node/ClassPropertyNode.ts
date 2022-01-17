@@ -5,7 +5,7 @@ import Decoratable from "./Decoratable";
 import ExpressionNode from "./ExpressionNode";
 import TsModifier from "./TsModifier";
 import StatementNode from "./statement/StatementNode";
-import Type from "./Type";
+import TypeNode from "./TypeNode";
 import FunctionCallStatement from "./FunctionCallStatement";
 
 export default class ClassPropertyNode extends NameableNode implements Decoratable{
@@ -71,7 +71,7 @@ export default class ClassPropertyNode extends NameableNode implements Decoratab
         return this.hasModifier(TsModifier.PROTECTED)
     }
 
-    getType(): Type | null{
+    getType(): TypeNode | null{
 
     }
 

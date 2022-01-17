@@ -2,6 +2,8 @@ import ExpressionNode from "./ExpressionNode";
 import StatementNode from "./statement/StatementNode";
 import IdentifierNode from "./statement/IdentifierNode";
 import NameableNode from "./NameableNode";
+import Types from "../../base/Types";
+import TypeNode from "./TypeNode";
 
 export default class FunctionCallStatement extends NameableNode implements StatementNode{
     constructor(node){
@@ -39,8 +41,8 @@ export default class FunctionCallStatement extends NameableNode implements State
         return [];
     }
 
-    getGenericTypes(): ReadonlyArray<>{
-
+    getGenericTypes(): ReadonlyArray<TypeNode>{
+        return this.node.typeArguments.map(t => new TypeNode(t))
     }
 
     getRaw(): any {

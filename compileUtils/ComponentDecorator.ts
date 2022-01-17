@@ -13,7 +13,7 @@ interface ClassLifecycleHookSet{
 }
 
 export default class ComponentDecorator extends ClassDecorator{
-    private static readonly ANNOTATION_INIT_VIRTUAL_COMPONENT = 'InitMarker';
+    private static readonly ANNOTATION_INIT_MARKER = 'InitMarker';
     private static readonly ANNOTATION_ELEMENT = 'Inject';
     private static readonly ANNOTATION_IGNORE_FIELD_INIT = 'IgnoreInit';
     private static readonly ANNOTATION_AFTERATTACH = 'AfterAttach';
@@ -32,7 +32,7 @@ export default class ComponentDecorator extends ClassDecorator{
         let onchangeFieldToMethod = new Map<ClassPropertyNode, string>()
 
         node.getFields().forEach(f => {
-            if(f.retrieveDecorator(ComponentDecorator.ANNOTATION_INIT_VIRTUAL_COMPONENT)){
+            if(f.retrieveDecorator(ComponentDecorator.ANNOTATION_INIT_MARKER)){
                 f.setValue(MemberInitializator.getInitializer(member))
 
             }else if(f.retrieveDecorator(ComponentDecorator.ANNOTATION_ELEMENT)){

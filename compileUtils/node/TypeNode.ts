@@ -1,6 +1,6 @@
 import NameableNode from "./NameableNode";
 
-export default class Type extends NameableNode{
+export default class TypeNode extends NameableNode{
     constructor(node){
         super(node)
     }

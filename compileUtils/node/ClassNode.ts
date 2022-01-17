@@ -79,6 +79,14 @@ export default class ClassNode extends NameableNode implements Decoratable{
         }
     }
 
+    retrieveDecorator(name: string): DecoratorNode | null{
+        let d = this.findDecorator(name)
+        if(d){
+            this.removeDecorator(name)
+        }
+        return d;
+    }
+
     getFile(): TsFile{
         return new TsFile(this.node.getSourceFile());
     }
@@ -88,7 +96,7 @@ export default class ClassNode extends NameableNode implements Decoratable{
         if(parentNode == null)
             return null;
         let parentClassName = parentNode.name.escapedText;
-        return this.getFile().getImportClass(parentClassName);
+        return this.getFile().getImportClass(parentClassName) as ClassNode;
     }
 
     getAllParents(): ClassNode[]{
@@ -147,6 +155,10 @@ export default class ClassNode extends NameableNode implements Decoratable{
         return firstLevelInterfaces.flatMap(i => i.getAllParents()).toMap<string, InterfaceNode>(
             i => i.getFile().getPath()
         ).valuesArray()
+    }
+
+    equals(obj: any): boolean{
+        return obj instanceof ClassNode && obj.toString() == this.toString()
     }
 
 }

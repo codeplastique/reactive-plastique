@@ -4,16 +4,28 @@ import TsModifier from "./node/TsModifier";
 import ExpressionNode from "./node/ExpressionNode";
 import IdentifierNode from "./node/statement/IdentifierNode";
 import RoutingDecorator from "./RoutingDecorator";
-import ClassDecorator from "./ClassDecorator";
 import ComponentDecorator from "./ComponentDecorator";
+import "./node/ArrayExtension";
 
 export default class EntryPointDecorator extends ComponentDecorator{
     private static readonly ANNOTATION_BEANS = 'Beans';
     private static readonly ANNOTATION_ENTRY_POINT_CLASS = 'EntryPoint';
+    static readonly ENTRYPOINT_ANNOTATION_PATH = '/@plastique/core/base/EntryPoint.ts';
+    static entryPointsNodes: ClassNode[] = []
+
+    static isEntryPointNode(classNode: ClassNode): boolean{
+        if(this.entryPointsNodes.has(classNode))
+            return true
+        if(classNode.hasDecorator(EntryPointDecorator.ANNOTATION_ENTRY_POINT_CLASS)){
+            this.entryPointsNodes.push(classNode)
+            return true
+        }
+        return false
+    }
 
     constructor(node: ClassNode) {
         super(node)
-        if(!node.hasDecorator(EntryPointDecorator.ANNOTATION_ENTRY_POINT_CLASS))
+        if(node.retrieveDecorator(EntryPointDecorator.ANNOTATION_ENTRY_POINT_CLASS) == null)
             throw new Error(`Node ${node} is not entry point!`)
 
         const constructor = node.getConstructor()
@@ -81,7 +93,5 @@ export default class EntryPointDecorator extends ComponentDecorator{
                 )
             )
         }
-
-        node.removeDecorator(EntryPointDecorator.ANNOTATION_ENTRY_POINT_CLASS)
     }
 }

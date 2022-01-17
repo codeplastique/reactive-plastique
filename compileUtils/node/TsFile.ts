@@ -2,15 +2,22 @@ import TsType from "./TsType";
 import ClassNode from "./ClassNode";
 import Context from "./Context";
 import TsFileRef from "./TsFileRef";
+import InterfaceNode from "./InterfaceNode";
+import ModuleNode from "./ModuleNode";
 
 export default class TsFile extends TsFileRef{
-    constructor(protected readonly node) {
-        super(node.fileName)
+    constructor(node: any) {
+        super(node)
     }
 
-    getImportClass(className: string): ClassNode{
+    getImportClass(className: string): ClassNode | InterfaceNode{
         let path = this.getPathOfImportName(className);
         return Context.getClass(path);
+    }
+
+    getImportsModules(): ReadonlyArray<ModuleNode>{
+        let arr = this.node.resolvedModules? []: this.node.resolvedModules.values()
+        return Array.from(arr).filter(m => m != void 0).map(n => new ModuleNode(n))
     }
 
     getPathOfImportName(importName: string): string{
@@ -57,5 +64,9 @@ export default class TsFile extends TsFileRef{
             }
         }
         throw new Error('Import declaration is not found for path: '+ path)
+    }
+
+    getClassesNodes(): ReadonlyArray<ClassNode>{
+        return this.node.statements.find(s => s.kind == ts.SyntaxKind.ClassDeclaration).map(c => new ClassNode(c));
     }
 }

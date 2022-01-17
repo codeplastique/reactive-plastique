@@ -4,10 +4,14 @@ export default class InterfaceDecorator{
     private counter = 1;
     private interfacePathToId = new Map<string, number>();
 
-    add(i: InterfaceNode){
+    add(i: InterfaceNode): number{
         let path = i.getFile().getPath()
-        if(this.interfacePathToId.get(path) == null)
-            return this.interfacePathToId.set(path, this.counter++);
+        let counter = this.interfacePathToId.get(path)
+        if(counter == null) {
+            counter = this.counter++
+            this.interfacePathToId.set(path, counter);
+        }
+        return counter
     }
     getId(i: InterfaceNode): number{
         let path = i.getFile().getPath()

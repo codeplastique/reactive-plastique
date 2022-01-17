@@ -1,4 +1,4 @@
-import Type from "./Type";
+import TypeNode from "./TypeNode";
 import TsType from "./TsType";
 
 export default class ExpressionNode{
@@ -87,7 +87,7 @@ export default class ExpressionNode{
         return this.node.kind == TsType.REGEXP.getId()
     }
 
-    getType(): Type | null{
+    getType(): TypeNode | null{
 
     }
 }
