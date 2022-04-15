@@ -7,8 +7,11 @@ import ReactiveReadonlyMap from "../collection/map/ReactiveReadonlyMap";
 
 declare let axios;
 
-class RestService{
-    protected call<T>(req: HttpRequest): Promise<HttpResponse<T>>{
+export default class RestService{
+    /**
+     * Executes the request
+     */
+    call<T>(req: HttpRequest): Promise<HttpResponse<T>>{
         let props: any = {
             headers: {},
             url: req.url,
@@ -30,7 +33,14 @@ class RestService{
         return axios(props);
     }
 
-    private encodeMap(attrToVal: ReactiveReadonlyMap<string, any>): string{
+    /**
+     * Builds a query params string
+     * @param attrToVal where key is a param name and value is its value. Also, the value can be an array
+     * @example {'a'=>1, 'b'=>2, 'c'=>[3, 4, 5]}
+     *          transforms to
+     *          "a=1&b=2&c=3&c=4&c=5"
+     */
+    encodeMap(attrToVal: ReactiveReadonlyMap<string, any>): string{
         let params = [];
         attrToVal.forEach((val, key) => {
             if(val != null) {
@@ -43,13 +53,13 @@ class RestService{
         return params.join('&');
     }
 
-    protected buildQuery(
+    /**
+     * Builds a work query with query params
+     */
+    buildQuery(
         url: string,
         attrToVal: ReactiveReadonlyMap<string, number | string | boolean | number[] | string[] | boolean[]>
     ): string{
         return url +'?'+ this.encodeMap(attrToVal);
     }
 }
-
-
-export default RestService;
