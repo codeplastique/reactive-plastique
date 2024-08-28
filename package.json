@@ -15,7 +15,7 @@
     "typescript": "3.2",
     "uglify-js": "3.7.0",
     "vue-template-compiler": "2.6.10",
-    "webpack": "4.39.3"
+    "webpack": "5.94.0"
   },
   "repository": {
     "type": "git",
